@@ -78,6 +78,15 @@ def run_benchmark(game: Game | None = None, export_dir: str | Path | None = None
         for dataset in ("items", "spells", "passives", "statuses"):
             export_json(getattr(game, dataset), target / f"{dataset}.json")
 
+    def parse_compiled_stories() -> None:
+        stories = [game.story.load(path) for path in game.story.paths]
+        report.counts["compiled stories"] = len(stories)
+        report.counts["story goals"] = sum(len(story.goals) for story in stories)
+        report.counts["story databases"] = sum(
+            len(story.databases) for story in stories
+        )
+        report.counts["story rules"] = sum(story.rule_count for story in stories)
+
     timed("Read pak indexes", read_pak_indexes)
     timed("Parse stats", lambda: report.counts.__setitem__("stats entries", len(game.stats)))
     timed("Parse localization", lambda: report.counts.__setitem__("loca handles", len(game.localization)))
@@ -94,6 +103,7 @@ def run_benchmark(game: Game | None = None, export_dir: str | Path | None = None
 
     timed("Parse quests", parse_journal)
     timed("Index goals", lambda: report.counts.__setitem__("goals indexed", len(game.goals)))
+    timed("Parse compiled stories", parse_compiled_stories)
     timed("Build models", _build_models(game, report))
     timed("Resolve relationships", resolve_relationships)
     timed("Export JSON", export)

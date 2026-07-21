@@ -39,6 +39,17 @@ from .goals import Goal, parse_goal
 from .equipment import EquipmentSet, parse_equipment_sets
 from .progressions import Progression, parse_progressions
 from .treasure import TreasureTable, parse_treasure_tables
+from .osiris import (
+    CompiledStory,
+    FunctionType,
+    OsirisDatabase,
+    OsirisError,
+    OsirisFunction,
+    OsirisGoal,
+    OsirisType,
+    StoryHeader,
+    parse_osiris,
+)
 
 __all__ = [
     "StatsCollection",
@@ -97,4 +108,13 @@ __all__ = [
     "parse_progressions",
     "TreasureTable",
     "parse_treasure_tables",
+    "CompiledStory",
+    "FunctionType",
+    "OsirisDatabase",
+    "OsirisError",
+    "OsirisFunction",
+    "OsirisGoal",
+    "OsirisType",
+    "StoryHeader",
+    "parse_osiris",
 ]

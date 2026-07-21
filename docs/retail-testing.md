@@ -21,7 +21,7 @@ pip install psutil                    # Windows only: enables Peak RSS in benchm
 pytest
 ```
 
-Expected: **98 passed** in under a couple of seconds. This proves the
+Expected: **171 passed** in under a couple of seconds. This proves the
 environment before any game data is involved — if this fails, stop and
 report it; nothing else will be meaningful.
 

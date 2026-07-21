@@ -36,6 +36,13 @@ def test_validate_clean_fixture(data_dir):
     assert report.counts["quest_categories"] == 1
     assert report.counts["goals"] == 1
     assert report.counts["goal_quest_refs"] == 2
+    assert report.counts["compiled_stories"] == 1
+    assert report.counts["story_functions"] == 2
+    assert report.counts["story_databases"] == 1
+    assert report.counts["story_goals"] == 1
+    assert report.counts["story_rules"] == 1
+    assert report.counts["source_goals_compiled"] == 1
+    assert report.counts["source_goals_missing"] == 0
     assert report.counts["equipment_files"] == 1
     assert report.counts["equipment_sets"] == 1
     assert report.counts["root_templates"] == 3
@@ -76,6 +83,33 @@ def test_validate_reports_corrupt_files(tmp_path, data_dir):
     text = format_validation(report)
     assert "2 file(s) failed to parse" in text
     assert "broken.loca" in text
+
+
+def test_validate_reports_corrupt_compiled_story(data_dir):
+    writer = PakWriter()
+    writer.add("Mods/Bad/Story/story.div.osi", b"not an Osiris story")
+    writer.write(data_dir / "BrokenStory.pak")
+
+    report = validate_data(data_dir)
+    assert not report.ok
+    issue = next(issue for issue in report.issues if issue.stage == "story")
+    assert issue.file == "Mods/Bad/Story/story.div.osi"
+    assert "invalid header marker" in issue.error
+
+
+def test_validate_cross_checks_source_goals(tmp_path):
+    from conftest import GOAL_TXT, make_story_osi
+
+    writer = PakWriter()
+    writer.add("Mods/Test/Story/RawFiles/Goals/MissingGoal.txt", GOAL_TXT.encode())
+    writer.add("Mods/Test/Story/story.div.osi", make_story_osi())
+    writer.write(tmp_path / "Story.pak")
+
+    report = validate_data(tmp_path)
+    assert not report.ok
+    assert report.counts["source_goals_missing"] == 1
+    issue = next(issue for issue in report.issues if issue.stage == "story-crosscheck")
+    assert "MissingGoal" in issue.error
 
 
 def test_validate_progress_callback(data_dir):
@@ -167,6 +201,7 @@ def test_run_benchmark(data_dir, tmp_path):
         "Index timelines",
         "Parse quests",
         "Index goals",
+        "Parse compiled stories",
         "Build models",
         "Resolve relationships",
         "Export JSON",
@@ -174,7 +209,7 @@ def test_run_benchmark(data_dir, tmp_path):
     assert all(seconds >= 0 for _, seconds in report.stages)
     assert report.counts["items"] == 3
     assert report.counts["spells"] == 1
-    assert report.counts["pak entries"] == 22
+    assert report.counts["pak entries"] == 23
     assert report.counts["tags"] == 2
     assert report.counts["dialogs indexed"] == 1
     assert report.counts["timelines indexed"] == 1
@@ -182,6 +217,10 @@ def test_run_benchmark(data_dir, tmp_path):
     assert report.counts["objectives"] == 2
     assert report.counts["quest categories"] == 1
     assert report.counts["goals indexed"] == 1
+    assert report.counts["compiled stories"] == 1
+    assert report.counts["story goals"] == 1
+    assert report.counts["story databases"] == 1
+    assert report.counts["story rules"] == 1
     assert report.counts["characters"] == 2
     assert report.counts["equipment sets"] == 1
     assert (tmp_path / "export" / "items.json").exists()

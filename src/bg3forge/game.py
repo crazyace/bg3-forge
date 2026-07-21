@@ -37,6 +37,7 @@ from .models import (
 from .parsers.equipment import EquipmentSet, parse_equipment_sets
 from .pak.reader import PakReader
 from .parsers.localization import Localization
+from .parsers.osiris import CompiledStory, parse_osiris
 from .parsers.resource import parse_resource
 from .parsers.roottemplates import RootTemplateIndex
 from .parsers.dialogs import Dialog, parse_dialog
@@ -160,6 +161,23 @@ class GoalIndex(ResourceIndex):
         )
 
 
+class StoryIndex(ResourceIndex):
+    """Lazy access to compiled Osiris ``story.div.osi`` databases."""
+
+    def __init__(self, game: "Game"):
+        super().__init__(game, _is_story_file, parse_osiris)
+
+    @cached_property
+    def goal_names(self) -> set[str]:
+        """Goal names present across every compiled story variant."""
+        names: set[str] = set()
+        for path in self.paths:
+            story: CompiledStory | None = self.get(path)
+            if story is not None:
+                names.update(story.goal_names)
+        return names
+
+
 class TimelineIndex(ResourceIndex):
     """Lazy access to timeline (cinematic scene) resources.
 
@@ -245,6 +263,11 @@ def _is_marker_file(name: str) -> bool:
 def _is_goal_file(name: str) -> bool:
     lowered = name.lower()
     return "/story/rawfiles/goals/" in lowered and lowered.endswith(".txt")
+
+
+def _is_story_file(name: str) -> bool:
+    lowered = name.lower()
+    return lowered == "story.div.osi" or lowered.endswith("/story/story.div.osi")
 
 
 def _is_timeline_file(name: str) -> bool:
@@ -518,6 +541,20 @@ class Game:
     def goals(self) -> GoalIndex:
         """Lazy index of Osiris goal scripts (quest logic source)."""
         return GoalIndex(self)
+
+    @cached_property
+    def story(self) -> StoryIndex:
+        """Lazy index of compiled Osiris story databases."""
+        return StoryIndex(self)
+
+    def uncompiled_goals(self) -> list[str]:
+        """Source goal names absent from every compiled story variant."""
+        source_names = set()
+        for path in self.goals.paths:
+            goal: Goal | None = self.goals.get(path)
+            if goal is not None:
+                source_names.add(goal.name)
+        return sorted(source_names - self.story.goal_names)
 
     def goals_for_quest(self, quest_id: str) -> list[str]:
         """Goal script paths whose logic references the quest (reverse edge)."""

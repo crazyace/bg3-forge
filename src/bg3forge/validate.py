@@ -32,6 +32,7 @@ from .game import (
     _is_quest_file,
     _is_roottemplate_file,
     _is_stats_file,
+    _is_story_file,
     _is_timeline_file,
     _is_treasure_file,
 )
@@ -48,6 +49,7 @@ from .pak.reader import PakReader
 from .parsers.lsf import is_lsf
 from .parsers.lsj import is_lsj
 from .parsers.localization import parse_loca
+from .parsers.osiris import parse_osiris
 from .parsers.resource import parse_resource
 from .parsers.roottemplates import parse_root_templates
 from .parsers.stats import StatsCollection, parse_stats_document
@@ -91,12 +93,17 @@ def validate_data(
         "atlases", "dialogs", "dialog_nodes", "timelines", "quests",
         "quest_steps", "quest_markers", "objectives", "quest_categories",
         "goals", "goal_quest_refs",
+        "compiled_stories", "story_functions", "story_databases",
+        "story_goals", "story_rules", "source_goals_compiled",
+        "source_goals_missing",
         "equipment_files", "equipment_sets", "files_skipped",
         "stats_resolved",
     ):
         counts[key] = 0
 
     stats = StatsCollection()
+    source_goal_names: set[str] = set()
+    compiled_goal_names: set[str] = set()
     pak_paths = sorted(Path(data_dir).rglob("*.pak"))
     for index, pak_path in enumerate(pak_paths, start=1):
         try:
@@ -110,7 +117,14 @@ def validate_data(
             progress(prefix)
         with reader:
             for position, entry in enumerate(reader, start=1):
-                _validate_entry(reader, entry, report, stats)
+                _validate_entry(
+                    reader,
+                    entry,
+                    report,
+                    stats,
+                    source_goal_names,
+                    compiled_goal_names,
+                )
                 if progress and position % 5000 == 0:
                     progress(
                         f"{prefix} — {position:,} files, {len(report.issues)} issues"
@@ -132,11 +146,32 @@ def validate_data(
                     error=f"{entry.name}: {type(exc).__name__}: {exc}",
                 )
             )
+
+    if counts["compiled_stories"]:
+        missing = sorted(source_goal_names - compiled_goal_names)
+        counts["source_goals_compiled"] = len(source_goal_names) - len(missing)
+        counts["source_goals_missing"] = len(missing)
+        if missing:
+            preview = ", ".join(missing[:20])
+            if len(missing) > 20:
+                preview += f", ... ({len(missing) - 20} more)"
+            report.issues.append(
+                ValidationIssue(
+                    file="<compiled stories>",
+                    stage="story-crosscheck",
+                    error=f"{len(missing)} source goal(s) absent: {preview}",
+                )
+            )
     return report
 
 
 def _validate_entry(
-    reader: PakReader, entry, report: ValidationReport, stats: StatsCollection
+    reader: PakReader,
+    entry,
+    report: ValidationReport,
+    stats: StatsCollection,
+    source_goal_names: set[str],
+    compiled_goal_names: set[str],
 ) -> None:
     name = entry.name
     lowered = name.lower()
@@ -181,8 +216,19 @@ def _validate_entry(
         def parse(data):
             goal = parse_goal(data.decode("utf-8-sig", errors="replace"), source=name)
             counts["goal_quest_refs"] += len(goal.quest_ids)
+            source_goal_names.add(goal.name)
         if check("goal", parse):
             counts["goals"] += 1
+    elif _is_story_file(name):
+        def parse(data):
+            story = parse_osiris(data, source=name)
+            counts["story_functions"] += len(story.functions)
+            counts["story_databases"] += len(story.databases)
+            counts["story_goals"] += len(story.goals)
+            counts["story_rules"] += story.rule_count
+            compiled_goal_names.update(story.goal_names)
+        if check("story", parse):
+            counts["compiled_stories"] += 1
     elif lowered.endswith(".loca"):
         def parse(data):
             counts["loca_handles"] += len(parse_loca(data))

@@ -64,6 +64,14 @@ quest.category.display_name             # journal section, localized
 quest.objectives[0].markers             # objective -> map marker join
 game.quest_markers                      # localized map markers
 
+# Compiled Osiris stories are large, so they parse one file at a time:
+story_path = game.story.paths[0]
+story = game.story.load(story_path)
+story.header.version                    # "1.15"
+story.goals[0].name                     # compiled goal metadata
+story.databases[0].name                 # database name/signature metadata
+game.uncompiled_goals()                 # source goals absent from all compiled stories
+
 # ...and so do characters:
 goblin = game.characters["GOB_Warrior_Melee"]
 goblin.display_name                     # localized, via its template
@@ -185,6 +193,9 @@ for native-speed decompression.
 * **Osiris goal scripts** (`Story/RawFiles/Goals/*.txt`) — metadata
   level: sections, rule counts, and which quests/steps each goal's
   logic touches — `parse_goal`
+* **Compiled Osiris stories** (`Story/story.div.osi`, versions 1.14–1.15)
+  — metadata-level traversal of headers, types, functions, databases,
+  goals, and rules — `parse_osiris`
 * **Equipment sets** (`Stats/Generated/Equipment.txt`) — character
   loadouts with weapon sets and slot groups — `parse_equipment_sets`
 * `bg3forge convert` converts `.lsf` ↔ `.lsx` from the command line — no
@@ -256,8 +267,8 @@ on Windows, macOS, and Linux.
 ```
 src/bg3forge/
 ├── pak/            # LSPK reader/writer, incremental extractor, patch detection
-├── parsers/        # stats, loca, lsx, lsf, lsj, roottemplates, tags,
-│                   # dialogs, progressions, treasure (+ resource.py sniffing)
+├── parsers/        # stats, loca, lsx, lsf, lsj, osiris, roottemplates,
+│                   # tags, dialogs, progressions, treasure
 ├── assets/         # texture atlases, icon extraction
 ├── exporters/      # json, sqlite, csv, markdown, yaml
 ├── cli/            # thin argparse front-end
@@ -304,11 +315,14 @@ src/bg3forge/
   categories, and quest↔goal cross-links
 * ✅ Osiris goal metadata (`game.goals`) — lazy index over the shipped
   quest-logic source, with quest references extracted
+* ✅ Compiled Osiris metadata (`game.story`) — lazy `story.div.osi`
+  index with goal/database/function signatures, rule counts, validation,
+  and source↔compiled goal cross-checking
 * ✅ Characters (`game.characters`) — NPC stat blocks joined to
   templates: abilities, passives, tags, and equipment resolved to items
 * ✅ Equipment sets (`game.equipment`)
-* ⏳ Full Osiris parsing (compiled `story.div.osi`) — a format milestone
-  of its own
+* ⏳ Full Osiris rule decompilation — metadata traversal is complete;
+  reconstructing executable rule semantics remains intentionally separate
 * ⏳ GR2 model metadata
 * ⏳ Virtual texture (GTS/GTP) atlas support
 * ⏳ PyPI release

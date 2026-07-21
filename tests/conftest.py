@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import struct
+
 import pytest
 
 from bg3forge.pak.writer import PakWriter
@@ -603,6 +605,119 @@ LOCA_ENTRIES = [
 ]
 
 
+def make_story_osi() -> bytes:
+    """Hand-crafted Osiris 1.15 story, pinned to LSLib's serializers.
+
+    It contains one named database, one rule owned by one goal, one fact,
+    compact string values, function signatures, and goal/global calls.
+    """
+    data = bytearray()
+    scramble = 0
+
+    def raw(fmt, *values):
+        data.extend(struct.pack("<" + fmt, *values))
+
+    def string(value):
+        encoded = value.encode("utf-8")
+        data.extend(byte ^ scramble for byte in encoded)
+        data.append(scramble)
+
+    def value(index, type_id, text):
+        raw("bB", index, 0x0B)  # Variable | IsValid
+        raw("B", ord("0"))
+        raw("H", type_id)
+        raw("B", 1)
+        string(text)
+
+    def entry(node=0, goal=0):
+        raw("III", node, 0, goal)
+
+    def call(name, parameters=(), goal=0):
+        string(name)
+        if name:
+            raw("B", bool(parameters))
+            if parameters:
+                raw("B", len(parameters))
+                for parameter in parameters:
+                    value(*parameter)
+            raw("B", 0)  # negate
+        raw("i", goal)
+
+    # SaveFileHeader is plain; strings after it are XOR-scrambled.
+    raw("B", 0)
+    string("Osiris save file")
+    raw("BBBB", 1, 15, 0, 0)
+    version = b"1.15"
+    data.extend(version + bytes(0x80 - len(version)))
+    raw("I", 0x1234)
+    scramble = 0xAD
+
+    # Types: CHARACTER aliases GUIDSTRING.
+    raw("I", 1)
+    string("CHARACTER")
+    raw("BB", 6, 5)
+    raw("I", 0)  # enums
+    raw("I", 0)  # DIV objects
+
+    # Two Function records: database and event.
+    raw("I", 2)
+    for name, kind, node in (("DB_Players", 4, 1), ("PlayerJoined", 1, 0)):
+        raw("IIII", 12, 0, 0, node)
+        raw("BIIII", kind, 0, 0, 0, 0)
+        string(name)
+        raw("I", 1)
+        raw("B", 0)  # one-byte out mask
+        raw("BH", 1, 6)  # one CHARACTER parameter
+
+    # DatabaseNode #1 references RuleNode #2 in Goal #1.
+    raw("I", 2)
+    raw("BI", 1, 1)
+    raw("I", 1)
+    string("DB_Players")
+    raw("B", 1)
+    raw("I", 1)
+    entry(2, 1)
+
+    # RuleNode #2. Base -> Tree -> Rel -> rule payload.
+    raw("BI", 7, 2)
+    raw("I", 0)
+    string("")
+    entry()
+    raw("III", 1, 0, 1)
+    entry()
+    raw("B", 0)
+    raw("I", 0)  # calls
+    raw("B", 0)  # variables
+    raw("IB", 42, 0)
+
+    raw("I", 0)  # adapters
+
+    # Database #1 with one CHARACTER fact.
+    raw("I", 1)
+    raw("I", 1)
+    raw("BH", 1, 6)
+    raw("I", 1)
+    raw("B", 1)
+    value(0, 6, "S_Player")
+
+    # Goal #1 with one init call.
+    raw("I", 1)
+    raw("I", 1)
+    string("Act1_DEN_AdventurersQuest")
+    raw("B", 0)
+    raw("I", 0)
+    raw("I", 0)
+    raw("B", 0)
+    raw("I", 1)
+    call("DB_Players", ((0, 6, "S_Player"),))
+    raw("I", 0)
+
+    # A name-less global action that completes goal #1.
+    raw("I", 1)
+    call("", goal=1)
+    return bytes(data)
+
+
 def fixture_files() -> dict[str, bytes]:
     from bg3forge.parsers.lsf import write_lsf
     from bg3forge.parsers.lsx import parse_lsx
@@ -632,6 +747,7 @@ def fixture_files() -> dict[str, bytes]:
         "Mods/Shared/Story/Journal/questcategory_prototypes.lsx": CATEGORY_LSX.encode(),
         "Mods/Shared/Story/Journal/Markers/9d61b258-a858-7e39-39e6-a13a26c8cd8a.lsx": MARKER_LSX.encode(),
         "Mods/Shared/Story/RawFiles/Goals/Act1_DEN_AdventurersQuest.txt": GOAL_TXT.encode(),
+        "Mods/Shared/Story/story.div.osi": make_story_osi(),
         "Localization/English/english.loca": write_loca(LOCA_ENTRIES),
     }
 

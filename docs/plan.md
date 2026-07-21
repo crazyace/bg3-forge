@@ -30,23 +30,26 @@ The shipped goal *source* already gives quest↔logic edges, but the
 compiled story database is the authoritative, complete form (and the
 Honour/HonourX variants ship only compiled). Same discipline as LSF:
 
-- [ ] Study the reference implementation (LSLib `Story/StoryReader`)
+- [x] Study the reference implementation (LSLib `Story/StoryReader`)
       before writing any struct — fetch the actual source, no
       from-memory format guessing (the LSF v6 lesson)
-- [ ] Scope v1 to *metadata*: header/version, goal list, database
+- [x] Scope v1 to *metadata*: header/version, goal list, database
       names/signatures, rule counts — enough to cross-check the goal
       scripts and diff Gustav vs Honour. Full rule decompilation is
       explicitly out of scope for v1
-- [ ] Parser in `parsers/osiris.py`, read-only; `game.story`
+- [x] Parser in `parsers/osiris.py`, read-only; `game.story`
       lazy (six files, but large)
-- [ ] Wire into `validate` (counts + per-file failures) so the retail
+- [x] Wire into `validate` (counts + per-file failures) so the retail
       run judges it; add a benchmark stage
-- [ ] Fixtures: hand-crafted minimal .osi per the reference structs
+- [x] Fixtures: hand-crafted minimal .osi per the reference structs
       (like the LSF byte-layout pinning tests)
 
 Exit criterion: all six retail `story.div.osi` files parse; goal list
 cross-checks against `game.goals` (every source goal appears in the
 compiled story).
+
+Implementation and synthetic layout tests completed 2026-07-21. The
+exit criterion remains open until the six retail files judge the reader.
 
 ## 3. BG3 Pathway integration — first real consumer
 
