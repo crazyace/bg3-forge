@@ -72,13 +72,54 @@ def test_validate_progress_callback(data_dir):
     assert any("resolving inheritance" in m for m in messages)
 
 
-def test_validate_no_progress_when_stderr_redirected(data_dir, capsys):
-    """capsys stderr is not a TTY, so no \\r progress noise leaks into
-    redirected output (the `*> validate.txt` case)."""
+def test_validate_no_progress_when_stderr_redirected(data_dir, capsys, monkeypatch):
+    """With streams redirected (the `*> validate.txt` case) progress must
+    never leak into the captured output — it goes to the console device
+    or nowhere."""
+    import sys as _sys
+    cli_main = _sys.modules["bg3forge.cli.main"]
+
+    console_writes = []
+
+    class FakeConsole:
+        def write(self, text):
+            console_writes.append(text)
+        def flush(self):
+            pass
+        def close(self):
+            pass
+
+    monkeypatch.setattr(cli_main, "_open_console", lambda: FakeConsole())
     assert main(["--data-dir", str(data_dir), "validate"]) == 0
     captured = capsys.readouterr()
     assert "\r" not in captured.err
     assert captured.err == ""
+    # the live line went to the console device instead
+    assert any("Shared.pak" in text for text in console_writes)
+
+
+def test_validate_no_progress_headless(data_dir, capsys, monkeypatch):
+    """No terminal at all (CI/cron): progress silently disables."""
+    import sys as _sys
+    cli_main = _sys.modules["bg3forge.cli.main"]
+
+    def no_console():
+        raise OSError("no controlling terminal")
+
+    monkeypatch.setattr(cli_main, "_open_console", no_console)
+    assert main(["--data-dir", str(data_dir), "validate"]) == 0
+    assert capsys.readouterr().err == ""
+
+
+def test_validate_no_progress_flag(data_dir, capsys, monkeypatch):
+    import sys as _sys
+    cli_main = _sys.modules["bg3forge.cli.main"]
+
+    def fail_if_called():
+        raise AssertionError("console should not be opened with --no-progress")
+
+    monkeypatch.setattr(cli_main, "_open_console", fail_if_called)
+    assert main(["--data-dir", str(data_dir), "validate", "--no-progress"]) == 0
 
 
 def test_validate_cli(data_dir, capsys):

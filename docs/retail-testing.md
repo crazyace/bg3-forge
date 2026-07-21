@@ -51,6 +51,11 @@ $LASTEXITCODE                         # 0 = every recognized file parsed
 Get-Content validate.txt
 ```
 
+A live progress line (`[3/30] Gustav.pak — 15,000 files, 0 issues`)
+shows on the console even while the output is redirected — it's written
+to the console device, so it never contaminates the captured file. Use
+`--no-progress` to disable it.
+
 This parses **every** stats/loca/LSX/LSF/atlas file in every pak, so
 expect it to run for a few minutes on a full install. Two outcomes:
 

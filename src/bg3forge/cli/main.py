@@ -8,6 +8,7 @@ importing :mod:`bg3forge` directly.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -110,28 +111,54 @@ def _add_export_args(cmd: argparse.ArgumentParser, default_output: Path) -> None
     cmd.add_argument("-f", "--format", choices=sorted(FORMATS), default="json")
 
 
-class _StderrProgress:
-    """Single self-overwriting status line on stderr; call clear() when done."""
+class _LiveProgress:
+    """Single self-overwriting status line; call clear() when done."""
 
-    def __init__(self):
+    def __init__(self, stream, owns_stream: bool = False):
+        self._stream = stream
+        self._owns_stream = owns_stream
         self._width = 0
 
     def __call__(self, message: str) -> None:
         padded = message.ljust(self._width)
         self._width = max(self._width, len(message))
-        print(f"\r{padded}", end="", file=sys.stderr, flush=True)
+        try:
+            print(f"\r{padded}", end="", file=self._stream, flush=True)
+        except OSError:
+            pass  # console went away; progress is best-effort
 
     def clear(self) -> None:
-        if self._width:
-            print("\r" + " " * self._width + "\r", end="", file=sys.stderr, flush=True)
+        try:
+            if self._width:
+                print("\r" + " " * self._width + "\r", end="", file=self._stream, flush=True)
+        except OSError:
+            pass
+        finally:
+            if self._owns_stream:
+                self._stream.close()
 
 
-def _stderr_progress() -> _StderrProgress | None:
-    """A progress renderer, or None when stderr isn't an interactive terminal
-    (keeps `bg3forge validate *> report.txt` captures clean)."""
-    if not getattr(sys.stderr, "isatty", lambda: False)():
+def _open_console():
+    """The controlling console device, bypassing any stream redirection."""
+    path = "CONOUT$" if os.name == "nt" else "/dev/tty"
+    return open(path, "w")
+
+
+def _console_progress() -> _LiveProgress | None:
+    """A progress renderer that stays visible even under redirection.
+
+    Prefers stderr when it's an interactive terminal; when the streams
+    are redirected (`bg3forge validate *> report.txt`), falls back to
+    writing straight to the console device so the live line still shows
+    without ever contaminating the captured file.  Returns None in truly
+    headless environments (no console at all).
+    """
+    if getattr(sys.stderr, "isatty", lambda: False)():
+        return _LiveProgress(sys.stderr)
+    try:
+        return _LiveProgress(_open_console(), owns_stream=True)
+    except OSError:
         return None
-    return _StderrProgress()
 
 
 def _open_game(args) -> Game:
@@ -237,7 +264,7 @@ def _dispatch(args) -> int:
         if game.data_dir is None:
             print("error: validate needs a game install or --data-dir", file=sys.stderr)
             return 1
-        progress = None if args.no_progress else _stderr_progress()
+        progress = None if args.no_progress else _console_progress()
         try:
             report = validate_data(game.data_dir, progress=progress)
         finally:
