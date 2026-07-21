@@ -39,6 +39,33 @@ long as they skip cleanly when the game is absent
    follows Norbyte's [LSLib](https://github.com/Norbyte/lslib) struct
    layouts; cite the relevant structure in comments/docstrings when
    implementing a new one.
+5. **Pay for complexity only when the data demands it.** BG3 Forge
+   favors straightforward, deterministic implementations. Streaming,
+   indexing, and partial parsing are introduced only when they provide a
+   measurable benefit for real datasets — not because a dataset *might*
+   someday be large. Stats, items, and spells are modest; parsing them
+   eagerly and simply is a feature. If you propose an optimization,
+   bring a measurement from real game data with it.
+
+## Architecture roadmap
+
+Complexity is added in phases, each justified by the data that forces it:
+
+1. **Parse everything, resolve relationships, build a clean object
+   model** — ✅ done (pak/stats/loca/LSX/LSF parsers, typed models,
+   forward + reverse relationship graph).
+2. **Relationship caching and hot-path optimization** — ✅ caching done
+   (lazy `cached_property` edges, one-pass reverse indexes); further
+   optimization only against measurements from real installs.
+3. **Indexed datasets** for dialogs, quests, cinematics — the first
+   datasets large enough that scanning whole paks per query stops being
+   acceptable. Design starts when the first such parser lands.
+4. **On-demand asset streaming** (textures, models, virtual textures) —
+   only once phase 3 exists and the asset pipeline needs it.
+
+If a change belongs to a later phase than the data it serves, it is
+probably premature — the simplest architecture that scales with the
+project's *actual* needs wins.
 
 ## Style
 

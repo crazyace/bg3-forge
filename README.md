@@ -186,6 +186,8 @@ on Windows, macOS, and Linux.
 * Stay compatible with new BG3 patches (patch detection + incremental extraction)
 * Produce deterministic exports
 * Make BG3 data easy to consume for websites, tools, and mods
+* Pay for complexity only when the data demands it — see the
+  [design principles](CONTRIBUTING.md#design-principles)
 
 ## Project layout
 
