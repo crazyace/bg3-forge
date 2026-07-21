@@ -24,9 +24,10 @@ def test_validate_clean_fixture(data_dir):
     assert report.counts["loca_files"] == 1
     assert report.counts["loca_handles"] == 9
     assert report.counts["lsx_resources"] == 5   # RootTemplates + atlas + 2 tags + flags registry
-    assert report.counts["lsf_resources"] == 1   # the dialog
+    assert report.counts["lsf_resources"] == 2   # dialog + timeline
     assert report.counts["dialogs"] == 1
     assert report.counts["dialog_nodes"] == 2
+    assert report.counts["timelines"] == 1
     assert report.counts["root_templates"] == 2
     assert report.counts["atlases"] == 1
     text = format_validation(report)
@@ -45,7 +46,7 @@ def test_validate_counts_lsf(tmp_path, data_dir):
     writer.write(data_dir / "Extra.pak")
     report = validate_data(data_dir)
     assert report.ok
-    assert report.counts["lsf_resources"] == 2  # dialog + added templates
+    assert report.counts["lsf_resources"] == 3  # dialog + timeline + added templates
     assert report.counts["root_templates"] == 4
 
 
@@ -153,6 +154,7 @@ def test_run_benchmark(data_dir, tmp_path):
         "Parse tags",
         "Parse atlases",
         "Index dialogs",
+        "Index timelines",
         "Build models",
         "Resolve relationships",
         "Export JSON",
@@ -160,9 +162,10 @@ def test_run_benchmark(data_dir, tmp_path):
     assert all(seconds >= 0 for _, seconds in report.stages)
     assert report.counts["items"] == 3
     assert report.counts["spells"] == 1
-    assert report.counts["pak entries"] == 13
+    assert report.counts["pak entries"] == 14
     assert report.counts["tags"] == 2
     assert report.counts["dialogs indexed"] == 1
+    assert report.counts["timelines indexed"] == 1
     assert (tmp_path / "export" / "items.json").exists()
     assert report.environment["Language"] == "English"
 

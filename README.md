@@ -49,10 +49,11 @@ game.spells["Projectile_Fireball"].items  # items unlocking a spell
 game.statuses["BURNING"].items          # items applying a status
 game.tags["LONGSWORD"].items            # items carrying a tag (by name or UUID)
 
-# Dialogs are indexed, not eagerly parsed (there are tens of thousands):
+# Dialogs are indexed, not eagerly parsed (there are ~9,400 of them):
 game.dialogs.find("Karlach")            # search archived paths — free
 dialog = game.dialogs.load(path)        # parses just this one file
 game.dialogs.lines(path)                # (speaker, localized text) pairs
+game.timelines.for_dialog(dialog)       # the cinematic staging the dialog
 
 game.items.find("longsword")   # search by name / display name
 for spell in game.spells:
@@ -77,6 +78,7 @@ exported 2410 statuses
 
 ```console
 $ bg3forge list Shared.pak
+$ bg3forge search "journal"   # find archived paths across all paks — fast
 $ bg3forge unpack -p "*/Stats/*" -o extracted
 $ bg3forge spells -f json -o spells.json
 $ bg3forge items -f csv -o items.csv
@@ -264,7 +266,11 @@ src/bg3forge/
   `Tag` objects, with the reverse `tag.items` edge
 * ✅ Dialog metadata (`game.dialogs`) — lazy indexed access to dialog
   graphs: speakers, flow edges, localized lines
-* ⏳ Quest / cinematic metadata on the same indexed pattern
+* ✅ Timeline (cinematic) index (`game.timelines`) with dialog↔timeline
+  linkage; internals unmodeled so far
+* ⏳ Quest metadata — quest *logic* ships as compiled Osiris
+  (`story.div.osi`), a format of its own; journal/quest data discovery
+  first (`bg3forge search`), then a parser for what's actually there
 * ⏳ Character / equipment metadata parsers
 * ⏳ GR2 model metadata
 * ⏳ Virtual texture (GTS/GTP) atlas support

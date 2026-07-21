@@ -51,6 +51,12 @@ def build_parser() -> argparse.ArgumentParser:
     listing = sub.add_parser("list", help="list the contents of a .pak archive")
     listing.add_argument("pak", type=Path)
 
+    search = sub.add_parser(
+        "search", help="search archived file paths across all game paks (index-only, fast)"
+    )
+    search.add_argument("pattern", help="case-insensitive substring of the archived path")
+    search.add_argument("--limit", type=int, default=50, help="matches to print (default: 50)")
+
     patches = sub.add_parser("patches", help="detect game archives changed by a patch")
     patches.add_argument("--snapshot", type=Path, default=Path(".bg3forge-paks.json"))
     patches.add_argument("--update", action="store_true", help="store the current state")
@@ -184,6 +190,16 @@ def _dispatch(args) -> int:
         with PakReader(args.pak) as pak:
             for entry in pak:
                 print(f"{entry.size:>12}  {entry.name}")
+        return 0
+
+    if args.command == "search":
+        game = _open_game(args)
+        needle = args.pattern.lower()
+        sources = game._locate_entries(lambda n: needle in n.lower())
+        for name, source in list(sources.items())[: args.limit]:
+            print(f"{getattr(source, 'name', source)}  {name}")
+        shown = min(len(sources), args.limit)
+        print(f"{len(sources)} match(es)" + (f", first {shown} shown" if len(sources) > shown else ""))
         return 0
 
     if args.command == "unpack":

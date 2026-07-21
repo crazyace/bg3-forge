@@ -15,6 +15,7 @@ def test_parse_dialog_structure():
     dialog = parse_dialog(parse_lsx(DIALOG_LSX), source="CAMP_Greeting.lsx")
     assert dialog.uuid == "dddd0000-0000-0000-0000-000000000001"
     assert dialog.category == "Camp"
+    assert dialog.timeline_id == "tttt0000-0000-0000-0000-000000000001"
     assert [s.index for s in dialog.speakers] == [0, 1]
     assert dialog.speakers[0].mapping_id == "5e2222aa-0000-0000-0000-00000000aa01"
 
@@ -81,6 +82,41 @@ def test_dialog_lines_resolve_localization(data_dir):
         (0, "Well met, traveler."),
         (1, "And to you."),
     ]
+
+
+TIMELINE_PATH = "Public/Shared/Timeline/Generated/tttt0000-0000-0000-0000-000000000001.lsf"
+
+
+def test_timeline_index_and_dialog_linkage(data_dir):
+    game = Game(data_dir=data_dir)
+    assert len(game.timelines) == 1
+    assert TIMELINE_PATH in game.timelines
+    assert game.timelines._cache == {}          # listing didn't parse anything
+
+    dialog = game.dialogs.load(DIALOG_PATH)
+    assert game.timelines.for_dialog(dialog) == [TIMELINE_PATH]
+
+    document = game.timelines.load(TIMELINE_PATH)
+    assert document.region("TimelineContent") is not None
+
+    # a dialog with no timeline id links to nothing
+    dialog.timeline_id = None
+    assert game.timelines.for_dialog(dialog) == []
+
+
+def test_search_cli(data_dir, capsys):
+    from bg3forge.cli.main import main
+
+    assert main(["--data-dir", str(data_dir), "search", "dialogsbinary"]) == 0
+    out = capsys.readouterr().out
+    assert "CAMP_Greeting.lsf" in out
+    assert "1 match(es)" in out
+
+    assert main(["--data-dir", str(data_dir), "search", "nothing-matches-this"]) == 0
+    assert "0 match(es)" in capsys.readouterr().out
+
+    assert main(["--data-dir", str(data_dir), "search", "Shared", "--limit", "2"]) == 0
+    assert "first 2 shown" in capsys.readouterr().out
 
 
 def test_dialog_index_from_extracted(tmp_path, sample_pak):

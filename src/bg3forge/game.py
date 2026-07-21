@@ -55,23 +55,20 @@ class LoadIssue:
     error: str
 
 
-class DialogIndex:
-    """Lazy, indexed access to the game's dialogs.
+class ResourceIndex:
+    """Lazy, indexed access to a family of archived resources.
 
-    BG3 ships tens of thousands of dialog files — far too many to parse
-    eagerly (architecture roadmap phase 3).  Building the index touches
-    only the pak file lists; each dialog is parsed on first access and
-    cached::
-
-        game.dialogs.find("Karlach")          # search archived paths, free
-        dialog = game.dialogs.load(path)      # parses this one file
-        game.dialogs.lines(path)              # (speaker, localized text) pairs
+    The phase-3 pattern for datasets too large to parse eagerly:
+    building the index touches only the pak file lists; each resource is
+    parsed on first access and cached.  Subclasses supply the file
+    predicate and a ``loader(document_bytes, name)``.
     """
 
-    def __init__(self, game: "Game"):
+    def __init__(self, game: "Game", predicate, loader):
         self._game = game
-        self._sources = game._locate_entries(_is_dialog_file)
-        self._cache: dict[str, Dialog] = {}
+        self._sources = game._locate_entries(predicate)
+        self._loader = loader
+        self._cache: dict[str, object] = {}
 
     def __len__(self) -> int:
         return len(self._sources)
@@ -88,28 +85,44 @@ class DialogIndex:
         needle = query.lower()
         return [name for name in self._sources if needle in name.lower()]
 
-    def load(self, name: str) -> Dialog:
-        """Parse one dialog (cached after the first call)."""
+    def load(self, name: str):
+        """Parse one resource (cached after the first call)."""
         if name not in self._cache:
             try:
                 source = self._sources[name]
             except KeyError:
-                raise KeyError(f"no dialog at {name!r}") from None
+                raise KeyError(f"no indexed resource at {name!r}") from None
             data = self._game._read_entry(name, source)
-            self._cache[name] = parse_dialog(parse_resource(data), source=name)
+            self._cache[name] = self._loader(data, name)
         return self._cache[name]
 
-    def get(self, name: str) -> Dialog | None:
+    def get(self, name: str):
         try:
             return self.load(name)
         except (KeyError, ValueError):
             return None
 
+
+class DialogIndex(ResourceIndex):
+    """Lazy dialog access::
+
+        game.dialogs.find("Karlach")          # search archived paths, free
+        dialog = game.dialogs.load(path)      # parses this one file
+        game.dialogs.lines(path)              # (speaker, localized text) pairs
+    """
+
+    def __init__(self, game: "Game"):
+        super().__init__(
+            game,
+            _is_dialog_file,
+            lambda data, name: parse_dialog(parse_resource(data), source=name),
+        )
+
     def lines(self, name: str) -> list[tuple[int | None, str]]:
         """(speaker index, localized text) for every spoken line, in
         graph walk order.  Lines whose handles have no localization are
         skipped."""
-        dialog = self.load(name)
+        dialog: Dialog = self.load(name)
         result = []
         walk = list(dialog.walk()) or dialog.nodes
         for node in walk:
@@ -118,6 +131,32 @@ class DialogIndex:
                 if text:
                     result.append((node.speaker, text))
         return result
+
+
+class TimelineIndex(ResourceIndex):
+    """Lazy access to timeline (cinematic scene) resources.
+
+    Timelines are the cinematic side of dialogs; a dialog's
+    ``timeline_id`` names the timeline file that stages it.  ``load``
+    returns the raw node-tree document — the timeline internals are not
+    modeled yet, but existence, counts, and dialog↔timeline linkage are.
+    """
+
+    def __init__(self, game: "Game"):
+        super().__init__(
+            game, _is_timeline_file, lambda data, name: parse_resource(data)
+        )
+
+    def for_dialog(self, dialog: Dialog) -> list[str]:
+        """Timeline paths whose file stem matches the dialog's timeline id."""
+        if not dialog.timeline_id:
+            return []
+        stem = dialog.timeline_id.lower()
+        return [
+            name
+            for name in self._sources
+            if name.rsplit("/", 1)[-1].rsplit(".", 1)[0].lower() == stem
+        ]
 
 
 def _is_stats_file(name: str) -> bool:
@@ -142,6 +181,11 @@ def _is_atlas_file(name: str) -> bool:
 def _is_tag_file(name: str) -> bool:
     lowered = name.lower()
     return "/tags/" in lowered and lowered.endswith((".lsx", ".lsf"))
+
+
+def _is_timeline_file(name: str) -> bool:
+    lowered = name.lower()
+    return "/timeline/" in lowered and lowered.endswith((".lsx", ".lsf"))
 
 
 def _is_dialog_file(name: str) -> bool:
@@ -286,6 +330,11 @@ class Game:
     def dialogs(self) -> DialogIndex:
         """Lazy dialog index — cheap to build, parses per file on access."""
         return DialogIndex(self)
+
+    @cached_property
+    def timelines(self) -> TimelineIndex:
+        """Lazy timeline (cinematic) index; see ``TimelineIndex.for_dialog``."""
+        return TimelineIndex(self)
 
     @cached_property
     def treasure_tables(self) -> list[TreasureTable]:

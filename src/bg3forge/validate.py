@@ -25,6 +25,7 @@ from .game import (
     _is_dialog_file,
     _is_roottemplate_file,
     _is_stats_file,
+    _is_timeline_file,
     _is_treasure_file,
 )
 from .parsers.dialogs import parse_dialog
@@ -70,7 +71,8 @@ def validate_data(
         "paks", "pak_parts_skipped", "stats_files", "stats_entries",
         "stats_globals", "treasure_files", "treasure_tables", "loca_files",
         "loca_handles", "lsx_resources", "lsf_resources", "root_templates",
-        "atlases", "dialogs", "dialog_nodes", "files_skipped", "stats_resolved",
+        "atlases", "dialogs", "dialog_nodes", "timelines", "files_skipped",
+        "stats_resolved",
     ):
         counts[key] = 0
 
@@ -167,6 +169,8 @@ def _validate_entry(
                 dialog = parse_dialog(document, source=name)
                 counts["dialogs"] += 1
                 counts["dialog_nodes"] += len(dialog.nodes)
+            elif _is_timeline_file(name):
+                counts["timelines"] += 1
         if check("resource", parse):
             counts["lsf_resources" if binary else "lsx_resources"] += 1
     else:

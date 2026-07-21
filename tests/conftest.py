@@ -212,6 +212,7 @@ DIALOG_LSX = """\
     <node id="dialog">
       <attribute id="UUID" type="FixedString" value="dddd0000-0000-0000-0000-000000000001" />
       <attribute id="category" type="LSString" value="Camp" />
+      <attribute id="TimelineId" type="FixedString" value="tttt0000-0000-0000-0000-000000000001" />
       <children>
         <node id="speakerlist">
           <children>
@@ -288,6 +289,18 @@ DIALOG_LSX = """\
 </save>
 """
 
+# Minimal timeline (cinematic) resource; internals are unmodeled, only
+# existence and dialog linkage matter.
+TIMELINE_LSX = """\
+<save>
+  <region id="TimelineContent">
+    <node id="TimelineContent">
+      <attribute id="Duration" type="float" value="4.5" />
+    </node>
+  </region>
+</save>
+"""
+
 # Registry file living under Story/Dialogs/ that is NOT a dialog
 # (mirrors retail ScriptFlags.lsx / DialogVariables.lsx).
 SCRIPTFLAGS_LSX = """\
@@ -322,8 +335,9 @@ def fixture_files() -> dict[str, bytes]:
     from bg3forge.parsers.lsf import write_lsf
     from bg3forge.parsers.lsx import parse_lsx
 
-    # Shipped as binary v6, like retail dialogs.
+    # Shipped as binary v6, like retail dialogs and timelines.
     dialog_lsf = write_lsf(parse_lsx(DIALOG_LSX), version=6)
+    timeline_lsf = write_lsf(parse_lsx(TIMELINE_LSX), version=6)
     return {
         "Public/Shared/Stats/Generated/Data/Weapon.txt": WEAPON_TXT.encode(),
         "Public/Shared/Stats/Generated/Data/Spell_Projectile.txt": SPELL_TXT.encode(),
@@ -337,6 +351,7 @@ def fixture_files() -> dict[str, bytes]:
         "Public/Shared/GUI/Icons_Items.lsx": ATLAS_LSX.encode(),
         "Mods/Shared/Story/DialogsBinary/Camp/CAMP_Greeting.lsf": dialog_lsf,
         "Mods/Shared/Story/Dialogs/ScriptFlags/ScriptFlags.lsx": SCRIPTFLAGS_LSX.encode(),
+        "Public/Shared/Timeline/Generated/tttt0000-0000-0000-0000-000000000001.lsf": timeline_lsf,
         "Localization/English/english.loca": write_loca(LOCA_ENTRIES),
     }
 
