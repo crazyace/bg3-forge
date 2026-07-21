@@ -153,6 +153,10 @@ for native-speed decompression.
   inheritance — `RootTemplateIndex`
 * **Progressions** (class/race level tables) — `parse_progressions`
 * **Treasure tables** — `parse_treasure_tables`
+* **Tag registry** (`Tags/*.lsx|.lsf`) — UUID/name lookup with categories
+  and localized display strings — `TagRegistry`
+* **Dialogs** (`Story/DialogsBinary/**.lsf`) — node graphs with
+  constructors, speakers, flow edges, and text handles — `parse_dialog`
 * `bg3forge convert` converts `.lsf` ↔ `.lsx` from the command line — no
   lslib/divine required
 
@@ -177,10 +181,12 @@ export_sqlite(game.spells, "bg3.db", table="spells")
 ### High-level API
 
 `Game` ties it all together: it reads stats, localization, root templates,
-atlases, and treasure tables straight out of the installed `.pak` archives
-(no extraction step needed) or from a previously extracted tree, and joins
-them into typed models (`Item`, `Spell`, `Passive`, `Status`) with resolved
-inheritance and localized display text.
+tags, atlases, and treasure tables straight out of the installed `.pak`
+archives (no extraction step needed) or from a previously extracted tree,
+and joins them into typed models (`Item`, `Spell`, `Passive`, `Status`,
+`Tag`) with resolved inheritance and localized display text. Dialogs are
+exposed through a lazy `DialogIndex` (`game.dialogs`) that lists from the
+pak indexes and parses per file on demand.
 
 Collections support list iteration, name lookup, and search:
 
@@ -220,13 +226,17 @@ on Windows, macOS, and Linux.
 ```
 src/bg3forge/
 ├── pak/            # LSPK reader/writer, incremental extractor, patch detection
-├── parsers/        # stats, loca, lsx, roottemplates, progressions, treasure
+├── parsers/        # stats, loca, lsx, lsf, roottemplates, tags, dialogs,
+│                   # progressions, treasure (+ format-sniffing resource.py)
 ├── assets/         # texture atlases, icon extraction
 ├── exporters/      # json, sqlite, csv, markdown, yaml
 ├── cli/            # thin argparse front-end
 ├── models.py       # typed domain models (Item, Spell, Passive, Status)
-├── game.py         # Game facade
-└── locate.py       # install discovery
+├── game.py         # Game facade, relationship graph, DialogIndex
+├── locate.py       # install discovery
+├── doctor.py       # install/environment diagnostics
+├── validate.py     # format-coverage sweep
+└── benchmark.py    # repeatable pipeline measurements
 ```
 
 ## Roadmap
@@ -255,7 +265,7 @@ src/bg3forge/
 * ✅ Dialog metadata (`game.dialogs`) — lazy indexed access to dialog
   graphs: speakers, flow edges, localized lines
 * ⏳ Quest / cinematic metadata on the same indexed pattern
-* ⏳ Character / equipment / dialog metadata parsers
+* ⏳ Character / equipment metadata parsers
 * ⏳ GR2 model metadata
 * ⏳ Virtual texture (GTS/GTP) atlas support
 * ⏳ PyPI release
@@ -269,7 +279,9 @@ pytest
 
 The test suite builds real LSPK/`.loca`/LSF fixtures in memory, so it
 runs without a game install. See [CONTRIBUTING.md](CONTRIBUTING.md) for
-setup, style, and pull-request guidelines.
+setup, style, and pull-request guidelines, and
+[docs/retail-testing.md](docs/retail-testing.md) for running the
+validation sweep against a real install.
 
 ## Legal
 
