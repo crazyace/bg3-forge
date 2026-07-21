@@ -37,7 +37,7 @@ sword.description       # localized description
 sword.icon              # atlas icon name
 sword.rarity            # from stats, `using` inheritance applied
 sword.requirements      # ["Str 13"]
-sword.tags              # tag UUIDs merged down the template chain
+sword.tags              # [Tag(...)] named, localized, from the template chain
 sword.owner_templates   # RootTemplates whose Stats point at this entry
 sword.passives          # [Passive(...)] granted on equip
 sword.statuses          # [Status(...)] applied on equip
@@ -47,6 +47,7 @@ sword.spells            # [Spell(...)] unlocked by the item's boosts
 game.passives["ExtraAttack"].items      # items granting a passive
 game.spells["Projectile_Fireball"].items  # items unlocking a spell
 game.statuses["BURNING"].items          # items applying a status
+game.tags["LONGSWORD"].items            # items carrying a tag (by name or UUID)
 
 game.items.find("longsword")   # search by name / display name
 for spell in game.spells:
@@ -244,7 +245,8 @@ src/bg3forge/
 * ✅ Validated against a full retail install — every recognized file
   parses cleanly; see [docs/baseline.md](docs/baseline.md) for the
   numbers (~14.6 s for the full pipeline, 826 MB peak)
-* ⏳ Tag registry parser (resolve tag UUIDs to names/descriptions)
+* ✅ Tag registry (`game.tags`) — tag UUIDs resolve to named, localized
+  `Tag` objects, with the reverse `tag.items` edge
 * ⏳ Dialog metadata parser (retail dialog `.lsf` files now parse;
   next: a typed model over them)
 * ⏳ Character / equipment / dialog metadata parsers

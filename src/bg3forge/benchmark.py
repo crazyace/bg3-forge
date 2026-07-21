@@ -82,6 +82,7 @@ def run_benchmark(game: Game | None = None, export_dir: str | Path | None = None
     timed("Parse stats", lambda: report.counts.__setitem__("stats entries", len(game.stats)))
     timed("Parse localization", lambda: report.counts.__setitem__("loca handles", len(game.localization)))
     timed("Parse root templates", lambda: report.counts.__setitem__("root templates", len(game.templates)))
+    timed("Parse tags", lambda: report.counts.__setitem__("tags", len(game.tags)))
     timed("Parse atlases", lambda: report.counts.__setitem__("atlases", len(game.atlases)))
     timed("Build models", _build_models(game, report))
     timed("Resolve relationships", resolve_relationships)

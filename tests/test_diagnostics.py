@@ -22,8 +22,8 @@ def test_validate_clean_fixture(data_dir):
     assert report.counts["treasure_files"] == 1
     assert report.counts["treasure_tables"] == 1
     assert report.counts["loca_files"] == 1
-    assert report.counts["loca_handles"] == 6
-    assert report.counts["lsx_resources"] == 2   # RootTemplates + atlas
+    assert report.counts["loca_handles"] == 7
+    assert report.counts["lsx_resources"] == 4   # RootTemplates + atlas + 2 tags
     assert report.counts["root_templates"] == 2
     assert report.counts["atlases"] == 1
     text = format_validation(report)
@@ -106,6 +106,7 @@ def test_run_benchmark(data_dir, tmp_path):
         "Parse stats",
         "Parse localization",
         "Parse root templates",
+        "Parse tags",
         "Parse atlases",
         "Build models",
         "Resolve relationships",
@@ -114,7 +115,8 @@ def test_run_benchmark(data_dir, tmp_path):
     assert all(seconds >= 0 for _, seconds in report.stages)
     assert report.counts["items"] == 3
     assert report.counts["spells"] == 1
-    assert report.counts["pak entries"] == 9
+    assert report.counts["pak entries"] == 11
+    assert report.counts["tags"] == 2
     assert (tmp_path / "export" / "items.json").exists()
     assert report.environment["Language"] == "English"
 

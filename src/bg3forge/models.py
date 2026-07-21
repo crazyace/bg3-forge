@@ -164,12 +164,22 @@ class Item(GameObject):
         return self._resolve("spells", self.spell_names)
 
     @cached_property
-    def tags(self) -> list[str]:
+    def tag_ids(self) -> list[str]:
         """Tag UUIDs merged across the item's root-template chain."""
         game = getattr(self, "_game", None)
         if game is None or not self.map_key:
             return []
         return game.templates.resolved_tags(self.map_key)
+
+    @cached_property
+    def tags(self) -> list:
+        """Resolved :class:`~bg3forge.parsers.tags.Tag` objects for this
+        item (UUIDs without a registry entry are omitted — see
+        ``tag_ids`` for the raw list)."""
+        game = getattr(self, "_game", None)
+        if game is None:
+            return []
+        return [tag for uuid in self.tag_ids if (tag := game.tags.get(uuid))]
 
     @cached_property
     def owner_templates(self) -> list:

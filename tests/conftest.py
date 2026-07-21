@@ -123,6 +123,45 @@ ROOTTEMPLATE_LSX = """\
 </save>
 """
 
+def _tag_lsx(uuid, name, display_handle=None, category=None):
+    display = (
+        f'<attribute id="DisplayName" type="TranslatedString" handle="{display_handle}" version="1" />'
+        if display_handle
+        else ""
+    )
+    categories = (
+        f'<children><node id="Categories"><children><node id="Category">'
+        f'<attribute id="Name" type="LSString" value="{category}" />'
+        f"</node></children></node></children>"
+        if category
+        else ""
+    )
+    return f"""\
+<save>
+  <region id="Tags">
+    <node id="Tags">
+      <attribute id="UUID" type="guid" value="{uuid}" />
+      <attribute id="Name" type="FixedString" value="{name}" />
+      <attribute id="Description" type="LSString" value="{name} tag" />
+      {display}
+      {categories}
+    </node>
+  </region>
+</save>
+"""
+
+
+WEAPON_TAG_LSX = _tag_lsx(
+    "aaaa1111-0000-0000-0000-000000000001",
+    "WEAPON",
+    display_handle="h77777777-7777-7777-7777-777777777777",
+    category="Item",
+)
+LONGSWORD_TAG_LSX = _tag_lsx(
+    "bbbb2222-0000-0000-0000-000000000002",
+    "LONGSWORD",
+)
+
 ATLAS_LSX = """\
 <?xml version="1.0" encoding="utf-8"?>
 <save>
@@ -174,6 +213,7 @@ LOCA_ENTRIES = [
     LocaEntry("h44444444-4444-4444-4444-444444444444", 1, "Burning"),
     LocaEntry("h55555555-5555-5555-5555-555555555555", 1, "Longsword"),
     LocaEntry("h66666666-6666-6666-6666-666666666666", 1, "A trusty longsword."),
+    LocaEntry("h77777777-7777-7777-7777-777777777777", 1, "Weapon"),
 ]
 
 
@@ -186,6 +226,8 @@ def fixture_files() -> dict[str, bytes]:
         "Public/Shared/Stats/Generated/Data/Data.txt": DATA_TXT.encode(),
         "Public/Shared/Stats/Generated/TreasureTable.txt": TREASURE_TXT.encode(),
         "Public/Shared/RootTemplates/Weapons.lsx": ROOTTEMPLATE_LSX.encode(),
+        "Public/Shared/Tags/aaaa1111-0000-0000-0000-000000000001.lsx": WEAPON_TAG_LSX.encode(),
+        "Public/Shared/Tags/bbbb2222-0000-0000-0000-000000000002.lsx": LONGSWORD_TAG_LSX.encode(),
         "Public/Shared/GUI/Icons_Items.lsx": ATLAS_LSX.encode(),
         "Localization/English/english.loca": write_loca(LOCA_ENTRIES),
     }

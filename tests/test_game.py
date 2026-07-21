@@ -136,16 +136,43 @@ def test_owner_templates_and_requirements(game):
     assert magic.owner_templates == []
 
 
-def test_tags_merge_template_chain(game):
+def test_tag_ids_merge_template_chain(game):
     sword = game.items["WPN_Longsword"]
-    assert sword.tags == [
+    assert sword.tag_ids == [
         "aaaa1111-0000-0000-0000-000000000001",  # from BASE_Weapon parent
         "bbbb2222-0000-0000-0000-000000000002",  # own tag
     ]
     # magic variant shares the RootTemplate, hence the tags
-    assert game.items["WPN_Longsword_Magic"].tags == sword.tags
+    assert game.items["WPN_Longsword_Magic"].tag_ids == sword.tag_ids
     # no template → no tags
-    assert game.items["_BaseWeapon"].tags == []
+    assert game.items["_BaseWeapon"].tag_ids == []
+
+
+def test_tag_registry(game):
+    assert len(game.tags) == 2
+    weapon = game.tags["WEAPON"]                     # by engine name
+    assert weapon is game.tags["aaaa1111-0000-0000-0000-000000000001"]  # by UUID
+    assert weapon.display_name == "Weapon"           # localized via .loca
+    assert weapon.categories == ["Item"]
+    assert game.tags["LONGSWORD"].display_name == ""  # no handle, no crash
+    with pytest.raises(KeyError):
+        game.tags["NOPE"]
+
+
+def test_item_tags_resolve_to_tag_objects(game):
+    sword = game.items["WPN_Longsword"]
+    assert [tag.name for tag in sword.tags] == ["WEAPON", "LONGSWORD"]
+    assert sword.tags[0].display_name == "Weapon"
+
+
+def test_tag_items_reverse_edge(game):
+    tagged = game.tags["LONGSWORD"].items
+    assert {item.name for item in tagged} == {"WPN_Longsword", "WPN_Longsword_Magic"}
+    # lookup by name and by UUID agree
+    assert game.items_with_tag("LONGSWORD") == game.items_with_tag(
+        "bbbb2222-0000-0000-0000-000000000002"
+    )
+    assert game.items_with_tag("unknown-uuid") == []
 
 
 def test_relationships_are_lazy_and_cached(data_dir):

@@ -37,6 +37,7 @@ from .parsers.localization import Localization
 from .parsers.resource import parse_resource
 from .parsers.roottemplates import RootTemplateIndex
 from .parsers.stats import StatsCollection
+from .parsers.tags import TagRegistry
 from .parsers.treasure import TreasureTable, parse_treasure_tables
 from .assets.atlases import TextureAtlas, parse_atlas
 
@@ -70,6 +71,11 @@ def _is_roottemplate_file(name: str) -> bool:
 def _is_atlas_file(name: str) -> bool:
     lowered = name.lower()
     return "/gui/" in lowered and lowered.endswith((".lsx", ".lsf"))
+
+
+def _is_tag_file(name: str) -> bool:
+    lowered = name.lower()
+    return "/tags/" in lowered and lowered.endswith((".lsx", ".lsf"))
 
 
 class Game:
@@ -164,6 +170,40 @@ class Game:
             if atlas.icons:
                 atlases.append(atlas)
         return atlases
+
+    @cached_property
+    def tags(self) -> TagRegistry:
+        """The tag registry, with display strings already localized.
+
+        Lookup by UUID or engine name: ``game.tags["PALADIN"]``.
+        """
+        registry = TagRegistry()
+        for name, data in self._iter_files(_is_tag_file):
+            try:
+                registry.add_document(parse_resource(data))
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
+        for tag in registry:
+            tag.display_name = self.localization.resolve(tag.display_name_handle)
+            tag.display_description = self.localization.resolve(
+                tag.display_description_handle
+            )
+            tag._link(self)
+        return registry
+
+    def items_with_tag(self, tag_key: str) -> list[Item]:
+        """Items whose template chain carries the tag (UUID or name)."""
+        tag = self.tags.get(tag_key)
+        uuid = tag.uuid if tag is not None else tag_key
+        return list(self._tag_index.get(uuid, ()))
+
+    @cached_property
+    def _tag_index(self) -> dict[str, list[Item]]:
+        index: dict[str, list[Item]] = {}
+        for item in self.items:
+            for uuid in item.tag_ids:
+                index.setdefault(uuid, []).append(item)
+        return index
 
     @cached_property
     def treasure_tables(self) -> list[TreasureTable]:
