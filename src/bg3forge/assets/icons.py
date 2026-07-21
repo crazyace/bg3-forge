@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
+from .._paths import UnsafePathError, safe_output_path
 from .atlases import TextureAtlas
 
 
@@ -72,16 +73,20 @@ class IconExtractor:
         lossless: bool = True,
     ) -> Path:
         """Write one icon as PNG or WebP; returns the written path."""
-        icon = self.extract(icon_name)
+        output_format = format.lower()
+        if output_format not in {"png", "webp"}:
+            raise IconError(f"unsupported icon format: {format}")
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
-        target = output_dir / f"{icon_name}.{format.lower()}"
-        if format.lower() == "webp":
+        try:
+            target = safe_output_path(output_dir, f"{icon_name}.{output_format}")
+        except UnsafePathError as exc:
+            raise IconError(f"unsafe icon output name {icon_name!r}: {exc}") from None
+        icon = self.extract(icon_name)
+        if output_format == "webp":
             icon.save(target, format="WEBP", lossless=lossless)
-        elif format.lower() == "png":
-            icon.save(target, format="PNG")
         else:
-            raise IconError(f"unsupported icon format: {format}")
+            icon.save(target, format="PNG")
         return target
 
     def export_all(
