@@ -241,9 +241,12 @@ src/bg3forge/
   version detection
 * ✅ `bg3forge validate` — format coverage sweep with per-file failures
 * ✅ `bg3forge benchmark` — repeatable stage timings and peak RSS
+* ✅ Validated against a full retail install — every recognized file
+  parses cleanly; see [docs/baseline.md](docs/baseline.md) for the
+  numbers (~14.6 s for the full pipeline, 826 MB peak)
 * ⏳ Tag registry parser (resolve tag UUIDs to names/descriptions)
-* ⏳ Baseline numbers from a retail install (run `validate` + `benchmark`
-  against a real installation and publish the results)
+* ⏳ Dialog metadata parser (retail dialog `.lsf` files now parse;
+  next: a typed model over them)
 * ⏳ Character / equipment / dialog metadata parsers
 * ⏳ GR2 model metadata
 * ⏳ Virtual texture (GTS/GTP) atlas support
