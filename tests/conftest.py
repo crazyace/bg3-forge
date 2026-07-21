@@ -64,6 +64,13 @@ data "StackId" "BURNING"
 data "Boosts" "DamageTakenBonus(1,Fire)"
 """
 
+# Mirrors retail Data.txt / PhotoMode Data.txt: top-level key globals,
+# comma-separated args, no entries.
+DATA_TXT = """\
+key "ProficiencyBonusBase","2"
+key "CriticalHitMultiplier","2"
+"""
+
 TREASURE_TXT = """\
 new treasuretable "TUT_Chest"
 CanMerge 1
@@ -176,6 +183,7 @@ def fixture_files() -> dict[str, bytes]:
         "Public/Shared/Stats/Generated/Data/Spell_Projectile.txt": SPELL_TXT.encode(),
         "Public/Shared/Stats/Generated/Data/Passive.txt": PASSIVE_TXT.encode(),
         "Public/Shared/Stats/Generated/Data/Status_BOOST.txt": STATUS_TXT.encode(),
+        "Public/Shared/Stats/Generated/Data/Data.txt": DATA_TXT.encode(),
         "Public/Shared/Stats/Generated/TreasureTable.txt": TREASURE_TXT.encode(),
         "Public/Shared/RootTemplates/Weapons.lsx": ROOTTEMPLATE_LSX.encode(),
         "Public/Shared/GUI/Icons_Items.lsx": ATLAS_LSX.encode(),

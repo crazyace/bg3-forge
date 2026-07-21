@@ -15,8 +15,9 @@ def test_validate_clean_fixture(data_dir):
     report = validate_data(data_dir)
     assert report.ok
     assert report.counts["paks"] == 1
-    assert report.counts["stats_files"] == 4
+    assert report.counts["stats_files"] == 5
     assert report.counts["stats_entries"] == 6
+    assert report.counts["stats_globals"] == 2
     assert report.counts["treasure_files"] == 1
     assert report.counts["treasure_tables"] == 1
     assert report.counts["loca_files"] == 1
@@ -56,7 +57,7 @@ def test_validate_reports_corrupt_files(tmp_path, data_dir):
     assert len(report.issues) == 2
     stages = {issue.stage for issue in report.issues}
     assert stages == {"loca", "resource"}
-    assert report.counts["stats_files"] == 5  # the good file still counted
+    assert report.counts["stats_files"] == 6  # the good file still counted
     text = format_validation(report)
     assert "2 file(s) failed to parse" in text
     assert "broken.loca" in text
@@ -95,7 +96,7 @@ def test_run_benchmark(data_dir, tmp_path):
     assert all(seconds >= 0 for _, seconds in report.stages)
     assert report.counts["items"] == 3
     assert report.counts["spells"] == 1
-    assert report.counts["pak entries"] == 8
+    assert report.counts["pak entries"] == 9
     assert (tmp_path / "export" / "items.json").exists()
     assert report.environment["Language"] == "English"
 

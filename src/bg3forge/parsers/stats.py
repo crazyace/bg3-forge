@@ -10,6 +10,18 @@ These are the ``Public/<Mod>/Stats/Generated/Data/*.txt`` files, e.g.::
 
 Entries may inherit from another entry via ``using``; inheritance is
 resolved lazily across every file loaded into a :class:`StatsCollection`.
+
+Some files in the same directory (``Data.txt``, ``XPData.txt``, photo
+mode's ``Data.txt``, …) carry top-level global constants instead of
+entries::
+
+    key "ProficiencyBonusBase","2"
+
+These are collected into :attr:`StatsDocument.globals` /
+:attr:`StatsCollection.globals`.  Block types other than ``new entry``
+(``new itemcolor`` and friends) are tolerated and skipped — we only
+model entries — while malformed structural lines (``data``/``type``/
+``using`` outside any block) still raise :class:`StatsParseError`.
 """
 
 from __future__ import annotations
@@ -20,7 +32,8 @@ from pathlib import Path
 from typing import Iterable, Iterator
 
 _LINE_RE = re.compile(r'^(?P<keyword>[a-z ]+?)\s+"(?P<args>.*)"\s*$')
-_ARG_SPLIT_RE = re.compile(r'"\s+"')
+# Argument separators: `"a" "b"` (data lines) and `"a","b"` (key lines).
+_ARG_SPLIT_RE = re.compile(r'"\s*,\s*"|"\s+"')
 
 
 @dataclass
@@ -41,9 +54,15 @@ class StatsParseError(ValueError):
         super().__init__(f"{location}: {message}")
 
 
-def parse_stats(text: str, source: str | None = None) -> list[StatsEntry]:
-    """Parse one stats .txt document into a list of entries."""
-    entries: list[StatsEntry] = []
+@dataclass
+class StatsDocument:
+    entries: list[StatsEntry] = field(default_factory=list)
+    globals: dict[str, str] = field(default_factory=dict)
+
+
+def parse_stats_document(text: str, source: str | None = None) -> StatsDocument:
+    """Parse one stats .txt document into entries plus global constants."""
+    document = StatsDocument()
     current: StatsEntry | None = None
     for lineno, raw_line in enumerate(text.splitlines(), start=1):
         line = raw_line.strip()
@@ -51,23 +70,38 @@ def parse_stats(text: str, source: str | None = None) -> list[StatsEntry]:
             continue
         match = _LINE_RE.match(line)
         if not match:
-            continue  # tolerate directives we don't model (e.g. key/value oddities)
+            continue  # tolerate lines we don't model
         keyword = match.group("keyword")
         args = _ARG_SPLIT_RE.split(match.group("args"))
         if keyword == "new entry":
             current = StatsEntry(name=args[0], source=source)
-            entries.append(current)
-        elif current is None:
-            raise StatsParseError(f"{keyword!r} before any 'new entry'", source, lineno)
-        elif keyword == "type":
-            current.type = args[0]
-        elif keyword == "using":
-            current.using = args[0]
-        elif keyword == "data":
-            if len(args) < 2:
-                raise StatsParseError(f"'data' needs a key and a value", source, lineno)
-            current.data[args[0]] = args[1]
-    return entries
+            document.entries.append(current)
+        elif keyword == "key":
+            # Global constant (Data.txt / XPData.txt style); position-independent.
+            if len(args) >= 2:
+                document.globals[args[0]] = args[1]
+        elif keyword.startswith("new "):
+            # A block type we don't model (itemcolor, namegroup, ...):
+            # parse it into a discarded sink so its fields attach nowhere.
+            current = StatsEntry(name=args[0], source=source)
+        elif keyword in ("type", "using", "data"):
+            if current is None:
+                raise StatsParseError(f"{keyword!r} outside any 'new ...' block", source, lineno)
+            if keyword == "type":
+                current.type = args[0]
+            elif keyword == "using":
+                current.using = args[0]
+            else:
+                if len(args) < 2:
+                    raise StatsParseError("'data' needs a key and a value", source, lineno)
+                current.data[args[0]] = args[1]
+        # any other keyword: an unmodeled directive, ignored
+    return document
+
+
+def parse_stats(text: str, source: str | None = None) -> list[StatsEntry]:
+    """Parse one stats .txt document into a list of entries."""
+    return parse_stats_document(text, source).entries
 
 
 class StatsCollection:
@@ -79,6 +113,7 @@ class StatsCollection:
 
     def __init__(self, entries: Iterable[StatsEntry] = ()):
         self._entries: dict[str, StatsEntry] = {}
+        self.globals: dict[str, str] = {}  # key "Name","Value" constants
         for entry in entries:
             self.add(entry)
 
@@ -99,8 +134,10 @@ class StatsCollection:
         self._entries[entry.name] = entry
 
     def load_text(self, text: str, source: str | None = None) -> None:
-        for entry in parse_stats(text, source):
+        document = parse_stats_document(text, source)
+        for entry in document.entries:
             self.add(entry)
+        self.globals.update(document.globals)
 
     def load_file(self, path: str | Path) -> None:
         path = Path(path)

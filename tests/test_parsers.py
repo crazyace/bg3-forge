@@ -35,9 +35,45 @@ def test_stats_comments_and_blank_lines():
     assert len(entries) == 1
 
 
-def test_stats_data_before_entry_raises():
-    with pytest.raises(StatsParseError, match="before any"):
+def test_stats_data_outside_block_raises():
+    with pytest.raises(StatsParseError, match="outside any"):
         parse_stats('data "Damage" "1d4"')
+
+
+def test_stats_key_globals():
+    """Retail Data.txt style: top-level `key "Name","Value"` constants
+    (the exact shape that crashed on Public/PhotoMode/.../Data.txt)."""
+    from bg3forge.parsers import parse_stats_document
+
+    document = parse_stats_document(
+        'key "ProficiencyBonusBase","2"\n'
+        'key "FleeDistance" "13.0"\n'          # space-separated variant
+        'new entry "A"\ntype "Weapon"\n'
+    )
+    assert document.globals == {"ProficiencyBonusBase": "2", "FleeDistance": "13.0"}
+    assert [e.name for e in document.entries] == ["A"]
+    # parse_stats stays entry-only and, crucially, no longer raises
+    assert [e.name for e in parse_stats('key "X","1"')] == []
+
+
+def test_stats_globals_merge_in_collection():
+    stats = StatsCollection()
+    stats.load_text('key "A","1"')
+    stats.load_text('key "B","2"\nkey "A","3"')
+    assert stats.globals == {"A": "3", "B": "2"}
+
+
+def test_stats_unmodeled_blocks_are_skipped():
+    """`new itemcolor` and friends parse harmlessly instead of raising."""
+    entries = parse_stats(
+        'new itemcolor "Red"\n'
+        'data "Color" "ff0000"\n'
+        'new entry "Real"\n'
+        'type "Weapon"\n'
+        'data "Damage" "1d6"\n'
+    )
+    assert [e.name for e in entries] == ["Real"]
+    assert entries[0].data == {"Damage": "1d6"}
 
 
 def test_stats_inheritance():

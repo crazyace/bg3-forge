@@ -16,6 +16,7 @@ is cheap.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 
@@ -42,6 +43,14 @@ from .assets.atlases import TextureAtlas, parse_atlas
 
 class GameNotFoundError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class LoadIssue:
+    """A file that failed to parse while loading a collection."""
+
+    file: str
+    error: str
 
 
 def _is_stats_file(name: str) -> bool:
@@ -102,6 +111,11 @@ class Game:
                     "data_dir=, extracted_dir=, or set BG3_PATH"
                 )
             self.data_dir = root / "Data"
+        #: Files that failed to parse during loading.  A malformed file
+        #: never aborts a load — it is recorded here and skipped, so one
+        #: bad file can't take down the whole pipeline.  ``bg3forge
+        #: validate`` reports the same failures with full detail.
+        self.load_issues: list[LoadIssue] = []
 
     # -- raw collections -----------------------------------------------------
 
@@ -109,7 +123,10 @@ class Game:
     def stats(self) -> StatsCollection:
         stats = StatsCollection()
         for name, data in self._iter_files(_is_stats_file):
-            stats.load_text(data.decode("utf-8-sig", errors="replace"), source=name)
+            try:
+                stats.load_text(data.decode("utf-8-sig", errors="replace"), source=name)
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
         return stats
 
     @cached_property
@@ -119,7 +136,10 @@ class Game:
         for name, data in self._iter_files(
             lambda n: n.lower().endswith(".loca") and needle in f"/{n.lower()}"
         ):
-            loca.load_bytes(data)
+            try:
+                loca.load_bytes(data)
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
         return loca
 
     @cached_property
@@ -128,8 +148,8 @@ class Game:
         for name, data in self._iter_files(_is_roottemplate_file):
             try:
                 index.add_document(parse_resource(data))
-            except ValueError:
-                continue  # malformed or unsupported resource
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
         return index
 
     @cached_property
@@ -138,7 +158,8 @@ class Game:
         for name, data in self._iter_files(_is_atlas_file):
             try:
                 atlas = parse_atlas(parse_resource(data))
-            except ValueError:
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
                 continue
             if atlas.icons:
                 atlases.append(atlas)
@@ -148,7 +169,12 @@ class Game:
     def treasure_tables(self) -> list[TreasureTable]:
         tables: list[TreasureTable] = []
         for name, data in self._iter_files(_is_treasure_file):
-            tables.extend(parse_treasure_tables(data.decode("utf-8-sig", errors="replace")))
+            try:
+                tables.extend(
+                    parse_treasure_tables(data.decode("utf-8-sig", errors="replace"))
+                )
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
         return tables
 
     # -- typed models --------------------------------------------------------

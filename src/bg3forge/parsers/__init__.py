@@ -1,6 +1,13 @@
 """Parsers for BG3 data formats."""
 
-from .stats import StatsCollection, StatsEntry, StatsParseError, parse_stats
+from .stats import (
+    StatsCollection,
+    StatsDocument,
+    StatsEntry,
+    StatsParseError,
+    parse_stats,
+    parse_stats_document,
+)
 from .localization import Localization, LocaEntry, LocaError, parse_loca, write_loca
 from .lsx import (
     LsxAttribute,
@@ -19,9 +26,11 @@ from .treasure import TreasureTable, parse_treasure_tables
 
 __all__ = [
     "StatsCollection",
+    "StatsDocument",
     "StatsEntry",
     "StatsParseError",
     "parse_stats",
+    "parse_stats_document",
     "Localization",
     "LocaEntry",
     "LocaError",

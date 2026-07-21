@@ -25,7 +25,7 @@ from .parsers.lsf import is_lsf
 from .parsers.localization import parse_loca
 from .parsers.resource import parse_resource
 from .parsers.roottemplates import parse_root_templates
-from .parsers.stats import parse_stats
+from .parsers.stats import parse_stats_document
 from .parsers.treasure import parse_treasure_tables
 
 
@@ -52,9 +52,9 @@ def validate_data(data_dir: str | Path) -> ValidationReport:
     counts = report.counts
     for key in (
         "paks", "pak_parts_skipped", "stats_files", "stats_entries",
-        "treasure_files", "treasure_tables", "loca_files", "loca_handles",
-        "lsx_resources", "lsf_resources", "root_templates", "atlases",
-        "files_skipped",
+        "stats_globals", "treasure_files", "treasure_tables", "loca_files",
+        "loca_handles", "lsx_resources", "lsf_resources", "root_templates",
+        "atlases", "files_skipped",
     ):
         counts[key] = 0
 
@@ -88,8 +88,11 @@ def _validate_entry(reader: PakReader, entry, report: ValidationReport) -> None:
 
     if _is_stats_file(name):
         def parse(data):
-            entries = parse_stats(data.decode("utf-8-sig", errors="replace"), source=name)
-            counts["stats_entries"] += len(entries)
+            document = parse_stats_document(
+                data.decode("utf-8-sig", errors="replace"), source=name
+            )
+            counts["stats_entries"] += len(document.entries)
+            counts["stats_globals"] += len(document.globals)
         if check("stats", parse):
             counts["stats_files"] += 1
     elif _is_treasure_file(name):

@@ -19,6 +19,31 @@ def test_stats_loaded_from_pak(game):
     assert "WPN_Longsword" in game.stats
     assert "Projectile_Fireball" in game.stats
     assert game.stats["BURNING"].type == "StatusData"
+    assert game.stats.globals["ProficiencyBonusBase"] == "2"  # from Data.txt
+    assert game.load_issues == []
+
+
+def test_bad_file_is_recorded_not_fatal(tmp_path):
+    """A malformed stats file must never abort the whole load (regression
+    for the retail PhotoMode/Data.txt crash)."""
+    from bg3forge.pak import PakWriter
+    from conftest import fixture_files
+
+    writer = PakWriter()
+    for name, data in fixture_files().items():
+        writer.add(name, data)
+    writer.add(
+        "Public/Broken/Stats/Generated/Data/Broken.txt",
+        b'data "Orphan" "1"\n',  # structural line outside any block
+    )
+    writer.write(tmp_path / "Shared.pak")
+
+    game = Game(data_dir=tmp_path)
+    assert len(game.items) == 3            # everything else still loads
+    assert len(game.load_issues) == 1
+    issue = game.load_issues[0]
+    assert issue.file == "Public/Broken/Stats/Generated/Data/Broken.txt"
+    assert "outside any" in issue.error
 
 
 def test_localization_loaded(game):
