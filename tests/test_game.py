@@ -64,6 +64,26 @@ def test_items_join_templates_and_localization(game):
     assert magic.display_name == "Longsword"          # inherited RootTemplate
 
 
+def test_item_templates_include_global_items_and_resolve_template_name(game):
+    placed_id = "3333cccc-0000-0000-0000-000000000003"
+    assert placed_id not in game.templates
+    assert placed_id in game.item_templates
+    placed = game.item_templates.get(placed_id)
+    assert placed is not None
+    assert placed.template_name == "1111aaaa-0000-0000-0000-000000000001"
+    assert game.item_templates.resolved(placed_id) == {
+        "Name": "S_WLD_PlacedLongsword",
+        "Icon": "Item_Generic",
+        "DisplayName": "h55555555-5555-5555-5555-555555555555",
+        "Description": "h66666666-6666-6666-6666-666666666666",
+        "Stats": "WPN_Longsword",
+        "ParentTemplateId": "0000base-0000-0000-0000-00000000000f",
+        "TemplateName": "1111aaaa-0000-0000-0000-000000000001",
+        "LevelName": "WLD_Main_A",
+        "Type": "item",
+    }
+
+
 def test_spells(game):
     spells = game.spells
     assert len(spells) == 1

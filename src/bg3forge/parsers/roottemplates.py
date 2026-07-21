@@ -4,6 +4,8 @@ RootTemplates live under ``Public/<Mod>/RootTemplates/`` and describe the
 game objects (items, characters, projectiles …) that stats entries are
 attached to.  Templates inherit from a parent template via
 ``ParentTemplateId``; :class:`RootTemplateIndex` resolves that chain.
+Placed objects from ``Mods/*/Globals/*`` use ``TemplateName`` to reference a
+RootTemplate; the same index can resolve that link when both are loaded.
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ _FIELDS = (
     "Icon",
     "Type",
     "ParentTemplateId",
+    "TemplateName",
     "LevelName",
     "Equipment",
     "Archetype",
@@ -56,6 +59,11 @@ class RootTemplate:
     @property
     def parent_id(self) -> str | None:
         return self.fields.get("ParentTemplateId")
+
+    @property
+    def template_name(self) -> str | None:
+        """Referenced RootTemplate for a placed global object, if any."""
+        return self.fields.get("TemplateName")
 
     @classmethod
     def from_node(cls, node: LsxNode) -> "RootTemplate | None":
@@ -152,5 +160,8 @@ class RootTemplateIndex:
             if template is None:
                 break
             chain.append(template)
-            cursor = template.parent_id
+            # RootTemplates inherit through ParentTemplateId.  Placed objects
+            # under Mods/*/Globals/* instead point back to their RootTemplate
+            # through TemplateName; the runtime template API resolves both.
+            cursor = template.parent_id or template.template_name
         return chain

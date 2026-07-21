@@ -218,6 +218,16 @@ def _is_roottemplate_file(name: str) -> bool:
     return "/roottemplates/" in lowered and lowered.endswith((".lsx", ".lsf"))
 
 
+def _is_global_item_file(name: str) -> bool:
+    """Placed global item definitions loaded into the runtime template map."""
+    lowered = name.lower()
+    return (
+        "/globals/" in lowered
+        and "/items/" in lowered
+        and lowered.endswith((".lsx", ".lsf"))
+    )
+
+
 def _is_atlas_file(name: str) -> bool:
     lowered = name.lower()
     return "/gui/" in lowered and lowered.endswith((".lsx", ".lsf"))
@@ -380,6 +390,24 @@ class Game:
                 index.add_document(parse_resource(data))
             except ValueError as exc:
                 self.load_issues.append(LoadIssue(file=name, error=str(exc)))
+        return index
+
+    @cached_property
+    def item_templates(self) -> RootTemplateIndex:
+        """RootTemplates plus globally placed item objects.
+
+        Entries under ``Mods/*/Globals/*/Items`` are the stable, story-facing
+        UUIDs returned by Script Extender's runtime template API.  Their
+        ``TemplateName`` points to a RootTemplate; the returned index resolves
+        that reference alongside normal ``ParentTemplateId`` inheritance.
+        """
+        index = RootTemplateIndex()
+        for predicate in (_is_roottemplate_file, _is_global_item_file):
+            for name, data in self._iter_files(predicate):
+                try:
+                    index.add_document(parse_resource(data))
+                except ValueError as exc:
+                    self.load_issues.append(LoadIssue(file=name, error=str(exc)))
         return index
 
     @cached_property

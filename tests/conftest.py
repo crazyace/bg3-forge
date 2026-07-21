@@ -164,6 +164,26 @@ ROOTTEMPLATE_LSX = """\
 </save>
 """
 
+GLOBAL_ITEMS_LSX = """\
+<?xml version="1.0" encoding="utf-8"?>
+<save>
+  <version major="4" minor="0" revision="9" build="330" />
+  <region id="Templates">
+    <node id="Templates">
+      <children>
+        <node id="GameObjects">
+          <attribute id="MapKey" type="FixedString" value="3333cccc-0000-0000-0000-000000000003" />
+          <attribute id="Name" type="LSString" value="S_WLD_PlacedLongsword" />
+          <attribute id="TemplateName" type="FixedString" value="1111aaaa-0000-0000-0000-000000000001" />
+          <attribute id="LevelName" type="FixedString" value="WLD_Main_A" />
+          <attribute id="Type" type="FixedString" value="item" />
+        </node>
+      </children>
+    </node>
+  </region>
+</save>
+"""
+
 def _tag_lsx(uuid, name, display_handle=None, category=None):
     display = (
         f'<attribute id="DisplayName" type="TranslatedString" handle="{display_handle}" version="1" />'
@@ -748,6 +768,7 @@ def fixture_files() -> dict[str, bytes]:
         "Public/Shared/Stats/Generated/Equipment.txt": EQUIPMENT_TXT.encode(),
         "Public/Shared/Stats/Generated/TreasureTable.txt": TREASURE_TXT.encode(),
         "Public/Shared/RootTemplates/Weapons.lsx": ROOTTEMPLATE_LSX.encode(),
+        "Mods/Shared/Globals/WLD_Main_A/Items/_merged.lsx": GLOBAL_ITEMS_LSX.encode(),
         "Public/Shared/Tags/aaaa1111-0000-0000-0000-000000000001.lsx": WEAPON_TAG_LSX.encode(),
         "Public/Shared/Tags/bbbb2222-0000-0000-0000-000000000002.lsx": LONGSWORD_TAG_LSX.encode(),
         "Public/Shared/GUI/Icons_Items.lsx": ATLAS_LSX.encode(),

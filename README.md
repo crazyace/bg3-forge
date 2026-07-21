@@ -238,7 +238,13 @@ game = Game(language="German")                   # localization language
 game.spells["Projectile_Fireball"]               # lookup by stats name
 game.items.find("amulet")                        # search names + display names
 game.items.get("WPN_Maybe", default=None)        # tolerant lookup
+game.item_templates                               # RootTemplates + placed global items
 ```
+
+`game.item_templates` mirrors the runtime's item-template view. It includes
+stable story-facing objects from `Mods/*/Globals/*/Items` and resolves their
+`TemplateName` references back through the RootTemplate inheritance chain.
+Use `game.templates` when only canonical RootTemplates are wanted.
 
 Models form a relationship graph rather than isolated records. Forward
 edges resolve an object's references (`item.passives`, `item.spells`,
@@ -289,6 +295,7 @@ src/bg3forge/
 * ✅ LSX parser/writer
 * ✅ LSF (binary) parser/writer + `bg3forge convert`
 * ✅ RootTemplate parser with parent-template inheritance
+* ✅ Global item templates with `TemplateName` → RootTemplate inheritance
 * ✅ Atlas definitions + icon extraction (PNG/WebP)
 * ✅ Progressions and treasure tables
 * ✅ JSON / SQLite / CSV / Markdown / YAML exporters
