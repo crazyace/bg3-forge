@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bg3forge"
+version = "0.1.0"
+description = "Toolkit for extracting, parsing, and exporting Baldur's Gate 3 assets and game data"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "BG3 Forge contributors" }]
+keywords = ["baldurs-gate-3", "bg3", "modding", "game-data", "pak", "larian"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Games/Entertainment",
+    "Topic :: Software Development :: Libraries",
+]
+# The core library is dependency-free: LZ4 and zlib decompression are
+# built in.  Optional extras speed things up or unlock extra features.
+dependencies = []
+
+[project.optional-dependencies]
+lz4 = ["lz4>=4.0"]           # native-speed LZ4 (recommended for full unpacks)
+zstd = ["zstandard>=0.21"]   # zstd-compressed pak entries
+icons = ["Pillow>=10.0"]     # DDS atlas decoding / PNG / WebP export
+yaml = ["PyYAML>=6.0"]       # YAML exporter
+all = ["lz4>=4.0", "zstandard>=0.21", "Pillow>=10.0", "PyYAML>=6.0"]
+dev = ["pytest>=7.0", "lz4>=4.0"]
+
+[project.scripts]
+bg3forge = "bg3forge.cli.main:main"
+
+[project.urls]
+Homepage = "https://github.com/crazyace/bg3-forge"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
