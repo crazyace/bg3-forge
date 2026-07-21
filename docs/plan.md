@@ -22,7 +22,7 @@ against retail at scale (they were built from 40-line samples).
 Completed 2026-07-21 against game data 4.8.700.7143220: clean sweep,
 counts recorded, and the relationship chain verified.
 
-## 2. Compiled Osiris reader (`story.div.osi`) — metadata level
+## 2. Compiled Osiris reader (`story.div.osi`) — complete
 
 *The next format project, LSF-sized. Deepens the quest graph the most.*
 
@@ -48,10 +48,10 @@ Exit criterion: all 11 retail `story.div.osi` files parse; goal list
 cross-checks against `game.goals` (every source goal appears in the
 compiled story).
 
-Implementation and synthetic layout tests completed 2026-07-21. The
-first retail pass parsed ten files and identified Gustav's remaining
-Osiris 1.13 expanded-value layout; the exit criterion remains open until
-the follow-up sweep is clean.
+Completed 2026-07-21 against all 11 retail stories. The first pass parsed
+ten files and identified Gustav's older Osiris 1.13 expanded-value
+layout; the pinned follow-up fix produced a clean sweep. All 943 unique
+source-goal names were present in compiled data.
 
 ## 3. BG3 Pathway integration — first real consumer
 
@@ -75,7 +75,5 @@ and the friction list has been triaged into issues.
 
 ## Sequencing
 
-Milestone 1 is complete. Milestones 2 and 3 are independent and can
-interleave; default order is 2 then 3, but if Pathway work is ready to
-start, 3 can lead — its friction list would inform what "metadata level"
-needs to mean for 2.
+Milestones 1 and 2 are complete. BG3 Pathway integration is next; its
+friction list will drive any additional API or parser work.

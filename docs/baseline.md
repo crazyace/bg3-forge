@@ -8,7 +8,7 @@ design principle #5) measures optimization proposals against.
 
 | | |
 | --- | --- |
-| bg3forge | 0.1.0 (branch `main`, post-`32ba7d2`) |
+| bg3forge | 0.1.0 (branch `main`, post-`044c97b`) |
 | Python | 3.12.10 |
 | OS | Windows 11 (10.0.26200) |
 | Native LZ4 | yes |
@@ -45,9 +45,16 @@ objectives                   1,335
 quest categories                14
 goals                          975
 goal quest refs                367
+compiled stories                11
+story functions            182,780
+story databases            140,190
+story goals                  8,164
+story rules                435,803
+source goals compiled          943
+source goals missing             0
 equipment files                  5
 equipment sets                 738
-files skipped              923,762
+files skipped              923,751
 stats resolved              16,132
 
 OK: every recognized file parsed cleanly.
@@ -68,6 +75,13 @@ localized chain:
       category: Crashside — Nautiloid Crash Region
       objective: PLA_ZhentShipment_AgreedHelp — Find the missing wagon.
       marker: PLA_ZhentShipment_Caravan — Wagon
+
+The compiled Osiris metadata reader was retail-verified the same day
+against all 11 shipped `story.div.osi` files (versions 1.13–1.15). It
+traversed 182,780 function records, 140,190 databases, 8,164 goal records,
+and 435,803 rules with zero parse failures. All 943 unique source-goal
+names appeared in at least one compiled story variant; the difference
+from 975 source files is duplicate goal names across modules.
 
 Other spot checks along the way: `game.dialogs.lines(...)` returned real
 localized lines ("Mmm. Delicious gruel."), `game.quests` real journal
