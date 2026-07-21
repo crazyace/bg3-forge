@@ -18,6 +18,7 @@ def test_validate_clean_fixture(data_dir):
     assert report.counts["stats_files"] == 5
     assert report.counts["stats_entries"] == 6
     assert report.counts["stats_globals"] == 2
+    assert report.counts["stats_resolved"] == 6  # inheritance checked cross-file
     assert report.counts["treasure_files"] == 1
     assert report.counts["treasure_tables"] == 1
     assert report.counts["loca_files"] == 1

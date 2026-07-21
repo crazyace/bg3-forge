@@ -160,6 +160,57 @@ def test_relationships_are_lazy_and_cached(data_dir):
     assert magic.passives is first        # resolved once, cached on instance
 
 
+def test_resolution_cycle_is_recorded_not_fatal(tmp_path):
+    """A genuine inheritance cycle skips that entry and records an issue
+    instead of aborting the items build (regression: retail export died
+    on 'inheritance cycle at MAG_Frost_GenerateFrostOnDamage_Gloves')."""
+    from bg3forge.pak import PakWriter
+    from conftest import fixture_files
+
+    writer = PakWriter()
+    for name, data in fixture_files().items():
+        writer.add(name, data)
+    writer.add(
+        "Public/Cycle/Stats/Generated/Data/Cycle.txt",
+        b'new entry "ARM_A"\ntype "Armor"\nusing "ARM_B"\n'
+        b'new entry "ARM_B"\ntype "Armor"\nusing "ARM_A"\n',
+    )
+    writer.write(tmp_path / "Shared.pak")
+
+    game = Game(data_dir=tmp_path)
+    assert {i.name for i in game.items} >= {"WPN_Longsword"}  # build survives
+    assert "ARM_A" not in game.items
+    cycle_issues = [i for i in game.load_issues if "cycle" in i.error]
+    assert len(cycle_issues) == 2  # both cycle members skipped and recorded
+
+
+def test_self_using_override_resolves(tmp_path):
+    """The retail patch-layering pattern resolves instead of cycling."""
+    from bg3forge.pak import PakWriter
+    from conftest import fixture_files
+
+    writer = PakWriter()
+    for name, data in fixture_files().items():
+        writer.add(name, data)
+    # a higher-priority pak layers a rarity change over the base longsword
+    # (priority beats the unhelpful alphabetical order of the filenames)
+    writer.write(tmp_path / "Shared.pak")
+    patch = PakWriter(priority=10)
+    patch.add(
+        "Public/Patch/Stats/Generated/Data/Weapon.txt",
+        b'new entry "WPN_Longsword"\ntype "Weapon"\nusing "WPN_Longsword"\n'
+        b'data "Rarity" "Legendary"\n',
+    )
+    patch.write(tmp_path / "Patch1.pak")
+
+    game = Game(data_dir=tmp_path)
+    sword = game.items["WPN_Longsword"]
+    assert sword.rarity == "Legendary"          # patched layer wins
+    assert sword.data["Damage"] == "1d8"        # base layer preserved
+    assert sword.display_name == "Longsword"    # template join intact
+    assert game.load_issues == []
+
+
 def test_linked_models_still_export_cleanly(game, tmp_path):
     """The game back-reference must never leak into exports."""
     import json

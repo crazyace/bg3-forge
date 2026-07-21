@@ -184,7 +184,9 @@ class Game:
         items = []
         templates_by_key = self.templates
         for entry in self.stats.by_type(*ITEM_TYPES):
-            data = self.stats.resolved(entry.name)
+            data = self._resolved_or_record(entry)
+            if data is None:
+                continue
             map_key = data.get("RootTemplate")
             display = description = ""
             if map_key:
@@ -208,7 +210,7 @@ class Game:
         return self._collect(
             Spell.from_stats(entry.name, data, *self._texts(data))
             for entry in self.stats.by_type(SPELL_TYPE)
-            if (data := self.stats.resolved(entry.name)) is not None
+            if (data := self._resolved_or_record(entry)) is not None
         )
 
     @cached_property
@@ -216,7 +218,7 @@ class Game:
         return self._collect(
             Passive.from_stats(entry.name, data, *self._texts(data))
             for entry in self.stats.by_type(PASSIVE_TYPE)
-            if (data := self.stats.resolved(entry.name)) is not None
+            if (data := self._resolved_or_record(entry)) is not None
         )
 
     @cached_property
@@ -224,7 +226,7 @@ class Game:
         return self._collect(
             Status.from_stats(entry.name, data, *self._texts(data))
             for entry in self.stats.by_type(STATUS_TYPE)
-            if (data := self.stats.resolved(entry.name)) is not None
+            if (data := self._resolved_or_record(entry)) is not None
         )
 
     # -- relationship graph ---------------------------------------------------
@@ -252,6 +254,18 @@ class Game:
 
     # -- internals -----------------------------------------------------------
 
+    def _resolved_or_record(self, entry) -> dict[str, str] | None:
+        """Resolve a stats entry's inheritance; on failure (e.g. a genuine
+        cycle) record a load issue and skip the entry instead of aborting
+        the whole collection."""
+        try:
+            return self.stats.resolved(entry.name)
+        except ValueError as exc:
+            self.load_issues.append(
+                LoadIssue(file=entry.source or "<stats>", error=f"{entry.name}: {exc}")
+            )
+            return None
+
     def _collect(self, objects) -> NamedCollection:
         collection = NamedCollection(objects)
         for obj in collection:
@@ -265,7 +279,12 @@ class Game:
         )
 
     def _iter_files(self, predicate):
-        """Yield (name, bytes) for archived/extracted files matching predicate."""
+        """Yield (name, bytes) for archived/extracted files matching predicate.
+
+        Paks are visited in (priority, name) order — the engine's load
+        order — so later, higher-priority archives override earlier ones
+        and patch-layered stats resolve against the right base.
+        """
         if self.extracted_dir is not None:
             for file in sorted(self.extracted_dir.rglob("*")):
                 if not file.is_file():
@@ -274,12 +293,18 @@ class Game:
                 if predicate(rel):
                     yield rel, file.read_bytes()
             return
-        for pak_path in sorted(self.data_dir.rglob("*.pak")):
-            try:
-                reader = PakReader(pak_path)
-            except ValueError:
-                continue  # secondary archive part or foreign file
-            with reader:
+        readers: list[PakReader] = []
+        try:
+            for pak_path in sorted(self.data_dir.rglob("*.pak")):
+                try:
+                    readers.append(PakReader(pak_path))
+                except ValueError:
+                    continue  # secondary archive part or foreign file
+            readers.sort(key=lambda r: (r.header.priority, r.path.name))
+            for reader in readers:
                 for entry in reader:
                     if predicate(entry.name):
                         yield entry.name, reader.read(entry)
+        finally:
+            for reader in readers:
+                reader.close()

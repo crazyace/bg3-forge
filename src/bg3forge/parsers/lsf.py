@@ -46,14 +46,19 @@ from .lsx import LsxAttribute, LsxDocument, LsxNode
 
 MAGIC = b"LSOF"
 
+# Version numbering follows LSLib's LSFVersion enum exactly.  Note that
+# VerBG3NodeKeys is SIX: the extended metadata (with keys sizes) and the
+# keyed-node layout begin at file version 6, not 7.  BG3 retail data
+# mixes v5/v6/v7 resources; misreading v6 metadata shifts every section
+# offset by 8 bytes and was the cause of a mass retail parse failure.
 VER_INITIAL = 1
 VER_CHUNKED_COMPRESS = 2
 VER_EXTENDED_NODES = 3
 VER_BG3 = 4
 VER_BG3_EXTENDED_HEADER = 5
-VER_BG3_ADDITIONAL_BLOB = 6
-VER_BG3_NODE_KEYS = 7
-MAX_VERSION = VER_BG3_NODE_KEYS
+VER_BG3_NODE_KEYS = 6
+VER_BG3_PATCH3 = 7
+MAX_VERSION = VER_BG3_PATCH3
 
 METADATA_KEYS_AND_ADJACENCY = 1
 
@@ -538,17 +543,17 @@ class _NameTable:
 
 def write_lsf(
     document: LsxDocument,
-    version: int = VER_BG3_ADDITIONAL_BLOB,
+    version: int = VER_BG3_NODE_KEYS,
     compression: CompressionMethod = CompressionMethod.NONE,
 ) -> bytes:
     """Serialize a document to LSF.
 
-    ``version`` 5/6 write compact (V2) tables; version 7 writes the
-    extended (V3) layout with node keys, matching current BG3 output.
-    Regions are stored by their root node's id (LSF has no separate
-    region name).
+    Version 5 writes the compact (V2) tables with V5 metadata; versions
+    6 and 7 write the extended metadata and keyed (V3) layout, matching
+    BG3 retail output.  Regions are stored by their root node's id (LSF
+    has no separate region name).
     """
-    if version not in (VER_BG3_EXTENDED_HEADER, VER_BG3_ADDITIONAL_BLOB, VER_BG3_NODE_KEYS):
+    if version not in (VER_BG3_EXTENDED_HEADER, VER_BG3_NODE_KEYS, VER_BG3_PATCH3):
         raise LsfError(f"unsupported write version {version} (use 5, 6, or 7)")
     keyed = version >= VER_BG3_NODE_KEYS
 

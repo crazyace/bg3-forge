@@ -92,6 +92,32 @@ def test_stats_inheritance_cycle_detected():
         stats.resolved("A")
 
 
+def test_stats_self_using_layers():
+    """Retail patch layering: a later definition `using` its own name
+    extends the earlier definition (the MAG_Frost_..._Gloves pattern)."""
+    stats = StatsCollection()
+    stats.load_text(
+        'new entry "MAG_Gloves"\ntype "Armor"\nusing "_Base"\ndata "A" "1"\n'
+        'new entry "_Base"\ntype "Armor"\ndata "Base" "yes"'
+    )
+    stats.load_text(  # patch file loaded later, extending the original
+        'new entry "MAG_Gloves"\ntype "Armor"\nusing "MAG_Gloves"\ndata "B" "2"'
+    )
+    resolved = stats.resolved("MAG_Gloves")
+    assert resolved == {"Base": "yes", "A": "1", "B": "2"}
+
+    # a third layer stacks again
+    stats.load_text('new entry "MAG_Gloves"\ntype "Armor"\nusing "MAG_Gloves"\ndata "C" "3"')
+    assert stats.resolved("MAG_Gloves") == {"Base": "yes", "A": "1", "B": "2", "C": "3"}
+
+
+def test_stats_self_using_without_earlier_layer():
+    """A lone self-reference is a dangling using, not an infinite loop."""
+    stats = StatsCollection()
+    stats.load_text('new entry "X"\ntype "Armor"\nusing "X"\ndata "K" "V"')
+    assert stats.resolved("X") == {"K": "V"}
+
+
 def test_stats_later_definition_wins():
     stats = StatsCollection()
     stats.load_text('new entry "A"\ntype "Weapon"\ndata "K" "old"')

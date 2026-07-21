@@ -25,7 +25,7 @@ from .parsers.lsf import is_lsf
 from .parsers.localization import parse_loca
 from .parsers.resource import parse_resource
 from .parsers.roottemplates import parse_root_templates
-from .parsers.stats import parse_stats_document
+from .parsers.stats import StatsCollection, parse_stats_document
 from .parsers.treasure import parse_treasure_tables
 
 
@@ -54,10 +54,11 @@ def validate_data(data_dir: str | Path) -> ValidationReport:
         "paks", "pak_parts_skipped", "stats_files", "stats_entries",
         "stats_globals", "treasure_files", "treasure_tables", "loca_files",
         "loca_handles", "lsx_resources", "lsf_resources", "root_templates",
-        "atlases", "files_skipped",
+        "atlases", "files_skipped", "stats_resolved",
     ):
         counts[key] = 0
 
+    stats = StatsCollection()
     for pak_path in sorted(Path(data_dir).rglob("*.pak")):
         try:
             reader = PakReader(pak_path)
@@ -67,11 +68,28 @@ def validate_data(data_dir: str | Path) -> ValidationReport:
         counts["paks"] += 1
         with reader:
             for entry in reader:
-                _validate_entry(reader, entry, report)
+                _validate_entry(reader, entry, report, stats)
+
+    # Cross-file phase: entries reference each other across paks, so
+    # inheritance can only be checked once everything is loaded.
+    for entry in stats:
+        try:
+            stats.resolved(entry.name)
+            counts["stats_resolved"] += 1
+        except Exception as exc:  # noqa: BLE001
+            report.issues.append(
+                ValidationIssue(
+                    file=entry.source or "<stats>",
+                    stage="stats-resolve",
+                    error=f"{entry.name}: {type(exc).__name__}: {exc}",
+                )
+            )
     return report
 
 
-def _validate_entry(reader: PakReader, entry, report: ValidationReport) -> None:
+def _validate_entry(
+    reader: PakReader, entry, report: ValidationReport, stats: StatsCollection
+) -> None:
     name = entry.name
     lowered = name.lower()
     counts = report.counts
@@ -93,6 +111,8 @@ def _validate_entry(reader: PakReader, entry, report: ValidationReport) -> None:
             )
             counts["stats_entries"] += len(document.entries)
             counts["stats_globals"] += len(document.globals)
+            for stats_entry in document.entries:
+                stats.add(stats_entry)
         if check("stats", parse):
             counts["stats_files"] += 1
     elif _is_treasure_file(name):

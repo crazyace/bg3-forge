@@ -113,6 +113,10 @@ class StatsCollection:
 
     def __init__(self, entries: Iterable[StatsEntry] = ()):
         self._entries: dict[str, StatsEntry] = {}
+        # Every definition of a name in load order.  Retail patch files
+        # redefine an entry `using` its own name to layer changes over
+        # the earlier definition; resolution needs those older layers.
+        self._layers: dict[str, list[StatsEntry]] = {}
         self.globals: dict[str, str] = {}  # key "Name","Value" constants
         for entry in entries:
             self.add(entry)
@@ -132,6 +136,7 @@ class StatsCollection:
     def add(self, entry: StatsEntry) -> None:
         # Later definitions override earlier ones, mirroring pak priority.
         self._entries[entry.name] = entry
+        self._layers.setdefault(entry.name, []).append(entry)
 
     def load_text(self, text: str, source: str | None = None) -> None:
         document = parse_stats_document(text, source)
@@ -152,20 +157,39 @@ class StatsCollection:
         return [e for e in self._entries.values() if e.type in wanted]
 
     def resolved(self, name: str) -> dict[str, str]:
-        """Effective key/value data for ``name`` with inheritance applied."""
+        """Effective key/value data for ``name`` with inheritance applied.
+
+        A definition ``using`` its own name (retail's patch-layering
+        pattern, e.g. ``MAG_Frost_GenerateFrostOnDamage_Gloves``)
+        resolves to the *previous* definition of that name rather than
+        itself; ``using`` another name resolves to its latest
+        definition.  Genuine cross-entry cycles raise
+        :class:`StatsParseError`.
+        """
         chain: list[StatsEntry] = []
-        seen: set[str] = set()
-        cursor: str | None = name
+        seen_ids: set[int] = set()
+        cursor = self._entries.get(name)
         while cursor is not None:
-            if cursor in seen:
-                raise StatsParseError(f"inheritance cycle at {cursor!r}")
-            seen.add(cursor)
-            entry = self._entries.get(cursor)
-            if entry is None:
-                break  # dangling 'using' reference; keep what we have
-            chain.append(entry)
-            cursor = entry.using
+            if id(cursor) in seen_ids:
+                raise StatsParseError(f"inheritance cycle at {cursor.name!r}")
+            seen_ids.add(id(cursor))
+            chain.append(cursor)
+            target = cursor.using
+            if target is None:
+                break
+            if target == cursor.name:
+                cursor = self._previous_layer(cursor)
+            else:
+                cursor = self._entries.get(target)
         data: dict[str, str] = {}
         for entry in reversed(chain):
             data.update(entry.data)
         return data
+
+    def _previous_layer(self, definition: StatsEntry) -> StatsEntry | None:
+        """The definition of the same name loaded just before this one."""
+        layers = self._layers.get(definition.name, [])
+        for index, layer in enumerate(layers):
+            if layer is definition:
+                return layers[index - 1] if index > 0 else None
+        return None

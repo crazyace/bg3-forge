@@ -103,12 +103,29 @@ def test_roundtrip_all_types(version):
     assert [c.attributes["Index"].value for c in node.children] == ["1", "2"]
 
 
-def test_v7_preserves_node_keys():
+def test_keyed_versions_preserve_node_keys():
     original = parse_lsx(ALL_TYPES_LSX)
-    parsed = parse_lsf(write_lsf(original, version=7))
-    assert parsed.regions["AllTypes"].key == "Name"
-    # v5/v6 have no keys section, so the key is dropped there
-    assert parse_lsf(write_lsf(original, version=6)).regions["AllTypes"].key is None
+    # Node keys exist from v6 (VerBG3NodeKeys) on; v5 predates them.
+    assert parse_lsf(write_lsf(original, version=7)).regions["AllTypes"].key == "Name"
+    assert parse_lsf(write_lsf(original, version=6)).regions["AllTypes"].key == "Name"
+    assert parse_lsf(write_lsf(original, version=5)).regions["AllTypes"].key is None
+
+
+def test_metadata_layout_sizes():
+    """Pin the header layout: v5 uses the 40-byte metadata, v6 and v7 the
+    48-byte extended metadata (keys sizes) — the split is at SIX.  Getting
+    this wrong shifts every section by 8 bytes and broke ~36k retail v6
+    files (dialogs, levels, localization) before it was caught."""
+    from bg3forge.parsers.lsx import LsxDocument
+
+    empty = LsxDocument()
+    name_table = 4 + 512 * 2  # bucket count + 512 empty buckets
+    assert len(write_lsf(empty, version=5)) == 8 + 8 + 40 + name_table
+    assert len(write_lsf(empty, version=6)) == 8 + 8 + 48 + name_table
+    assert len(write_lsf(empty, version=7)) == 8 + 8 + 48 + name_table
+    # and the compression flags byte sits right after the size fields
+    blob = write_lsf(empty, version=6)
+    assert blob[16 + 40] == 0  # CompressionMethod.NONE
 
 
 def test_roundtrip_roottemplates_matches_lsx():
