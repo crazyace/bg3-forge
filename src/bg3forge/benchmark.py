@@ -84,6 +84,8 @@ def run_benchmark(game: Game | None = None, export_dir: str | Path | None = None
     timed("Parse root templates", lambda: report.counts.__setitem__("root templates", len(game.templates)))
     timed("Parse tags", lambda: report.counts.__setitem__("tags", len(game.tags)))
     timed("Parse atlases", lambda: report.counts.__setitem__("atlases", len(game.atlases)))
+    # dialogs are indexed, not parsed — this measures the cheap half
+    timed("Index dialogs", lambda: report.counts.__setitem__("dialogs indexed", len(game.dialogs)))
     timed("Build models", _build_models(game, report))
     timed("Resolve relationships", resolve_relationships)
     timed("Export JSON", export)

@@ -49,6 +49,11 @@ game.spells["Projectile_Fireball"].items  # items unlocking a spell
 game.statuses["BURNING"].items          # items applying a status
 game.tags["LONGSWORD"].items            # items carrying a tag (by name or UUID)
 
+# Dialogs are indexed, not eagerly parsed (there are tens of thousands):
+game.dialogs.find("Karlach")            # search archived paths — free
+dialog = game.dialogs.load(path)        # parses just this one file
+game.dialogs.lines(path)                # (speaker, localized text) pairs
+
 game.items.find("longsword")   # search by name / display name
 for spell in game.spells:
     print(f"[{spell.level}] {spell.display_name}: {spell.damage}")
@@ -247,8 +252,9 @@ src/bg3forge/
   numbers (~14.6 s for the full pipeline, 826 MB peak)
 * ✅ Tag registry (`game.tags`) — tag UUIDs resolve to named, localized
   `Tag` objects, with the reverse `tag.items` edge
-* ⏳ Dialog metadata parser (retail dialog `.lsf` files now parse;
-  next: a typed model over them)
+* ✅ Dialog metadata (`game.dialogs`) — lazy indexed access to dialog
+  graphs: speakers, flow edges, localized lines
+* ⏳ Quest / cinematic metadata on the same indexed pattern
 * ⏳ Character / equipment / dialog metadata parsers
 * ⏳ GR2 model metadata
 * ⏳ Virtual texture (GTS/GTP) atlas support

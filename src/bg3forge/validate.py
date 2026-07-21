@@ -20,7 +20,14 @@ from pathlib import Path
 from typing import Callable
 
 from .assets.atlases import parse_atlas
-from .game import _is_atlas_file, _is_roottemplate_file, _is_stats_file, _is_treasure_file
+from .game import (
+    _is_atlas_file,
+    _is_dialog_file,
+    _is_roottemplate_file,
+    _is_stats_file,
+    _is_treasure_file,
+)
+from .parsers.dialogs import parse_dialog
 from .pak.reader import PakReader
 from .parsers.lsf import is_lsf
 from .parsers.localization import parse_loca
@@ -63,7 +70,7 @@ def validate_data(
         "paks", "pak_parts_skipped", "stats_files", "stats_entries",
         "stats_globals", "treasure_files", "treasure_tables", "loca_files",
         "loca_handles", "lsx_resources", "lsf_resources", "root_templates",
-        "atlases", "files_skipped", "stats_resolved",
+        "atlases", "dialogs", "dialog_nodes", "files_skipped", "stats_resolved",
     ):
         counts[key] = 0
 
@@ -156,6 +163,10 @@ def _validate_entry(
                 counts["root_templates"] += len(parse_root_templates(document))
             elif _is_atlas_file(name) and parse_atlas(document).icons:
                 counts["atlases"] += 1
+            elif _is_dialog_file(name):
+                dialog = parse_dialog(document, source=name)
+                counts["dialogs"] += 1
+                counts["dialog_nodes"] += len(dialog.nodes)
         if check("resource", parse):
             counts["lsf_resources" if binary else "lsx_resources"] += 1
     else:

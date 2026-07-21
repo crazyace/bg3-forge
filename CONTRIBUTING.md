@@ -61,7 +61,9 @@ Complexity is added in phases, each justified by the data that forces it:
    optimization only against measurements from real installs.
 3. **Indexed datasets** for dialogs, quests, cinematics — the first
    datasets large enough that scanning whole paks per query stops being
-   acceptable. Design starts when the first such parser lands.
+   acceptable. ✅ begun: `DialogIndex` lists from pak indexes only and
+   parses per file on demand; quests/cinematics should follow the same
+   pattern.
 4. **On-demand asset streaming** (textures, models, virtual textures) —
    only once phase 3 exists and the asset pipeline needs it.
 

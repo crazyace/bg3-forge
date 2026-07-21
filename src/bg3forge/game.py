@@ -36,6 +36,7 @@ from .pak.reader import PakReader
 from .parsers.localization import Localization
 from .parsers.resource import parse_resource
 from .parsers.roottemplates import RootTemplateIndex
+from .parsers.dialogs import Dialog, parse_dialog
 from .parsers.stats import StatsCollection
 from .parsers.tags import TagRegistry
 from .parsers.treasure import TreasureTable, parse_treasure_tables
@@ -52,6 +53,71 @@ class LoadIssue:
 
     file: str
     error: str
+
+
+class DialogIndex:
+    """Lazy, indexed access to the game's dialogs.
+
+    BG3 ships tens of thousands of dialog files — far too many to parse
+    eagerly (architecture roadmap phase 3).  Building the index touches
+    only the pak file lists; each dialog is parsed on first access and
+    cached::
+
+        game.dialogs.find("Karlach")          # search archived paths, free
+        dialog = game.dialogs.load(path)      # parses this one file
+        game.dialogs.lines(path)              # (speaker, localized text) pairs
+    """
+
+    def __init__(self, game: "Game"):
+        self._game = game
+        self._sources = game._locate_entries(_is_dialog_file)
+        self._cache: dict[str, Dialog] = {}
+
+    def __len__(self) -> int:
+        return len(self._sources)
+
+    def __contains__(self, name: str) -> bool:
+        return name in self._sources
+
+    @property
+    def paths(self) -> list[str]:
+        return list(self._sources)
+
+    def find(self, query: str) -> list[str]:
+        """Archived paths whose name contains ``query`` (case-insensitive)."""
+        needle = query.lower()
+        return [name for name in self._sources if needle in name.lower()]
+
+    def load(self, name: str) -> Dialog:
+        """Parse one dialog (cached after the first call)."""
+        if name not in self._cache:
+            try:
+                source = self._sources[name]
+            except KeyError:
+                raise KeyError(f"no dialog at {name!r}") from None
+            data = self._game._read_entry(name, source)
+            self._cache[name] = parse_dialog(parse_resource(data), source=name)
+        return self._cache[name]
+
+    def get(self, name: str) -> Dialog | None:
+        try:
+            return self.load(name)
+        except (KeyError, ValueError):
+            return None
+
+    def lines(self, name: str) -> list[tuple[int | None, str]]:
+        """(speaker index, localized text) for every spoken line, in
+        graph walk order.  Lines whose handles have no localization are
+        skipped."""
+        dialog = self.load(name)
+        result = []
+        walk = list(dialog.walk()) or dialog.nodes
+        for node in walk:
+            for handle, _version in node.text_handles:
+                text = self._game.localization.resolve(handle)
+                if text:
+                    result.append((node.speaker, text))
+        return result
 
 
 def _is_stats_file(name: str) -> bool:
@@ -76,6 +142,13 @@ def _is_atlas_file(name: str) -> bool:
 def _is_tag_file(name: str) -> bool:
     lowered = name.lower()
     return "/tags/" in lowered and lowered.endswith((".lsx", ".lsf"))
+
+
+def _is_dialog_file(name: str) -> bool:
+    lowered = name.lower()
+    return (
+        "/story/dialogsbinary/" in lowered or "/story/dialogs/" in lowered
+    ) and lowered.endswith((".lsx", ".lsf"))
 
 
 class Game:
@@ -206,6 +279,11 @@ class Game:
         return index
 
     @cached_property
+    def dialogs(self) -> DialogIndex:
+        """Lazy dialog index — cheap to build, parses per file on access."""
+        return DialogIndex(self)
+
+    @cached_property
     def treasure_tables(self) -> list[TreasureTable]:
         tables: list[TreasureTable] = []
         for name, data in self._iter_files(_is_treasure_file):
@@ -333,14 +411,8 @@ class Game:
                 if predicate(rel):
                     yield rel, file.read_bytes()
             return
-        readers: list[PakReader] = []
+        readers = self._open_readers()
         try:
-            for pak_path in sorted(self.data_dir.rglob("*.pak")):
-                try:
-                    readers.append(PakReader(pak_path))
-                except ValueError:
-                    continue  # secondary archive part or foreign file
-            readers.sort(key=lambda r: (r.header.priority, r.path.name))
             for reader in readers:
                 for entry in reader:
                     if predicate(entry.name):
@@ -348,3 +420,44 @@ class Game:
         finally:
             for reader in readers:
                 reader.close()
+
+    def _open_readers(self) -> list[PakReader]:
+        """All primary pak readers in (priority, name) load order."""
+        readers: list[PakReader] = []
+        for pak_path in sorted(self.data_dir.rglob("*.pak")):
+            try:
+                readers.append(PakReader(pak_path))
+            except ValueError:
+                continue  # secondary archive part or foreign file
+        readers.sort(key=lambda r: (r.header.priority, r.path.name))
+        return readers
+
+    def _locate_entries(self, predicate) -> dict[str, Path]:
+        """Map matching archived names to their source (pak or file) WITHOUT
+        reading any content — the cheap half of indexed datasets."""
+        sources: dict[str, Path] = {}
+        if self.extracted_dir is not None:
+            for file in sorted(self.extracted_dir.rglob("*")):
+                if not file.is_file():
+                    continue
+                rel = file.relative_to(self.extracted_dir).as_posix()
+                if predicate(rel):
+                    sources[rel] = file
+            return sources
+        readers = self._open_readers()
+        try:
+            for reader in readers:
+                for entry in reader:
+                    if predicate(entry.name):
+                        sources[entry.name] = reader.path
+        finally:
+            for reader in readers:
+                reader.close()
+        return sources
+
+    def _read_entry(self, name: str, source: Path) -> bytes:
+        """Read one archived entry located by :meth:`_locate_entries`."""
+        if self.extracted_dir is not None:
+            return source.read_bytes()
+        with PakReader(source) as reader:
+            return reader.read(name)

@@ -206,6 +206,88 @@ ATLAS_LSX = """\
 </save>
 """
 
+DIALOG_LSX = """\
+<save>
+  <region id="dialog">
+    <node id="dialog">
+      <attribute id="UUID" type="FixedString" value="dddd0000-0000-0000-0000-000000000001" />
+      <attribute id="category" type="LSString" value="Camp" />
+      <children>
+        <node id="speakerlist">
+          <children>
+            <node id="speaker">
+              <attribute id="index" type="FixedString" value="0" />
+              <attribute id="SpeakerMappingId" type="guid" value="5e2222aa-0000-0000-0000-00000000aa01" />
+            </node>
+            <node id="speaker">
+              <attribute id="index" type="FixedString" value="1" />
+              <attribute id="SpeakerMappingId" type="guid" value="5e2222aa-0000-0000-0000-00000000aa02" />
+            </node>
+          </children>
+        </node>
+        <node id="nodes">
+          <children>
+            <node id="node">
+              <attribute id="UUID" type="FixedString" value="n0000001" />
+              <attribute id="constructor" type="FixedString" value="TagGreeting" />
+              <attribute id="speaker" type="int32" value="0" />
+              <attribute id="Root" type="bool" value="True" />
+              <children>
+                <node id="TaggedTexts">
+                  <children>
+                    <node id="TaggedText">
+                      <children>
+                        <node id="TagTexts">
+                          <children>
+                            <node id="TagText">
+                              <attribute id="TagText" type="TranslatedString" handle="h99990000-9999-9999-9999-999999999901" version="1" />
+                            </node>
+                          </children>
+                        </node>
+                      </children>
+                    </node>
+                  </children>
+                </node>
+                <node id="children">
+                  <children>
+                    <node id="child">
+                      <attribute id="UUID" type="FixedString" value="n0000002" />
+                    </node>
+                  </children>
+                </node>
+              </children>
+            </node>
+            <node id="node">
+              <attribute id="UUID" type="FixedString" value="n0000002" />
+              <attribute id="constructor" type="FixedString" value="TagAnswer" />
+              <attribute id="speaker" type="int32" value="1" />
+              <attribute id="endnode" type="bool" value="True" />
+              <children>
+                <node id="TaggedTexts">
+                  <children>
+                    <node id="TaggedText">
+                      <children>
+                        <node id="TagTexts">
+                          <children>
+                            <node id="TagText">
+                              <attribute id="TagText" type="TranslatedString" handle="h99990000-9999-9999-9999-999999999902" version="1" />
+                            </node>
+                          </children>
+                        </node>
+                      </children>
+                    </node>
+                  </children>
+                </node>
+              </children>
+            </node>
+          </children>
+        </node>
+      </children>
+    </node>
+  </region>
+</save>
+"""
+
 LOCA_ENTRIES = [
     LocaEntry("h11111111-1111-1111-1111-111111111111", 1, "Fireball"),
     LocaEntry("h22222222-2222-2222-2222-222222222222", 1, "A bright streak flashes."),
@@ -214,10 +296,17 @@ LOCA_ENTRIES = [
     LocaEntry("h55555555-5555-5555-5555-555555555555", 1, "Longsword"),
     LocaEntry("h66666666-6666-6666-6666-666666666666", 1, "A trusty longsword."),
     LocaEntry("h77777777-7777-7777-7777-777777777777", 1, "Weapon"),
+    LocaEntry("h99990000-9999-9999-9999-999999999901", 1, "Well met, traveler."),
+    LocaEntry("h99990000-9999-9999-9999-999999999902", 1, "And to you."),
 ]
 
 
 def fixture_files() -> dict[str, bytes]:
+    from bg3forge.parsers.lsf import write_lsf
+    from bg3forge.parsers.lsx import parse_lsx
+
+    # Shipped as binary v6, like retail dialogs.
+    dialog_lsf = write_lsf(parse_lsx(DIALOG_LSX), version=6)
     return {
         "Public/Shared/Stats/Generated/Data/Weapon.txt": WEAPON_TXT.encode(),
         "Public/Shared/Stats/Generated/Data/Spell_Projectile.txt": SPELL_TXT.encode(),
@@ -229,6 +318,7 @@ def fixture_files() -> dict[str, bytes]:
         "Public/Shared/Tags/aaaa1111-0000-0000-0000-000000000001.lsx": WEAPON_TAG_LSX.encode(),
         "Public/Shared/Tags/bbbb2222-0000-0000-0000-000000000002.lsx": LONGSWORD_TAG_LSX.encode(),
         "Public/Shared/GUI/Icons_Items.lsx": ATLAS_LSX.encode(),
+        "Mods/Shared/Story/DialogsBinary/Camp/CAMP_Greeting.lsf": dialog_lsf,
         "Localization/English/english.loca": write_loca(LOCA_ENTRIES),
     }
 
