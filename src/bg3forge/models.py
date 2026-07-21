@@ -5,19 +5,31 @@ available, localized display text and the owning root template.  Models
 are plain dataclasses so they serialize cleanly through the exporters via
 :func:`to_record`.
 
-Models built by :class:`~bg3forge.game.Game` are linked back to it, so
-cross-source references resolve without knowing where the data lives::
+Models built by :class:`~bg3forge.game.Game` are linked back to it,
+forming a relationship graph: forward links resolve an object's
+references, reverse links answer "who references me?"::
 
     sword = game.items["WPN_Longsword_Magic"]
-    sword.passives   # [Passive(...)]  from PassivesOnEquip
-    sword.statuses   # [Status(...)]   from StatusOnEquip
-    sword.spells     # [Spell(...)]    from UnlockSpell(...) boosts
+    sword.passives        # [Passive(...)]  from PassivesOnEquip
+    sword.statuses        # [Status(...)]   from StatusOnEquip
+    sword.spells          # [Spell(...)]    from UnlockSpell(...) boosts
+    sword.owner_templates # [RootTemplate(...)] whose Stats point here
+    sword.tags            # tag UUIDs, merged down the template chain
+
+    game.passives["SavageAttacks"].items   # ← items granting it
+    game.spells["Projectile_Fireball"].items
+    game.statuses["BURNING"].items
+
+Every relationship resolves lazily on first access and is cached on the
+instance (they are snapshots — treat them as read-only).  Nothing is
+resolved for objects you never touch.
 """
 
 from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass, field
+from functools import cached_property
 from typing import Any, Iterable, TypeVar
 
 # Stats `type` values that map to each model.
@@ -102,6 +114,12 @@ class GameObject:
         collection = getattr(game, collection_name)
         return [collection[name] for name in names if name in collection]
 
+    def _granted_by(self, relation: str) -> list:
+        game = getattr(self, "_game", None)
+        if game is None:
+            return []
+        return game.items_granting(relation, self.name)
+
 
 @dataclass
 class Item(GameObject):
@@ -129,16 +147,37 @@ class Item(GameObject):
         return [m.group(1) for m in _UNLOCK_SPELL_RE.finditer(self.data.get("Boosts", ""))]
 
     @property
+    def requirements(self) -> list[str]:
+        """Raw requirement expressions, e.g. ``["Str 13"]``."""
+        return _split_list(self.data.get("Requirements"))
+
+    @cached_property
     def passives(self) -> list["Passive"]:
         return self._resolve("passives", self.passive_names)
 
-    @property
+    @cached_property
     def statuses(self) -> list["Status"]:
         return self._resolve("statuses", self.status_names)
 
-    @property
+    @cached_property
     def spells(self) -> list["Spell"]:
         return self._resolve("spells", self.spell_names)
+
+    @cached_property
+    def tags(self) -> list[str]:
+        """Tag UUIDs merged across the item's root-template chain."""
+        game = getattr(self, "_game", None)
+        if game is None or not self.map_key:
+            return []
+        return game.templates.resolved_tags(self.map_key)
+
+    @cached_property
+    def owner_templates(self) -> list:
+        """Root templates whose ``Stats`` field points at this entry."""
+        game = getattr(self, "_game", None)
+        if game is None:
+            return []
+        return game.templates.by_stats(self.name)
 
     @classmethod
     def from_stats(cls, name, stats_type, data, display_name="", description="", map_key=None):
@@ -165,6 +204,11 @@ class Spell(GameObject):
     damage: str | None = None
     use_costs: str | None = None
 
+    @cached_property
+    def items(self) -> list["Item"]:
+        """Items that unlock this spell (reverse of ``Item.spells``)."""
+        return self._granted_by("spells")
+
     @classmethod
     def from_stats(cls, name, data, display_name="", description=""):
         return cls(
@@ -187,6 +231,11 @@ class Passive(GameObject):
     properties: str | None = None
     boosts: str | None = None
 
+    @cached_property
+    def items(self) -> list["Item"]:
+        """Items that grant this passive (reverse of ``Item.passives``)."""
+        return self._granted_by("passives")
+
     @classmethod
     def from_stats(cls, name, data, display_name="", description=""):
         return cls(
@@ -206,6 +255,11 @@ class Status(GameObject):
     status_type: str = ""       # e.g. "BOOST", "POLYMORPHED"
     stack_id: str | None = None
     boosts: str | None = None
+
+    @cached_property
+    def items(self) -> list["Item"]:
+        """Items that apply this status on equip (reverse of ``Item.statuses``)."""
+        return self._granted_by("statuses")
 
     @classmethod
     def from_stats(cls, name, data, display_name="", description=""):

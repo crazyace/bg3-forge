@@ -29,6 +29,7 @@ _FIELDS = (
 class RootTemplate:
     map_key: str
     fields: dict[str, str] = field(default_factory=dict)
+    tags: list[str] = field(default_factory=list)  # tag UUIDs
 
     @property
     def name(self) -> str | None:
@@ -64,7 +65,15 @@ class RootTemplate:
             value = node.get(key)
             if value is not None:
                 fields[key] = value
-        return cls(map_key=map_key, fields=fields)
+        tags = []
+        for tags_node in node.children:
+            if tags_node.id != "Tags":
+                continue
+            for tag_node in tags_node.find_all("Tag"):
+                tag = tag_node.get("Object")
+                if tag:
+                    tags.append(tag)
+        return cls(map_key=map_key, fields=fields, tags=tags)
 
 
 def parse_root_templates(document: LsxDocument) -> list[RootTemplate]:
@@ -81,6 +90,7 @@ class RootTemplateIndex:
 
     def __init__(self):
         self._templates: dict[str, RootTemplate] = {}
+        self._stats_index: dict[str, list[RootTemplate]] | None = None
 
     def __len__(self) -> int:
         return len(self._templates)
@@ -97,9 +107,40 @@ class RootTemplateIndex:
     def add_document(self, document: LsxDocument) -> None:
         for template in parse_root_templates(document):
             self._templates[template.map_key] = template
+        self._stats_index = None  # invalidate the reverse index
 
     def resolved(self, map_key: str) -> dict[str, str]:
         """Effective fields for a template with ancestors merged in."""
+        fields: dict[str, str] = {}
+        for template in reversed(self._chain(map_key)):
+            fields.update(template.fields)
+        return fields
+
+    def resolved_tags(self, map_key: str) -> list[str]:
+        """Tag UUIDs for a template, merged across the ancestor chain.
+
+        Ancestor tags come first; duplicates are dropped.
+        """
+        tags: list[str] = []
+        for template in reversed(self._chain(map_key)):
+            for tag in template.tags:
+                if tag not in tags:
+                    tags.append(tag)
+        return tags
+
+    def by_stats(self, stats_name: str) -> list[RootTemplate]:
+        """Templates whose ``Stats`` field references the given stats entry."""
+        if self._stats_index is None:
+            index: dict[str, list[RootTemplate]] = {}
+            for template in self._templates.values():
+                stats = template.stats_name
+                if stats:
+                    index.setdefault(stats, []).append(template)
+            self._stats_index = index
+        return list(self._stats_index.get(stats_name, ()))
+
+    def _chain(self, map_key: str) -> list[RootTemplate]:
+        """Template plus its ancestors, nearest first; cycles are cut."""
         chain: list[RootTemplate] = []
         seen: set[str] = set()
         cursor: str | None = map_key
@@ -110,7 +151,4 @@ class RootTemplateIndex:
                 break
             chain.append(template)
             cursor = template.parent_id
-        fields: dict[str, str] = {}
-        for template in reversed(chain):
-            fields.update(template.fields)
-        return fields
+        return chain

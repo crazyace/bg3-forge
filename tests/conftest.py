@@ -21,6 +21,7 @@ data "Damage" "1d8"
 data "Damage Type" "Slashing"
 data "RootTemplate" "1111aaaa-0000-0000-0000-000000000001"
 data "Icon" "Item_WPN_Longsword"
+data "Requirements" "Str 13"
 
 new entry "WPN_Longsword_Magic"
 type "Weapon"
@@ -82,6 +83,15 @@ ROOTTEMPLATE_LSX = """\
           <attribute id="MapKey" type="FixedString" value="0000base-0000-0000-0000-00000000000f" />
           <attribute id="Name" type="LSString" value="BASE_Weapon" />
           <attribute id="Icon" type="FixedString" value="Item_Generic" />
+          <children>
+            <node id="Tags">
+              <children>
+                <node id="Tag">
+                  <attribute id="Object" type="guid" value="aaaa1111-0000-0000-0000-000000000001" />
+                </node>
+              </children>
+            </node>
+          </children>
         </node>
         <node id="GameObjects">
           <attribute id="MapKey" type="FixedString" value="1111aaaa-0000-0000-0000-000000000001" />
@@ -90,6 +100,15 @@ ROOTTEMPLATE_LSX = """\
           <attribute id="DisplayName" type="TranslatedString" handle="h55555555-5555-5555-5555-555555555555" version="1" />
           <attribute id="Description" type="TranslatedString" handle="h66666666-6666-6666-6666-666666666666" version="1" />
           <attribute id="Stats" type="FixedString" value="WPN_Longsword" />
+          <children>
+            <node id="Tags">
+              <children>
+                <node id="Tag">
+                  <attribute id="Object" type="guid" value="bbbb2222-0000-0000-0000-000000000002" />
+                </node>
+              </children>
+            </node>
+          </children>
         </node>
       </children>
     </node>

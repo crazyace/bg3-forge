@@ -201,6 +201,29 @@ class Game:
             if (data := self.stats.resolved(entry.name)) is not None
         )
 
+    # -- relationship graph ---------------------------------------------------
+
+    def items_granting(self, relation: str, name: str) -> list[Item]:
+        """Items whose ``relation`` ('passives'/'statuses'/'spells') includes
+        ``name`` — the reverse edges of the item links.  The index is built
+        once, lazily, from a single pass over the items."""
+        return list(self._grants_index.get(relation, {}).get(name, ()))
+
+    @cached_property
+    def _grants_index(self) -> dict[str, dict[str, list[Item]]]:
+        index: dict[str, dict[str, list[Item]]] = {
+            "passives": {}, "statuses": {}, "spells": {},
+        }
+        for item in self.items:
+            for relation, names in (
+                ("passives", item.passive_names),
+                ("statuses", item.status_names),
+                ("spells", item.spell_names),
+            ):
+                for name in names:
+                    index[relation].setdefault(name, []).append(item)
+        return index
+
     # -- internals -----------------------------------------------------------
 
     def _collect(self, objects) -> NamedCollection:

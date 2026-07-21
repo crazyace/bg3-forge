@@ -32,18 +32,30 @@ from bg3forge import Game
 game = Game()  # auto-locates the install (or pass path= / data_dir=)
 
 sword = game.items["WPN_Longsword"]  # or any magic item's stats name
-sword.display_name   # localized name, via RootTemplate + .loca
-sword.description    # localized description
-sword.icon           # atlas icon name
-sword.rarity         # from stats, `using` inheritance applied
-sword.passives       # [Passive(...)] granted on equip
-sword.statuses       # [Status(...)] applied on equip
-sword.spells         # [Spell(...)] unlocked by the item's boosts
+sword.display_name      # localized name, via RootTemplate + .loca
+sword.description       # localized description
+sword.icon              # atlas icon name
+sword.rarity            # from stats, `using` inheritance applied
+sword.requirements      # ["Str 13"]
+sword.tags              # tag UUIDs merged down the template chain
+sword.owner_templates   # RootTemplates whose Stats point at this entry
+sword.passives          # [Passive(...)] granted on equip
+sword.statuses          # [Status(...)] applied on equip
+sword.spells            # [Spell(...)] unlocked by the item's boosts
+
+# ...and the graph works backwards, too:
+game.passives["ExtraAttack"].items      # items granting a passive
+game.spells["Projectile_Fireball"].items  # items unlocking a spell
+game.statuses["BURNING"].items          # items applying a status
 
 game.items.find("longsword")   # search by name / display name
 for spell in game.spells:
     print(f"[{spell.level}] {spell.display_name}: {spell.damage}")
 ```
+
+Everything resolves **lazily**: constructing `Game()` reads nothing,
+collections load on first access, and each relationship is resolved once
+and cached on the instance. You only pay for the data you actually touch.
 
 And from the command line:
 
@@ -155,8 +167,13 @@ game.items.find("amulet")                        # search names + display names
 game.items.get("WPN_Maybe", default=None)        # tolerant lookup
 ```
 
-Models resolve references to each other (`item.passives`, `item.spells`,
-`item.statuses`), and the raw resolved stats are always available via
+Models form a relationship graph rather than isolated records. Forward
+edges resolve an object's references (`item.passives`, `item.spells`,
+`item.statuses`, `item.owner_templates`, `item.tags`); reverse edges
+answer "who references me?" (`passive.items`, `spell.items`,
+`status.items`, backed by a one-pass index built on first use). All
+edges resolve lazily and are cached per instance — treat them as
+read-only snapshots. The raw resolved stats stay available via
 `obj.data` when you need a field the typed model doesn't surface.
 
 The install is auto-located via `$BG3_PATH` and well-known Steam/GOG paths
@@ -197,6 +214,8 @@ src/bg3forge/
 * ✅ Progressions and treasure tables
 * ✅ JSON / SQLite / CSV / Markdown / YAML exporters
 * ✅ Typed Python API with cross-source resolution
+* ✅ Relationship graph (forward + reverse edges, lazy + cached)
+* ⏳ Tag registry parser (resolve tag UUIDs to names/descriptions)
 * ⏳ Validation against a full retail install (format coverage sweep)
 * ⏳ Character / equipment / dialog metadata parsers
 * ⏳ GR2 model metadata

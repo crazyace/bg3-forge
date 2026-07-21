@@ -88,6 +88,53 @@ def test_cross_source_resolution(game):
     assert game.items["WPN_Longsword"].passives == []
 
 
+def test_reverse_links(game):
+    """passive.items / status.items / spell.items walk the graph backwards."""
+    assert [i.name for i in game.passives["SavageAttacks"].items] == ["WPN_Longsword_Magic"]
+    assert [i.name for i in game.statuses["BURNING"].items] == ["WPN_Longsword_Magic"]
+    assert [i.name for i in game.spells["Projectile_Fireball"].items] == ["WPN_Longsword_Magic"]
+    # forward and reverse edges agree on identity
+    magic = game.items["WPN_Longsword_Magic"]
+    assert magic.passives[0].items[0] is magic
+
+
+def test_owner_templates_and_requirements(game):
+    sword = game.items["WPN_Longsword"]
+    assert sword.requirements == ["Str 13"]
+    assert [t.map_key for t in sword.owner_templates] == [
+        "1111aaaa-0000-0000-0000-000000000001"
+    ]
+    # the magic variant inherits Requirements via `using`, but no template
+    # names its stats entry directly
+    magic = game.items["WPN_Longsword_Magic"]
+    assert magic.requirements == ["Str 13"]
+    assert magic.owner_templates == []
+
+
+def test_tags_merge_template_chain(game):
+    sword = game.items["WPN_Longsword"]
+    assert sword.tags == [
+        "aaaa1111-0000-0000-0000-000000000001",  # from BASE_Weapon parent
+        "bbbb2222-0000-0000-0000-000000000002",  # own tag
+    ]
+    # magic variant shares the RootTemplate, hence the tags
+    assert game.items["WPN_Longsword_Magic"].tags == sword.tags
+    # no template → no tags
+    assert game.items["_BaseWeapon"].tags == []
+
+
+def test_relationships_are_lazy_and_cached(data_dir):
+    game = Game(data_dir=data_dir)
+    # constructing a Game reads nothing: no collection is materialized yet
+    assert "stats" not in vars(game)
+    assert "items" not in vars(game)
+    magic = game.items["WPN_Longsword_Magic"]
+    assert "stats" in vars(game)          # first access loaded lazily
+    assert "passives" not in vars(magic)  # relationship untouched so far
+    first = magic.passives
+    assert magic.passives is first        # resolved once, cached on instance
+
+
 def test_linked_models_still_export_cleanly(game, tmp_path):
     """The game back-reference must never leak into exports."""
     import json
