@@ -45,13 +45,29 @@ down to 16,132 resolved entries (461 patch-layer redefinitions), zero
 inheritance failures. `files skipped` counts assets we don't claim to
 parse (textures, models, audio, …).
 
-**Dialog addendum (same install, later run):** with the dialog model
-added, the sweep also parses **9,386 dialogs / 187,213 dialog nodes**
-cleanly. The only findings were 7 registry files (`ScriptFlags.lsx`,
-`DialogVariables.lsx`) living under `Story/Dialogs/` without being
-dialogs — now excluded from the dialog predicate. Spot check:
-`game.dialogs.lines(...)` returns real localized lines
-(`(0, 'Mmm. Delicious gruel.')`).
+**Release-gate sweep (same install, Patch 8 Hotfix 8, pre-0.1.0):**
+the final pre-release run covers every parser and is fully clean::
+
+    lsx resources               23,061
+    lsf resources               83,909
+    lsj resources               10,015
+    dialogs                     18,757   (binary + editor .lsj forms)
+    dialog nodes               374,082
+    timelines                   32,427
+    quests                         167
+    quest steps                  3,543
+    quest markers                  542
+    goals                          975
+    goal quest refs                367
+    equipment files                  5
+    equipment sets                 738
+
+    OK: every recognized file parsed cleanly.
+
+Spot checks along the way: `game.dialogs.lines(...)` returned real
+localized lines ("Mmm. Delicious gruel."), `game.quests` real journal
+text ("Find the Nightsong"), and `game.characters` a fully joined NPC
+("Duke Ulder Ravengard" with his longsword, shield, and plate).
 
 Getting here took three retail-only fixes worth remembering:
 `key`-style global stats files, the LSF v6 metadata offset
