@@ -146,9 +146,13 @@ def _is_tag_file(name: str) -> bool:
 
 def _is_dialog_file(name: str) -> bool:
     lowered = name.lower()
-    return (
-        "/story/dialogsbinary/" in lowered or "/story/dialogs/" in lowered
-    ) and lowered.endswith((".lsx", ".lsf"))
+    if not lowered.endswith((".lsx", ".lsf")):
+        return False
+    if "/scriptflags/" in lowered or "/dialogvariables/" in lowered:
+        # Registry files that live under Story/Dialogs/ but aren't
+        # dialog resources (verified against retail: 7 such files).
+        return False
+    return "/story/dialogsbinary/" in lowered or "/story/dialogs/" in lowered
 
 
 class Game:

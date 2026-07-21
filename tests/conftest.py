@@ -288,6 +288,23 @@ DIALOG_LSX = """\
 </save>
 """
 
+# Registry file living under Story/Dialogs/ that is NOT a dialog
+# (mirrors retail ScriptFlags.lsx / DialogVariables.lsx).
+SCRIPTFLAGS_LSX = """\
+<save>
+  <region id="ScriptFlags">
+    <node id="root">
+      <children>
+        <node id="Flag">
+          <attribute id="UUID" type="guid" value="ffff0000-0000-0000-0000-000000000001" />
+          <attribute id="Name" type="LSString" value="DEN_SomeFlag" />
+        </node>
+      </children>
+    </node>
+  </region>
+</save>
+"""
+
 LOCA_ENTRIES = [
     LocaEntry("h11111111-1111-1111-1111-111111111111", 1, "Fireball"),
     LocaEntry("h22222222-2222-2222-2222-222222222222", 1, "A bright streak flashes."),
@@ -319,6 +336,7 @@ def fixture_files() -> dict[str, bytes]:
         "Public/Shared/Tags/bbbb2222-0000-0000-0000-000000000002.lsx": LONGSWORD_TAG_LSX.encode(),
         "Public/Shared/GUI/Icons_Items.lsx": ATLAS_LSX.encode(),
         "Mods/Shared/Story/DialogsBinary/Camp/CAMP_Greeting.lsf": dialog_lsf,
+        "Mods/Shared/Story/Dialogs/ScriptFlags/ScriptFlags.lsx": SCRIPTFLAGS_LSX.encode(),
         "Localization/English/english.loca": write_loca(LOCA_ENTRIES),
     }
 

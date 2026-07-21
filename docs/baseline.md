@@ -45,6 +45,14 @@ down to 16,132 resolved entries (461 patch-layer redefinitions), zero
 inheritance failures. `files skipped` counts assets we don't claim to
 parse (textures, models, audio, …).
 
+**Dialog addendum (same install, later run):** with the dialog model
+added, the sweep also parses **9,386 dialogs / 187,213 dialog nodes**
+cleanly. The only findings were 7 registry files (`ScriptFlags.lsx`,
+`DialogVariables.lsx`) living under `Story/Dialogs/` without being
+dialogs — now excluded from the dialog predicate. Spot check:
+`game.dialogs.lines(...)` returns real localized lines
+(`(0, 'Mmm. Delicious gruel.')`).
+
 Getting here took three retail-only fixes worth remembering:
 `key`-style global stats files, the LSF v6 metadata offset
 (36,560 files), and self-`using` patch layering — all invisible to

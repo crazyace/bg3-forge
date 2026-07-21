@@ -48,6 +48,14 @@ def test_walk_cuts_cycles():
 
 # -- DialogIndex --------------------------------------------------------------
 
+def test_registry_files_excluded_from_index(data_dir):
+    """ScriptFlags/DialogVariables live under Story/Dialogs/ but are not
+    dialogs (retail regression: 7 such files failed the sweep)."""
+    game = Game(data_dir=data_dir)
+    assert len(game.dialogs) == 1
+    assert not game.dialogs.find("scriptflags")
+
+
 def test_dialog_index_is_lazy(data_dir):
     game = Game(data_dir=data_dir)
     index = game.dialogs

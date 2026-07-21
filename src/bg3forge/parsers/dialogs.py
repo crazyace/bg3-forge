@@ -104,7 +104,9 @@ class Dialog:
 def parse_dialog(document: LsxDocument, source: str | None = None) -> Dialog:
     region = document.region("dialog")
     if region is None:
-        raise DialogError("no 'dialog' region — not a dialog resource")
+        # ASCII-only message: these strings end up in Windows consoles
+        # whose OEM codepage mangles anything fancier.
+        raise DialogError("no 'dialog' region - not a dialog resource")
     uuid = region.get("UUID")
     if not uuid:
         raise DialogError("dialog region has no UUID")

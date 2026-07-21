@@ -23,7 +23,7 @@ def test_validate_clean_fixture(data_dir):
     assert report.counts["treasure_tables"] == 1
     assert report.counts["loca_files"] == 1
     assert report.counts["loca_handles"] == 9
-    assert report.counts["lsx_resources"] == 4   # RootTemplates + atlas + 2 tags
+    assert report.counts["lsx_resources"] == 5   # RootTemplates + atlas + 2 tags + flags registry
     assert report.counts["lsf_resources"] == 1   # the dialog
     assert report.counts["dialogs"] == 1
     assert report.counts["dialog_nodes"] == 2
@@ -160,7 +160,7 @@ def test_run_benchmark(data_dir, tmp_path):
     assert all(seconds >= 0 for _, seconds in report.stages)
     assert report.counts["items"] == 3
     assert report.counts["spells"] == 1
-    assert report.counts["pak entries"] == 12
+    assert report.counts["pak entries"] == 13
     assert report.counts["tags"] == 2
     assert report.counts["dialogs indexed"] == 1
     assert (tmp_path / "export" / "items.json").exists()
