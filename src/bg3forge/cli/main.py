@@ -67,6 +67,20 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("format", choices=sorted(FORMATS))
     export.add_argument("-o", "--output", type=Path, default=Path("export"))
 
+    validate = sub.add_parser(
+        "validate", help="parse every recognized file in the game data and report failures"
+    )
+    validate.add_argument(
+        "--max-issues", type=int, default=20, help="issues to print in full (default: 20)"
+    )
+
+    benchmark = sub.add_parser(
+        "benchmark", help="time each pipeline stage against the game data"
+    )
+    benchmark.add_argument(
+        "--export-dir", type=Path, help="keep the benchmark's JSON exports here"
+    )
+
     convert = sub.add_parser("convert", help="convert between .lsf and .lsx resources")
     convert.add_argument("input", type=Path, help="source resource (.lsf or .lsx)")
     convert.add_argument("output", type=Path, help="target file; extension picks the format")
@@ -172,6 +186,24 @@ def _dispatch(args) -> int:
             else:
                 exporter(objects, args.output / f"{dataset}.{suffix}")
             print(f"exported {len(objects)} {dataset}")
+        return 0
+
+    if args.command == "validate":
+        from ..validate import format_report, validate_data
+
+        game = _open_game(args)
+        if game.data_dir is None:
+            print("error: validate needs a game install or --data-dir", file=sys.stderr)
+            return 1
+        report = validate_data(game.data_dir)
+        print(format_report(report, max_issues=args.max_issues))
+        return 0 if report.ok else 1
+
+    if args.command == "benchmark":
+        from ..benchmark import format_report, run_benchmark
+
+        report = run_benchmark(_open_game(args), export_dir=args.export_dir)
+        print(format_report(report))
         return 0
 
     if args.command == "convert":

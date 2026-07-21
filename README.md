@@ -78,6 +78,8 @@ $ bg3forge export sqlite -o export
 $ bg3forge icons Icons_Items.lsx Icons_Items.dds -o icons -f webp
 $ bg3forge convert Weapons.lsf Weapons.lsx
 $ bg3forge patches --update
+$ bg3forge validate     # parse everything, report any file that fails
+$ bg3forge benchmark    # repeatable stage timings + peak RSS
 ```
 
 ## Installation
@@ -217,8 +219,11 @@ src/bg3forge/
 * ✅ JSON / SQLite / CSV / Markdown / YAML exporters
 * ✅ Typed Python API with cross-source resolution
 * ✅ Relationship graph (forward + reverse edges, lazy + cached)
+* ✅ `bg3forge validate` — format coverage sweep with per-file failures
+* ✅ `bg3forge benchmark` — repeatable stage timings and peak RSS
 * ⏳ Tag registry parser (resolve tag UUIDs to names/descriptions)
-* ⏳ Validation against a full retail install (format coverage sweep)
+* ⏳ Baseline numbers from a retail install (run `validate` + `benchmark`
+  against a real installation and publish the results)
 * ⏳ Character / equipment / dialog metadata parsers
 * ⏳ GR2 model metadata
 * ⏳ Virtual texture (GTS/GTP) atlas support

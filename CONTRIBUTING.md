@@ -45,7 +45,9 @@ long as they skip cleanly when the game is absent
    measurable benefit for real datasets — not because a dataset *might*
    someday be large. Stats, items, and spells are modest; parsing them
    eagerly and simply is a feature. If you propose an optimization,
-   bring a measurement from real game data with it.
+   bring a measurement from real game data with it — run
+   `bg3forge benchmark` before and after your change and include both
+   reports in the pull request. `bg3forge validate` must stay clean.
 
 ## Architecture roadmap
 
