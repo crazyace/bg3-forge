@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
 from .assets.atlases import parse_atlas
 from .game import _is_atlas_file, _is_roottemplate_file, _is_stats_file, _is_treasure_file
@@ -46,8 +47,16 @@ class ValidationReport:
         return not self.issues
 
 
-def validate_data(data_dir: str | Path) -> ValidationReport:
-    """Parse every recognized file in every pak under ``data_dir``."""
+def validate_data(
+    data_dir: str | Path,
+    progress: Callable[[str], None] | None = None,
+) -> ValidationReport:
+    """Parse every recognized file in every pak under ``data_dir``.
+
+    ``progress``, when given, receives short human-readable status lines
+    ("[3/30] Gustav.pak — 12,000 files, 4 issues") as the sweep advances;
+    the CLI renders them on stderr when attached to a terminal.
+    """
     report = ValidationReport()
     counts = report.counts
     for key in (
@@ -59,19 +68,29 @@ def validate_data(data_dir: str | Path) -> ValidationReport:
         counts[key] = 0
 
     stats = StatsCollection()
-    for pak_path in sorted(Path(data_dir).rglob("*.pak")):
+    pak_paths = sorted(Path(data_dir).rglob("*.pak"))
+    for index, pak_path in enumerate(pak_paths, start=1):
         try:
             reader = PakReader(pak_path)
         except ValueError:
             counts["pak_parts_skipped"] += 1
             continue
         counts["paks"] += 1
+        prefix = f"[{index}/{len(pak_paths)}] {pak_path.name}"
+        if progress:
+            progress(prefix)
         with reader:
-            for entry in reader:
+            for position, entry in enumerate(reader, start=1):
                 _validate_entry(reader, entry, report, stats)
+                if progress and position % 5000 == 0:
+                    progress(
+                        f"{prefix} — {position:,} files, {len(report.issues)} issues"
+                    )
 
     # Cross-file phase: entries reference each other across paks, so
     # inheritance can only be checked once everything is loaded.
+    if progress:
+        progress(f"resolving inheritance for {len(stats):,} stats entries")
     for entry in stats:
         try:
             stats.resolved(entry.name)

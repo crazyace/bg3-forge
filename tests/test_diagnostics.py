@@ -64,6 +64,23 @@ def test_validate_reports_corrupt_files(tmp_path, data_dir):
     assert "broken.loca" in text
 
 
+def test_validate_progress_callback(data_dir):
+    messages = []
+    report = validate_data(data_dir, progress=messages.append)
+    assert report.ok
+    assert any("Shared.pak" in m for m in messages)
+    assert any("resolving inheritance" in m for m in messages)
+
+
+def test_validate_no_progress_when_stderr_redirected(data_dir, capsys):
+    """capsys stderr is not a TTY, so no \\r progress noise leaks into
+    redirected output (the `*> validate.txt` case)."""
+    assert main(["--data-dir", str(data_dir), "validate"]) == 0
+    captured = capsys.readouterr()
+    assert "\r" not in captured.err
+    assert captured.err == ""
+
+
 def test_validate_cli(data_dir, capsys):
     assert main(["--data-dir", str(data_dir), "validate"]) == 0
     out = capsys.readouterr().out

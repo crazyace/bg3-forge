@@ -77,6 +77,10 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument(
         "--max-issues", type=int, default=20, help="issues to print in full (default: 20)"
     )
+    validate.add_argument(
+        "--no-progress", action="store_true",
+        help="disable the live progress line (auto-disabled when stderr is not a terminal)",
+    )
 
     benchmark = sub.add_parser(
         "benchmark", help="time each pipeline stage against the game data"
@@ -104,6 +108,30 @@ def build_parser() -> argparse.ArgumentParser:
 def _add_export_args(cmd: argparse.ArgumentParser, default_output: Path) -> None:
     cmd.add_argument("-o", "--output", type=Path, default=default_output)
     cmd.add_argument("-f", "--format", choices=sorted(FORMATS), default="json")
+
+
+class _StderrProgress:
+    """Single self-overwriting status line on stderr; call clear() when done."""
+
+    def __init__(self):
+        self._width = 0
+
+    def __call__(self, message: str) -> None:
+        padded = message.ljust(self._width)
+        self._width = max(self._width, len(message))
+        print(f"\r{padded}", end="", file=sys.stderr, flush=True)
+
+    def clear(self) -> None:
+        if self._width:
+            print("\r" + " " * self._width + "\r", end="", file=sys.stderr, flush=True)
+
+
+def _stderr_progress() -> _StderrProgress | None:
+    """A progress renderer, or None when stderr isn't an interactive terminal
+    (keeps `bg3forge validate *> report.txt` captures clean)."""
+    if not getattr(sys.stderr, "isatty", lambda: False)():
+        return None
+    return _StderrProgress()
 
 
 def _open_game(args) -> Game:
@@ -209,7 +237,12 @@ def _dispatch(args) -> int:
         if game.data_dir is None:
             print("error: validate needs a game install or --data-dir", file=sys.stderr)
             return 1
-        report = validate_data(game.data_dir)
+        progress = None if args.no_progress else _stderr_progress()
+        try:
+            report = validate_data(game.data_dir, progress=progress)
+        finally:
+            if progress:
+                progress.clear()
         print(format_report(report, max_issues=args.max_issues))
         return 0 if report.ok else 1
 
