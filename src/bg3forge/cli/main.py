@@ -54,8 +54,17 @@ def build_parser() -> argparse.ArgumentParser:
     search = sub.add_parser(
         "search", help="search archived file paths across all game paks (index-only, fast)"
     )
-    search.add_argument("pattern", help="case-insensitive substring of the archived path")
+    search.add_argument(
+        "pattern",
+        help="case-insensitive substring, or a glob when it contains * or ? "
+        '(e.g. "*/journal/*.lsf")',
+    )
     search.add_argument("--limit", type=int, default=50, help="matches to print (default: 50)")
+    search.add_argument(
+        "--dirs", action="store_true",
+        help="aggregate matches by directory (count + path), best for discovering "
+        "where a dataset lives",
+    )
 
     patches = sub.add_parser("patches", help="detect game archives changed by a patch")
     patches.add_argument("--snapshot", type=Path, default=Path(".bg3forge-paks.json"))
@@ -193,13 +202,34 @@ def _dispatch(args) -> int:
         return 0
 
     if args.command == "search":
+        import fnmatch
+        from collections import Counter
+
         game = _open_game(args)
         needle = args.pattern.lower()
-        sources = game._locate_entries(lambda n: needle in n.lower())
-        for name, source in list(sources.items())[: args.limit]:
-            print(f"{getattr(source, 'name', source)}  {name}")
-        shown = min(len(sources), args.limit)
-        print(f"{len(sources)} match(es)" + (f", first {shown} shown" if len(sources) > shown else ""))
+        if any(ch in needle for ch in "*?["):
+            predicate = lambda n: fnmatch.fnmatch(n.lower(), needle)  # noqa: E731
+        else:
+            predicate = lambda n: needle in n.lower()  # noqa: E731
+        sources = game._locate_entries(predicate)
+
+        if args.dirs:
+            directories = Counter(name.rsplit("/", 1)[0] for name in sources)
+            for directory, count in directories.most_common(args.limit):
+                print(f"{count:>7,}  {directory}")
+            shown = min(len(directories), args.limit)
+            summary = f"{len(sources)} match(es) in {len(directories)} directorie(s)"
+            if len(directories) > shown:
+                summary += f", top {shown} shown"
+            print(summary)
+        else:
+            for name, source in list(sources.items())[: args.limit]:
+                print(f"{getattr(source, 'name', source)}  {name}")
+            shown = min(len(sources), args.limit)
+            summary = f"{len(sources)} match(es)"
+            if len(sources) > shown:
+                summary += f", first {shown} shown"
+            print(summary)
         return 0
 
     if args.command == "unpack":
