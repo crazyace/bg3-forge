@@ -48,6 +48,7 @@ class LsxNode:
     id: str
     attributes: dict[str, LsxAttribute] = field(default_factory=dict)
     children: list["LsxNode"] = field(default_factory=list)
+    key: str | None = None  # key attribute name (LSF v7 keyed nodes)
 
     def get(self, attribute_id: str, default: str | None = None) -> str | None:
         attr = self.attributes.get(attribute_id)
@@ -103,8 +104,41 @@ def load_lsx(path: str | Path) -> LsxDocument:
     return parse_lsx(Path(path).read_bytes())
 
 
+def write_lsx(document: LsxDocument) -> str:
+    """Serialize a document back to LSX XML (regions in insertion order)."""
+    save = ET.Element("save")
+    ET.SubElement(
+        save, "version", major="4", minor="0", revision="9", build="330"
+    )
+    for region_id, root in document.regions.items():
+        region_el = ET.SubElement(save, "region", id=region_id)
+        _write_node(region_el, root)
+    ET.indent(save)
+    return '<?xml version="1.0" encoding="utf-8"?>\n' + ET.tostring(
+        save, encoding="unicode"
+    ) + "\n"
+
+
+def _write_node(parent_el: ET.Element, node: LsxNode) -> None:
+    node_el = ET.SubElement(parent_el, "node", id=node.id)
+    if node.key:
+        node_el.set("key", node.key)
+    for attr in node.attributes.values():
+        attr_el = ET.SubElement(node_el, "attribute", id=attr.id, type=attr.type)
+        if attr.handle is not None:
+            attr_el.set("handle", attr.handle)
+            if attr.version is not None:
+                attr_el.set("version", str(attr.version))
+        if attr.value is not None:
+            attr_el.set("value", attr.value)
+    if node.children:
+        children_el = ET.SubElement(node_el, "children")
+        for child in node.children:
+            _write_node(children_el, child)
+
+
 def _parse_node(element: ET.Element) -> LsxNode:
-    node = LsxNode(id=element.get("id", ""))
+    node = LsxNode(id=element.get("id", ""), key=element.get("key"))
     for attr_el in element.findall("attribute"):
         attr = LsxAttribute(
             id=attr_el.get("id", ""),

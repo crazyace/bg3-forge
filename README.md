@@ -32,6 +32,7 @@ $ bg3forge spells -f json -o spells.json
 $ bg3forge items -f csv -o items.csv
 $ bg3forge export sqlite -o export
 $ bg3forge icons Icons_Items.lsx Icons_Items.dds -o icons -f webp
+$ bg3forge convert Weapons.lsf Weapons.lsx
 $ bg3forge patches --update
 ```
 
@@ -72,13 +73,18 @@ for native-speed decompression.
   interrupts) with full `using` inheritance resolution — `StatsCollection`
 * **Localization** `.loca` binary archives with handle→text lookup and
   version precedence — `Localization`
-* **LSX** node trees (generic) — `parse_lsx`
-* **RootTemplates** with `ParentTemplateId` inheritance — `RootTemplateIndex`
+* **LSX** node trees (XML) — `parse_lsx` / `write_lsx`
+* **LSF** node trees (binary, versions 1–7 incl. current BG3 keyed-node
+  output; zlib/LZ4-frame/zstd section compression) — `parse_lsf` /
+  `write_lsf`.  LSX and LSF parse into the *same* document structure, and
+  `parse_resource` sniffs the format, so downstream code never cares
+  which one the game shipped
+* **RootTemplates** (`.lsx` or `.lsf`) with `ParentTemplateId`
+  inheritance — `RootTemplateIndex`
 * **Progressions** (class/race level tables) — `parse_progressions`
 * **Treasure tables** — `parse_treasure_tables`
-
-> LSF (binary LSX) is not implemented yet; convert LSF resources with
-> lslib/divine for now. See [Roadmap](#roadmap).
+* `bg3forge convert` converts `.lsf` ↔ `.lsx` from the command line — no
+  lslib/divine required
 
 ### Icon pipeline (`bg3forge.assets`)
 
@@ -138,8 +144,6 @@ src/bg3forge/
 
 ## Roadmap
 
-* LSF (binary node tree) parser, removing the lslib dependency for
-  RootTemplates shipped as `.lsf`
 * Character / equipment / dialog metadata parsers
 * GR2 model metadata
 * Virtual texture (GTS/GTP) atlas support

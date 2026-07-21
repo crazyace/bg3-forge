@@ -67,6 +67,14 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("format", choices=sorted(FORMATS))
     export.add_argument("-o", "--output", type=Path, default=Path("export"))
 
+    convert = sub.add_parser("convert", help="convert between .lsf and .lsx resources")
+    convert.add_argument("input", type=Path, help="source resource (.lsf or .lsx)")
+    convert.add_argument("output", type=Path, help="target file; extension picks the format")
+    convert.add_argument(
+        "--lsf-version", type=int, default=6, choices=(5, 6, 7),
+        help="LSF version to write (default: 6)",
+    )
+
     icons = sub.add_parser("icons", help="extract icons from a DDS atlas")
     icons.add_argument("atlas_lsx", type=Path, help="atlas definition (.lsx)")
     icons.add_argument("texture", type=Path, help="atlas texture (.dds)")
@@ -164,6 +172,23 @@ def _dispatch(args) -> int:
             else:
                 exporter(objects, args.output / f"{dataset}.{suffix}")
             print(f"exported {len(objects)} {dataset}")
+        return 0
+
+    if args.command == "convert":
+        from ..parsers.lsf import write_lsf
+        from ..parsers.lsx import write_lsx
+        from ..parsers.resource import load_resource
+
+        document = load_resource(args.input)
+        suffix = args.output.suffix.lower()
+        if suffix == ".lsx":
+            args.output.write_text(write_lsx(document), "utf-8")
+        elif suffix == ".lsf":
+            args.output.write_bytes(write_lsf(document, version=args.lsf_version))
+        else:
+            print(f"error: unsupported output format {suffix!r}", file=sys.stderr)
+            return 1
+        print(f"converted {args.input} -> {args.output}")
         return 0
 
     if args.command == "icons":

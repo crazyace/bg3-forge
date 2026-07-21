@@ -32,7 +32,7 @@ from .models import (
 )
 from .pak.reader import PakReader
 from .parsers.localization import Localization
-from .parsers.lsx import LsxError, parse_lsx
+from .parsers.resource import parse_resource
 from .parsers.roottemplates import RootTemplateIndex
 from .parsers.stats import StatsCollection
 from .parsers.treasure import TreasureTable, parse_treasure_tables
@@ -54,12 +54,12 @@ def _is_treasure_file(name: str) -> bool:
 
 def _is_roottemplate_file(name: str) -> bool:
     lowered = name.lower()
-    return "/roottemplates/" in lowered and lowered.endswith(".lsx")
+    return "/roottemplates/" in lowered and lowered.endswith((".lsx", ".lsf"))
 
 
 def _is_atlas_file(name: str) -> bool:
     lowered = name.lower()
-    return "/gui/" in lowered and lowered.endswith(".lsx")
+    return "/gui/" in lowered and lowered.endswith((".lsx", ".lsf"))
 
 
 class Game:
@@ -126,9 +126,9 @@ class Game:
         index = RootTemplateIndex()
         for name, data in self._iter_files(_is_roottemplate_file):
             try:
-                index.add_document(parse_lsx(data))
-            except LsxError:
-                continue
+                index.add_document(parse_resource(data))
+            except ValueError:
+                continue  # malformed or unsupported resource
         return index
 
     @cached_property
@@ -136,8 +136,8 @@ class Game:
         atlases = []
         for name, data in self._iter_files(_is_atlas_file):
             try:
-                atlas = parse_atlas(parse_lsx(data))
-            except LsxError:
+                atlas = parse_atlas(parse_resource(data))
+            except ValueError:
                 continue
             if atlas.icons:
                 atlases.append(atlas)

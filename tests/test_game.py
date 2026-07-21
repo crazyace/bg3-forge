@@ -68,6 +68,26 @@ def test_atlases(game):
     assert "Item_WPN_Longsword" in atlas
 
 
+def test_lsf_roottemplates(tmp_path):
+    """Templates shipped as binary .lsf resolve exactly like .lsx ones."""
+    from bg3forge.pak import PakWriter
+    from bg3forge.parsers import parse_lsx, write_lsf
+    from conftest import ROOTTEMPLATE_LSX, fixture_files
+
+    writer = PakWriter()
+    for name, data in fixture_files().items():
+        if name.endswith("Weapons.lsx"):
+            name = name[: -len(".lsx")] + ".lsf"
+            data = write_lsf(parse_lsx(ROOTTEMPLATE_LSX), version=7)
+        writer.add(name, data)
+    writer.write(tmp_path / "Shared.pak")
+
+    game = Game(data_dir=tmp_path)
+    items = {item.name: item for item in game.items}
+    assert items["WPN_Longsword"].display_name == "Longsword"
+    assert items["WPN_Longsword"].description == "A trusty longsword."
+
+
 def test_game_from_extracted_dir(tmp_path, sample_pak):
     out = tmp_path / "extracted"
     Extractor(out).extract(sample_pak)
