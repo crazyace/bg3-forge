@@ -102,11 +102,13 @@ def test_read_entry_reuses_pak_readers(data_dir, monkeypatch):
         game.dialogs.load(game.dialogs.paths[0])
         game.goals.load(game.goals.paths[0])
         game.timelines.load(game.timelines.paths[0])
-        # _locate_entries opens each pak once per index build (3 indexes),
-        # but the three load() calls above must share ONE cached reader.
+        game.items, game.quests  # collection loads share the same readers
         read_opens = len(opens)
     game.close()  # idempotent
-    assert read_opens == 3 + 1  # 3 index listings + 1 shared read reader
+    # ONE reader for the fixture's single pak, shared by every index
+    # build, collection load, and entry read (retail benchmark showed
+    # ~2.3 s of file-list parsing repeated per stage before this).
+    assert read_opens == 1
 
 
 def test_quest_to_goal_cross_link(game):

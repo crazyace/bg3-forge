@@ -299,6 +299,7 @@ class Game:
         #: bad file can't take down the whole pipeline.  ``bg3forge
         #: validate`` reports the same failures with full detail.
         self.load_issues: list[LoadIssue] = []
+        self._reader_list: list[PakReader] | None = None
 
     # -- raw collections -----------------------------------------------------
 
@@ -635,26 +636,33 @@ class Game:
                 if predicate(rel):
                     yield rel, file.read_bytes()
             return
-        readers = self._open_readers()
-        try:
-            for reader in readers:
-                for entry in reader:
-                    if predicate(entry.name):
-                        yield entry.name, reader.read(entry)
-        finally:
-            for reader in readers:
-                reader.close()
+        for reader in self._open_readers():
+            for entry in reader:
+                if predicate(entry.name):
+                    yield entry.name, reader.read(entry)
 
     def _open_readers(self) -> list[PakReader]:
-        """All primary pak readers in (priority, name) load order."""
-        readers: list[PakReader] = []
-        for pak_path in sorted(self.data_dir.rglob("*.pak")):
-            try:
-                readers.append(PakReader(pak_path))
-            except ValueError:
-                continue  # secondary archive part or foreign file
-        readers.sort(key=lambda r: (r.header.priority, r.path.name))
-        return readers
+        """All primary pak readers in (priority, name) load order.
+
+        Opened once and cached: parsing a pak's file list is the
+        expensive part (~2.3 s across a retail install), and every
+        collection load and index build walks the same lists.  Before
+        this cache, ten pipeline stages each paid that toll — the
+        retail benchmark showed near-identical ~2.3 s costs for wildly
+        different stages.  ``close()`` releases the handles.
+        """
+        if self._reader_list is None:
+            readers: list[PakReader] = []
+            for pak_path in sorted(self.data_dir.rglob("*.pak")):
+                try:
+                    readers.append(PakReader(pak_path))
+                except ValueError:
+                    continue  # secondary archive part or foreign file
+            readers.sort(key=lambda r: (r.header.priority, r.path.name))
+            self._reader_list = readers
+            for reader in readers:
+                self._pak_readers[reader.path] = reader
+        return self._reader_list
 
     def _locate_entries(self, predicate) -> dict[str, Path]:
         """Map matching archived names to their source (pak or file) WITHOUT
@@ -668,15 +676,10 @@ class Game:
                 if predicate(rel):
                     sources[rel] = file
             return sources
-        readers = self._open_readers()
-        try:
-            for reader in readers:
-                for entry in reader:
-                    if predicate(entry.name):
-                        sources[entry.name] = reader.path
-        finally:
-            for reader in readers:
-                reader.close()
+        for reader in self._open_readers():
+            for entry in reader:
+                if predicate(entry.name):
+                    sources[entry.name] = reader.path
         return sources
 
     def _read_entry(self, name: str, source: Path) -> bytes:
@@ -705,6 +708,7 @@ class Game:
         for reader in self._pak_readers.values():
             reader.close()
         self._pak_readers.clear()
+        self._reader_list = None
 
     def __enter__(self) -> "Game":
         return self

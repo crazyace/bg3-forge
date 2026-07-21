@@ -105,6 +105,15 @@ building and relationship resolution are effectively free (70 ms
 combined), which validates the lazy-graph design. Peak RSS 826 MB is
 comfortable for a developer tool.
 
-Per the roadmap, no optimization is planned until a real consumer needs
-one; any proposal should beat these numbers on comparable hardware and
-include its own before/after reports.
+**Release-gate run (all datasets):** with tags, dialogs, timelines,
+quests, goals, characters, and equipment added, the same install
+benchmarked at ~28.6 s / 828 MB — and the stage table itself exposed a
+defect: ten stages each cost a near-identical ~2.3 s, the fixed price
+of re-parsing every pak file list per stage. Cached shared readers
+remove that redundancy; re-benchmark after pulling for the post-fix
+numbers. This is design principle #5 working as intended — the
+optimization exists because the benchmark measured the need.
+
+Per the roadmap, no further optimization is planned until a real
+consumer needs one; any proposal should beat these numbers on
+comparable hardware and include its own before/after reports.
