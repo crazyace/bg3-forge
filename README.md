@@ -78,8 +78,26 @@ $ bg3forge export sqlite -o export
 $ bg3forge icons Icons_Items.lsx Icons_Items.dds -o icons -f webp
 $ bg3forge convert Weapons.lsf Weapons.lsx
 $ bg3forge patches --update
+$ bg3forge doctor       # diagnose the install and environment
 $ bg3forge validate     # parse everything, report any file that fails
 $ bg3forge benchmark    # repeatable stage timings + peak RSS
+```
+
+`doctor` answers "is it my setup or the tool?" before anything else:
+
+```console
+$ bg3forge doctor
+✓ Python — 3.11.15
+✓ Native LZ4 — available
+✓ BG3 installation — /home/you/.steam/steam/steamapps/common/Baldurs Gate 3
+✓ Pak archives — 34 readable (v18), 12 part files
+✓ Shared.pak — present
+✓ Game data version — 4.68.1.200 (module Gustav)
+✓ English localization — present
+
+Warnings
+--------
+None
 ```
 
 ## Installation
@@ -219,6 +237,8 @@ src/bg3forge/
 * ✅ JSON / SQLite / CSV / Markdown / YAML exporters
 * ✅ Typed Python API with cross-source resolution
 * ✅ Relationship graph (forward + reverse edges, lazy + cached)
+* ✅ `bg3forge doctor` — install/environment diagnostics with game
+  version detection
 * ✅ `bg3forge validate` — format coverage sweep with per-file failures
 * ✅ `bg3forge benchmark` — repeatable stage timings and peak RSS
 * ⏳ Tag registry parser (resolve tag UUIDs to names/descriptions)

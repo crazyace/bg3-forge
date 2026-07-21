@@ -67,6 +67,10 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("format", choices=sorted(FORMATS))
     export.add_argument("-o", "--output", type=Path, default=Path("export"))
 
+    sub.add_parser(
+        "doctor", help="diagnose the installation and environment"
+    )
+
     validate = sub.add_parser(
         "validate", help="parse every recognized file in the game data and report failures"
     )
@@ -187,6 +191,16 @@ def _dispatch(args) -> int:
                 exporter(objects, args.output / f"{dataset}.{suffix}")
             print(f"exported {len(objects)} {dataset}")
         return 0
+
+    if args.command == "doctor":
+        from ..doctor import format_report, run_doctor
+
+        report = run_doctor(
+            path=args.game_path, data_dir=args.data_dir, language=args.language
+        )
+        encoding = (getattr(sys.stdout, "encoding", None) or "").lower()
+        print(format_report(report, unicode_symbols="utf" in encoding))
+        return 0 if report.ok else 1
 
     if args.command == "validate":
         from ..validate import format_report, validate_data
