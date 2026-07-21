@@ -4,7 +4,7 @@ import pytest
 
 from bg3forge.cli.main import main
 from bg3forge.doctor import FAIL, OK, WARN, format_report, run_doctor
-from bg3forge.pak import PakWriter
+from bg3forge.pak import PakWriter, lz4compat
 
 META_LSX = """\
 <save>
@@ -82,7 +82,19 @@ def test_doctor_fails_on_unsupported_pak_version(full_install):
     assert "Future.pak" in failure.detail
 
 
-def test_format_report_symbols(full_install):
+def test_doctor_warns_without_native_lz4(full_install, monkeypatch):
+    monkeypatch.setattr(lz4compat, "HAVE_NATIVE_LZ4", False)
+    report = run_doctor(data_dir=full_install)
+    assert _check(report, "Native LZ4").status == WARN
+    pretty = format_report(report, unicode_symbols=True)
+    assert "Warnings" in pretty
+    assert "Native LZ4: not installed" in pretty
+
+
+def test_format_report_symbols(full_install, monkeypatch):
+    # Keep this formatting test deterministic in both the regular and
+    # deliberately dependency-free CI jobs.
+    monkeypatch.setattr(lz4compat, "HAVE_NATIVE_LZ4", True)
     report = run_doctor(data_dir=full_install)
     pretty = format_report(report, unicode_symbols=True)
     assert "✓ Shared.pak" in pretty
