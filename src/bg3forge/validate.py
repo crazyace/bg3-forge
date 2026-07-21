@@ -23,6 +23,7 @@ from .assets.atlases import parse_atlas
 from .game import (
     _is_atlas_file,
     _is_dialog_file,
+    _is_editor_dialog_file,
     _is_roottemplate_file,
     _is_stats_file,
     _is_timeline_file,
@@ -31,6 +32,7 @@ from .game import (
 from .parsers.dialogs import parse_dialog
 from .pak.reader import PakReader
 from .parsers.lsf import is_lsf
+from .parsers.lsj import is_lsj
 from .parsers.localization import parse_loca
 from .parsers.resource import parse_resource
 from .parsers.roottemplates import parse_root_templates
@@ -70,7 +72,8 @@ def validate_data(
     for key in (
         "paks", "pak_parts_skipped", "stats_files", "stats_entries",
         "stats_globals", "treasure_files", "treasure_tables", "loca_files",
-        "loca_handles", "lsx_resources", "lsf_resources", "root_templates",
+        "loca_handles", "lsx_resources", "lsf_resources", "lsj_resources",
+        "root_templates",
         "atlases", "dialogs", "dialog_nodes", "timelines", "files_skipped",
         "stats_resolved",
     ):
@@ -154,25 +157,28 @@ def _validate_entry(
             counts["loca_handles"] += len(parse_loca(data))
         if check("loca", parse):
             counts["loca_files"] += 1
-    elif lowered.endswith((".lsx", ".lsf")):
-        binary = False
+    elif lowered.endswith((".lsx", ".lsf", ".lsj")):
+        kind = "lsx_resources"
 
         def parse(data):
-            nonlocal binary
-            binary = is_lsf(data)
+            nonlocal kind
+            if is_lsf(data):
+                kind = "lsf_resources"
+            elif is_lsj(data):
+                kind = "lsj_resources"
             document = parse_resource(data)
             if _is_roottemplate_file(name):
                 counts["root_templates"] += len(parse_root_templates(document))
             elif _is_atlas_file(name) and parse_atlas(document).icons:
                 counts["atlases"] += 1
-            elif _is_dialog_file(name):
+            elif _is_dialog_file(name) or _is_editor_dialog_file(name):
                 dialog = parse_dialog(document, source=name)
                 counts["dialogs"] += 1
                 counts["dialog_nodes"] += len(dialog.nodes)
             elif _is_timeline_file(name):
                 counts["timelines"] += 1
         if check("resource", parse):
-            counts["lsf_resources" if binary else "lsx_resources"] += 1
+            counts[kind] += 1
     else:
         counts["files_skipped"] += 1
 

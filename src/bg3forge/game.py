@@ -189,14 +189,29 @@ def _is_timeline_file(name: str) -> bool:
 
 
 def _is_dialog_file(name: str) -> bool:
+    """The authoritative shipped dialogs used by :class:`DialogIndex`.
+
+    Retail ships every dialog twice — binary under ``DialogsBinary/``
+    and editor-side ``.lsj`` under ``Dialogs/`` — so the index covers
+    only the binary tree to avoid listing each dialog twice.
+    """
     lowered = name.lower()
-    if not lowered.endswith((".lsx", ".lsf")):
+    return "/story/dialogsbinary/" in lowered and lowered.endswith(
+        (".lsx", ".lsf", ".lsj")
+    )
+
+
+def _is_editor_dialog_file(name: str) -> bool:
+    """Editor-side duplicates under ``Story/Dialogs/`` (mostly ``.lsj``);
+    validated as dialogs but excluded from the index."""
+    lowered = name.lower()
+    if not lowered.endswith((".lsx", ".lsf", ".lsj")):
         return False
     if "/scriptflags/" in lowered or "/dialogvariables/" in lowered:
         # Registry files that live under Story/Dialogs/ but aren't
         # dialog resources (verified against retail: 7 such files).
         return False
-    return "/story/dialogsbinary/" in lowered or "/story/dialogs/" in lowered
+    return "/story/dialogs/" in lowered
 
 
 class Game:

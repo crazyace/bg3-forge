@@ -19,6 +19,7 @@ from .lsx import (
     write_lsx,
 )
 from .lsf import LsfError, is_lsf, load_lsf, parse_lsf, write_lsf
+from .lsj import LsjError, is_lsj, parse_lsj
 from .resource import load_resource, parse_resource
 from .roottemplates import RootTemplate, RootTemplateIndex, parse_root_templates
 from .tags import Tag, TagRegistry, parse_tags
@@ -50,6 +51,9 @@ __all__ = [
     "load_lsf",
     "parse_lsf",
     "write_lsf",
+    "LsjError",
+    "is_lsj",
+    "parse_lsj",
     "load_resource",
     "parse_resource",
     "RootTemplate",

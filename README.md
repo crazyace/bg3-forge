@@ -148,9 +148,11 @@ for native-speed decompression.
 * **LSX** node trees (XML) — `parse_lsx` / `write_lsx`
 * **LSF** node trees (binary, versions 1–7 incl. current BG3 keyed-node
   output; zlib/LZ4-frame/zstd section compression) — `parse_lsf` /
-  `write_lsf`.  LSX and LSF parse into the *same* document structure, and
-  `parse_resource` sniffs the format, so downstream code never cares
-  which one the game shipped
+  `write_lsf`
+* **LSJ** node trees (JSON, e.g. editor-side dialogs) — `parse_lsj`.
+  All three serializations parse into the *same* document structure,
+  and `parse_resource` sniffs the format, so downstream code never
+  cares which one the game shipped
 * **RootTemplates** (`.lsx` or `.lsf`) with `ParentTemplateId`
   inheritance — `RootTemplateIndex`
 * **Progressions** (class/race level tables) — `parse_progressions`
@@ -228,8 +230,8 @@ on Windows, macOS, and Linux.
 ```
 src/bg3forge/
 ├── pak/            # LSPK reader/writer, incremental extractor, patch detection
-├── parsers/        # stats, loca, lsx, lsf, roottemplates, tags, dialogs,
-│                   # progressions, treasure (+ format-sniffing resource.py)
+├── parsers/        # stats, loca, lsx, lsf, lsj, roottemplates, tags,
+│                   # dialogs, progressions, treasure (+ resource.py sniffing)
 ├── assets/         # texture atlases, icon extraction
 ├── exporters/      # json, sqlite, csv, markdown, yaml
 ├── cli/            # thin argparse front-end
@@ -268,9 +270,12 @@ src/bg3forge/
   graphs: speakers, flow edges, localized lines
 * ✅ Timeline (cinematic) index (`game.timelines`) with dialog↔timeline
   linkage; internals unmodeled so far
-* ⏳ Quest metadata — quest *logic* ships as compiled Osiris
-  (`story.div.osi`), a format of its own; journal/quest data discovery
-  first (`bg3forge search`), then a parser for what's actually there
+* ✅ LSJ (JSON) resource format — the third serialization, covering
+  editor-side dialogs
+* ⏳ Quest metadata — discovery found `Story/Journal/Markers` (542
+  files) and, unexpectedly, shipped Osiris *source* in
+  `Story/RawFiles/Goals`; parsers for both are next, with the compiled
+  `story.div.osi` as a later milestone
 * ⏳ Character / equipment metadata parsers
 * ⏳ GR2 model metadata
 * ⏳ Virtual texture (GTS/GTP) atlas support

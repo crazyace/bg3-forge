@@ -289,6 +289,76 @@ DIALOG_LSX = """\
 </save>
 """
 
+# The same greeting dialog in LSJ (JSON) form, as shipped under
+# Story/Dialogs/ — hand-authored per LSLib's LSJ structure.
+DIALOG_LSJ = """\
+{
+  "save": {
+    "header": { "version": "4.0.9.330" },
+    "regions": {
+      "dialog": {
+        "UUID": { "type": "FixedString", "value": "dddd0000-0000-0000-0000-000000000001" },
+        "category": { "type": "LSString", "value": "Camp" },
+        "TimelineId": { "type": "FixedString", "value": "tttt0000-0000-0000-0000-000000000001" },
+        "speakerlist": [
+          {
+            "speaker": [
+              { "index": { "type": "FixedString", "value": "0" },
+                "SpeakerMappingId": { "type": "guid", "value": "5e2222aa-0000-0000-0000-00000000aa01" } },
+              { "index": { "type": "FixedString", "value": "1" },
+                "SpeakerMappingId": { "type": "guid", "value": "5e2222aa-0000-0000-0000-00000000aa02" } }
+            ]
+          }
+        ],
+        "nodes": [
+          {
+            "node": [
+              {
+                "UUID": { "type": "FixedString", "value": "n0000001" },
+                "constructor": { "type": "FixedString", "value": "TagGreeting" },
+                "speaker": { "type": "int32", "value": 0 },
+                "Root": { "type": "bool", "value": true },
+                "TaggedTexts": [
+                  { "TaggedText": [
+                      { "TagTexts": [
+                          { "TagText": [
+                              { "TagText": { "type": "TranslatedString",
+                                             "handle": "h99990000-9999-9999-9999-999999999901",
+                                             "version": 1 } }
+                          ] }
+                      ] }
+                  ] }
+                ],
+                "children": [
+                  { "child": [ { "UUID": { "type": "FixedString", "value": "n0000002" } } ] }
+                ]
+              },
+              {
+                "UUID": { "type": "FixedString", "value": "n0000002" },
+                "constructor": { "type": "FixedString", "value": "TagAnswer" },
+                "speaker": { "type": "int32", "value": 1 },
+                "endnode": { "type": "bool", "value": true },
+                "TaggedTexts": [
+                  { "TaggedText": [
+                      { "TagTexts": [
+                          { "TagText": [
+                              { "TagText": { "type": "TranslatedString",
+                                             "handle": "h99990000-9999-9999-9999-999999999902",
+                                             "version": 1 } }
+                          ] }
+                      ] }
+                  ] }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
+"""
+
 # Minimal timeline (cinematic) resource; internals are unmodeled, only
 # existence and dialog linkage matter.
 TIMELINE_LSX = """\
@@ -351,6 +421,7 @@ def fixture_files() -> dict[str, bytes]:
         "Public/Shared/GUI/Icons_Items.lsx": ATLAS_LSX.encode(),
         "Mods/Shared/Story/DialogsBinary/Camp/CAMP_Greeting.lsf": dialog_lsf,
         "Mods/Shared/Story/Dialogs/ScriptFlags/ScriptFlags.lsx": SCRIPTFLAGS_LSX.encode(),
+        "Mods/Shared/Story/Dialogs/Camp/CAMP_Greeting.lsj": DIALOG_LSJ.encode(),
         "Public/Shared/Timeline/Generated/tttt0000-0000-0000-0000-000000000001.lsf": timeline_lsf,
         "Localization/English/english.loca": write_loca(LOCA_ENTRIES),
     }
