@@ -250,8 +250,9 @@ def _dispatch(args) -> int:
                 continue  # secondary archive part or foreign file
             total_extracted += len(result.extracted)
             total_skipped += len(result.skipped)
-            print(f"{pak_path.name}: {len(result.extracted)} extracted, "
-                  f"{len(result.skipped)} unchanged")
+            if result.total:  # keep quiet about paks with nothing matching
+                print(f"{pak_path.name}: {len(result.extracted)} extracted, "
+                      f"{len(result.skipped)} unchanged")
         print(f"done: {total_extracted} extracted, {total_skipped} unchanged")
         return 0
 
