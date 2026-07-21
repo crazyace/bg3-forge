@@ -24,11 +24,16 @@ from .game import (
     _is_atlas_file,
     _is_dialog_file,
     _is_editor_dialog_file,
+    _is_goal_file,
+    _is_marker_file,
+    _is_quest_file,
     _is_roottemplate_file,
     _is_stats_file,
     _is_timeline_file,
     _is_treasure_file,
 )
+from .parsers.goals import parse_goal
+from .parsers.journal import parse_markers, parse_quests
 from .parsers.dialogs import parse_dialog
 from .pak.reader import PakReader
 from .parsers.lsf import is_lsf
@@ -74,8 +79,9 @@ def validate_data(
         "stats_globals", "treasure_files", "treasure_tables", "loca_files",
         "loca_handles", "lsx_resources", "lsf_resources", "lsj_resources",
         "root_templates",
-        "atlases", "dialogs", "dialog_nodes", "timelines", "files_skipped",
-        "stats_resolved",
+        "atlases", "dialogs", "dialog_nodes", "timelines", "quests",
+        "quest_steps", "quest_markers", "goals", "goal_quest_refs",
+        "files_skipped", "stats_resolved",
     ):
         counts[key] = 0
 
@@ -152,6 +158,12 @@ def _validate_entry(
             counts["treasure_tables"] += len(tables)
         if check("treasure", parse):
             counts["treasure_files"] += 1
+    elif _is_goal_file(name):
+        def parse(data):
+            goal = parse_goal(data.decode("utf-8-sig", errors="replace"), source=name)
+            counts["goal_quest_refs"] += len(goal.quest_ids)
+        if check("goal", parse):
+            counts["goals"] += 1
     elif lowered.endswith(".loca"):
         def parse(data):
             counts["loca_handles"] += len(parse_loca(data))
@@ -175,6 +187,12 @@ def _validate_entry(
                 dialog = parse_dialog(document, source=name)
                 counts["dialogs"] += 1
                 counts["dialog_nodes"] += len(dialog.nodes)
+            elif _is_quest_file(name):
+                quests = parse_quests(document, source=name)
+                counts["quests"] += len(quests)
+                counts["quest_steps"] += sum(len(q.steps) for q in quests)
+            elif _is_marker_file(name):
+                counts["quest_markers"] += len(parse_markers(document, source=name))
             elif _is_timeline_file(name):
                 counts["timelines"] += 1
         if check("resource", parse):

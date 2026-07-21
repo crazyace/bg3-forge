@@ -22,13 +22,18 @@ def test_validate_clean_fixture(data_dir):
     assert report.counts["treasure_files"] == 1
     assert report.counts["treasure_tables"] == 1
     assert report.counts["loca_files"] == 1
-    assert report.counts["loca_handles"] == 9
-    assert report.counts["lsx_resources"] == 5   # RootTemplates + atlas + 2 tags + flags registry
+    assert report.counts["loca_handles"] == 13
+    assert report.counts["lsx_resources"] == 7   # templates, atlas, tags, registry, journal
     assert report.counts["lsf_resources"] == 2   # dialog + timeline
     assert report.counts["dialogs"] == 2   # binary + editor .lsj
     assert report.counts["dialog_nodes"] == 4
     assert report.counts["lsj_resources"] == 1
     assert report.counts["timelines"] == 1
+    assert report.counts["quests"] == 1
+    assert report.counts["quest_steps"] == 2
+    assert report.counts["quest_markers"] == 1
+    assert report.counts["goals"] == 1
+    assert report.counts["goal_quest_refs"] == 2
     assert report.counts["root_templates"] == 2
     assert report.counts["atlases"] == 1
     text = format_validation(report)
@@ -156,6 +161,8 @@ def test_run_benchmark(data_dir, tmp_path):
         "Parse atlases",
         "Index dialogs",
         "Index timelines",
+        "Parse quests",
+        "Index goals",
         "Build models",
         "Resolve relationships",
         "Export JSON",
@@ -163,10 +170,12 @@ def test_run_benchmark(data_dir, tmp_path):
     assert all(seconds >= 0 for _, seconds in report.stages)
     assert report.counts["items"] == 3
     assert report.counts["spells"] == 1
-    assert report.counts["pak entries"] == 15
+    assert report.counts["pak entries"] == 18
     assert report.counts["tags"] == 2
     assert report.counts["dialogs indexed"] == 1
     assert report.counts["timelines indexed"] == 1
+    assert report.counts["quests"] == 1
+    assert report.counts["goals indexed"] == 1
     assert (tmp_path / "export" / "items.json").exists()
     assert report.environment["Language"] == "English"
 

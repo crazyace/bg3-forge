@@ -371,6 +371,108 @@ TIMELINE_LSX = """\
 </save>
 """
 
+# Trimmed from retail quest_prototypes.lsx (structure verbatim,
+# including Larian's "QuestVisiblity" spelling and the unknown-handle
+# sentinel).
+QUEST_PROTOTYPES_LSX = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<save>
+  <version major="4" minor="7" revision="1" build="3"/>
+  <region id="Quests">
+    <node id="root">
+      <children>
+        <node id="Quest">
+          <attribute id="CategoryID" type="FixedString" value="Crashside"/>
+          <attribute id="ParentQuestID" type="FixedString" value=""/>
+          <attribute id="QuestGuid" type="guid" value="56d7dfd6-affa-7fa3-e07e-9f8ee36ea03f"/>
+          <attribute id="QuestID" type="FixedString" value="PLA_ZhentShipment"/>
+          <attribute id="QuestTitle" type="TranslatedString" handle="haaaa0000-0000-0000-0000-0000000000q1" version="4"/>
+          <attribute id="QuestVisiblity" type="bool" value="true"/>
+          <attribute id="SortingPriority" type="int32" value="6"/>
+          <children>
+            <node id="QuestStep">
+              <attribute id="Achievement" type="FixedString" value=""/>
+              <attribute id="Description" type="TranslatedString" handle="haaaa0000-0000-0000-0000-0000000000q2" version="3"/>
+              <attribute id="DevComment" type="FixedString" value="Agreed to help Hideout Zhent first"/>
+              <attribute id="DialogFlagGUID" type="guid" value="719e7abb-dac9-41e7-912b-78eeeec43e68"/>
+              <attribute id="ExperienceReward" type="guid" value="85e62526-1d6d-4efb-8897-c602e530e7bf"/>
+              <attribute id="ID" type="FixedString" value="AgreedHelp"/>
+              <attribute id="Objective" type="FixedString" value="PLA_ZhentShipment_AgreedHelp"/>
+              <attribute id="QuestStepGuid" type="guid" value="01dbd8ae-fc4d-e2e4-ee92-b4da21215939"/>
+              <attribute id="QuestTitleOverride" type="TranslatedString" handle="ls::TranslatedStringRepository::s_HandleUnknown" version="0"/>
+              <attribute id="RewardAdditionalTreasureTable" type="FixedString" value=""/>
+            </node>
+            <node id="QuestStep">
+              <attribute id="Description" type="TranslatedString" handle="haaaa0000-0000-0000-0000-0000000000q3" version="2"/>
+              <attribute id="ExperienceReward" type="guid" value="00000000-0000-0000-0000-000000000000"/>
+              <attribute id="ID" type="FixedString" value="NoticedStruggle_Hideout"/>
+              <attribute id="Objective" type="FixedString" value="PLA_ZhentShipment_HelpSurvivors"/>
+              <attribute id="QuestStepGuid" type="guid" value="351da90b-5850-a79f-bef9-302e3c346829"/>
+            </node>
+          </children>
+        </node>
+      </children>
+    </node>
+  </region>
+</save>
+"""
+
+# Trimmed from a retail Markers/<uuid>.lsx.
+MARKER_LSX = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<save>
+  <version major="4" minor="0" revision="9" build="302"/>
+  <region id="Markers">
+    <node id="root">
+      <children>
+        <node id="Marker">
+          <attribute id="DisplayText" type="TranslatedString" handle="haaaa0000-0000-0000-0000-0000000000m1" version="1"/>
+          <attribute id="Guid" type="guid" value="9d61b258-a858-7e39-39e6-a13a26c8cd8a"/>
+          <attribute id="MarkerID" type="FixedString" value="SHA_ShadowfellPortal"/>
+          <attribute id="MarkerIcon" type="FixedString" value="QuestMarker"/>
+          <attribute id="MarkerLevel" type="FixedString" value="SCL_Main_A"/>
+          <attribute id="MarkerTargetObjectType" type="FixedString" value="Trigger"/>
+          <attribute id="MarkerTargetObjectUUID" type="FixedString" value="8f3c363b-b497-4318-ae1d-f5dd20d034bb"/>
+          <attribute id="Radius" type="int32" value="0"/>
+        </node>
+      </children>
+    </node>
+  </region>
+</save>
+"""
+
+# Trimmed from a retail goal script (syntax verbatim).
+GOAL_TXT = """\
+Version 1
+SubGoalCombiner SGC_AND
+INITSECTION
+DB_HasItemEvent(S_DEN_AdventurerNote_a07e15dd,(FLAG)Flag_370c7614);
+DB_QuestDef_State(GOB_Event_e48a7760,"SHA_Nightsong","SolvedPuzzle");
+KBSECTION
+//REGION Nightsong Quest
+IF
+GameBookInterfaceClosed(S_GOB_SharTempleMap_f01b15a1,_Char)
+AND
+DB_Players(_Char)
+AND
+DB_QuestIsAccepted("SHA_Nightsong")
+AND
+QuestUpdateIsUnlocked(_Char, "SHA_Nightsong", "SawBook", 0)
+THEN
+QuestUpdate(_Char, "SHA_Nightsong", "RefinedLocation");
+
+IF
+DB_Players(_Char)
+AND
+DB_QuestIsAccepted("PLA_ZhentShipment")
+THEN
+QuestUpdate(_Char, "PLA_ZhentShipment", "AgreedHelp");
+//END_REGION
+EXITSECTION
+ENDSECTION
+ParentTargetEdge "Act1_DEN"
+"""
+
 # Registry file living under Story/Dialogs/ that is NOT a dialog
 # (mirrors retail ScriptFlags.lsx / DialogVariables.lsx).
 SCRIPTFLAGS_LSX = """\
@@ -398,6 +500,10 @@ LOCA_ENTRIES = [
     LocaEntry("h77777777-7777-7777-7777-777777777777", 1, "Weapon"),
     LocaEntry("h99990000-9999-9999-9999-999999999901", 1, "Well met, traveler."),
     LocaEntry("h99990000-9999-9999-9999-999999999902", 1, "And to you."),
+    LocaEntry("haaaa0000-0000-0000-0000-0000000000q1", 4, "The Zhentarim Shipment"),
+    LocaEntry("haaaa0000-0000-0000-0000-0000000000q2", 3, "We agreed to recover the shipment."),
+    LocaEntry("haaaa0000-0000-0000-0000-0000000000q3", 2, "We noticed a struggle on the road."),
+    LocaEntry("haaaa0000-0000-0000-0000-0000000000m1", 1, "Shadowfell Portal"),
 ]
 
 
@@ -423,6 +529,9 @@ def fixture_files() -> dict[str, bytes]:
         "Mods/Shared/Story/Dialogs/ScriptFlags/ScriptFlags.lsx": SCRIPTFLAGS_LSX.encode(),
         "Mods/Shared/Story/Dialogs/Camp/CAMP_Greeting.lsj": DIALOG_LSJ.encode(),
         "Public/Shared/Timeline/Generated/tttt0000-0000-0000-0000-000000000001.lsf": timeline_lsf,
+        "Mods/Shared/Story/Journal/quest_prototypes.lsx": QUEST_PROTOTYPES_LSX.encode(),
+        "Mods/Shared/Story/Journal/Markers/9d61b258-a858-7e39-39e6-a13a26c8cd8a.lsx": MARKER_LSX.encode(),
+        "Mods/Shared/Story/RawFiles/Goals/Act1_DEN_AdventurersQuest.txt": GOAL_TXT.encode(),
         "Localization/English/english.loca": write_loca(LOCA_ENTRIES),
     }
 

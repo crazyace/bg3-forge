@@ -37,6 +37,8 @@ from .parsers.localization import Localization
 from .parsers.resource import parse_resource
 from .parsers.roottemplates import RootTemplateIndex
 from .parsers.dialogs import Dialog, parse_dialog
+from .parsers.goals import Goal, parse_goal
+from .parsers.journal import Marker, Quest, parse_markers, parse_quests
 from .parsers.stats import StatsCollection
 from .parsers.tags import TagRegistry
 from .parsers.treasure import TreasureTable, parse_treasure_tables
@@ -133,6 +135,19 @@ class DialogIndex(ResourceIndex):
         return result
 
 
+class GoalIndex(ResourceIndex):
+    """Lazy access to Osiris goal scripts (quest logic source)."""
+
+    def __init__(self, game: "Game"):
+        super().__init__(
+            game,
+            _is_goal_file,
+            lambda data, name: parse_goal(
+                data.decode("utf-8-sig", errors="replace"), source=name
+            ),
+        )
+
+
 class TimelineIndex(ResourceIndex):
     """Lazy access to timeline (cinematic scene) resources.
 
@@ -181,6 +196,25 @@ def _is_atlas_file(name: str) -> bool:
 def _is_tag_file(name: str) -> bool:
     lowered = name.lower()
     return "/tags/" in lowered and lowered.endswith((".lsx", ".lsf"))
+
+
+def _is_quest_file(name: str) -> bool:
+    lowered = name.lower()
+    return "/story/journal/" in lowered and lowered.rsplit("/", 1)[-1].startswith(
+        "quest_prototypes."
+    )
+
+
+def _is_marker_file(name: str) -> bool:
+    lowered = name.lower()
+    return "/story/journal/markers/" in lowered and lowered.endswith(
+        (".lsx", ".lsf", ".lsj")
+    )
+
+
+def _is_goal_file(name: str) -> bool:
+    lowered = name.lower()
+    return "/story/rawfiles/goals/" in lowered and lowered.endswith(".txt")
 
 
 def _is_timeline_file(name: str) -> bool:
@@ -350,6 +384,59 @@ class Game:
     def timelines(self) -> TimelineIndex:
         """Lazy timeline (cinematic) index; see ``TimelineIndex.for_dialog``."""
         return TimelineIndex(self)
+
+    @cached_property
+    def quests(self) -> NamedCollection[Quest]:
+        """The quest catalog with localized titles and step descriptions.
+
+        Lookup by quest id: ``game.quests["PLA_ZhentShipment"]``.
+        """
+        quests: list[Quest] = []
+        for name, data in self._iter_files(_is_quest_file):
+            try:
+                quests.extend(parse_quests(parse_resource(data), source=name))
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
+        for quest in quests:
+            quest.title = self.localization.resolve(quest.title_handle)
+            for step in quest.steps:
+                step.description = self.localization.resolve(step.description_handle)
+        return self._collect(quests)
+
+    @cached_property
+    def quest_markers(self) -> list[Marker]:
+        """Quest map markers with localized display text."""
+        markers: list[Marker] = []
+        for name, data in self._iter_files(_is_marker_file):
+            try:
+                markers.extend(parse_markers(parse_resource(data), source=name))
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
+        for marker in markers:
+            marker.display_text = self.localization.resolve(marker.display_text_handle)
+        return markers
+
+    @cached_property
+    def goals(self) -> GoalIndex:
+        """Lazy index of Osiris goal scripts (quest logic source)."""
+        return GoalIndex(self)
+
+    def goals_for_quest(self, quest_id: str) -> list[str]:
+        """Goal script paths whose logic references the quest (reverse edge)."""
+        return list(self._goal_quest_index.get(quest_id, ()))
+
+    @cached_property
+    def _goal_quest_index(self) -> dict[str, list[str]]:
+        """quest id → goal paths.  Parses every goal once; they are small
+        text files, and the index is only built on first use."""
+        index: dict[str, list[str]] = {}
+        for path in self.goals.paths:
+            goal: Goal | None = self.goals.get(path)
+            if goal is None:
+                continue
+            for quest_id in goal.quest_ids:
+                index.setdefault(quest_id, []).append(path)
+        return index
 
     @cached_property
     def treasure_tables(self) -> list[TreasureTable]:

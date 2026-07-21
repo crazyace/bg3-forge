@@ -24,6 +24,8 @@ from .resource import load_resource, parse_resource
 from .roottemplates import RootTemplate, RootTemplateIndex, parse_root_templates
 from .tags import Tag, TagRegistry, parse_tags
 from .dialogs import Dialog, DialogError, DialogNode, Speaker, parse_dialog
+from .journal import Marker, Quest, QuestStep, parse_markers, parse_quests
+from .goals import Goal, parse_goal
 from .progressions import Progression, parse_progressions
 from .treasure import TreasureTable, parse_treasure_tables
 
@@ -67,6 +69,13 @@ __all__ = [
     "DialogNode",
     "Speaker",
     "parse_dialog",
+    "Marker",
+    "Quest",
+    "QuestStep",
+    "parse_markers",
+    "parse_quests",
+    "Goal",
+    "parse_goal",
     "Progression",
     "parse_progressions",
     "TreasureTable",

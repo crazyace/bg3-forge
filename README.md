@@ -55,6 +55,13 @@ dialog = game.dialogs.load(path)        # parses just this one file
 game.dialogs.lines(path)                # (speaker, localized text) pairs
 game.timelines.for_dialog(dialog)       # the cinematic staging the dialog
 
+# Quests join the graph too:
+quest = game.quests["PLA_ZhentShipment"]
+quest.title                             # localized quest title
+quest.steps[0].description              # localized journal entry
+quest.goals                             # Osiris goal scripts driving the quest
+game.quest_markers                      # localized map markers
+
 game.items.find("longsword")   # search by name / display name
 for spell in game.spells:
     print(f"[{spell.level}] {spell.display_name}: {spell.damage}")
@@ -161,6 +168,12 @@ for native-speed decompression.
   and localized display strings — `TagRegistry`
 * **Dialogs** (`Story/DialogsBinary/**.lsf`) — node graphs with
   constructors, speakers, flow edges, and text handles — `parse_dialog`
+* **Quest journal** (`Story/Journal/`) — quest catalog with steps,
+  rewards, and localized titles/descriptions, plus map markers —
+  `parse_quests` / `parse_markers`
+* **Osiris goal scripts** (`Story/RawFiles/Goals/*.txt`) — metadata
+  level: sections, rule counts, and which quests/steps each goal's
+  logic touches — `parse_goal`
 * `bg3forge convert` converts `.lsf` ↔ `.lsx` from the command line — no
   lslib/divine required
 
@@ -272,10 +285,14 @@ src/bg3forge/
   linkage; internals unmodeled so far
 * ✅ LSJ (JSON) resource format — the third serialization, covering
   editor-side dialogs
-* ⏳ Quest metadata — discovery found `Story/Journal/Markers` (542
-  files) and, unexpectedly, shipped Osiris *source* in
-  `Story/RawFiles/Goals`; parsers for both are next, with the compiled
-  `story.div.osi` as a later milestone
+* ✅ Quest journal (`game.quests`, `game.quest_markers`) — localized
+  quest catalog, steps, markers, and quest↔goal cross-links
+* ✅ Osiris goal metadata (`game.goals`) — lazy index over the shipped
+  quest-logic source, with quest references extracted
+* ⏳ Objective/category prototypes (`objective_prototypes.lsx`,
+  `questcategory_prototypes.lsx`) — samples needed
+* ⏳ Full Osiris parsing (compiled `story.div.osi`) — a format milestone
+  of its own
 * ⏳ Character / equipment metadata parsers
 * ⏳ GR2 model metadata
 * ⏳ Virtual texture (GTS/GTP) atlas support
