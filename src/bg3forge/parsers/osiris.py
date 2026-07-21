@@ -6,9 +6,9 @@ header/version, types, function signatures, database signatures and
 fact counts, goals, and rule counts.  It still walks every serialized
 object so truncated or structurally invalid stories fail validation.
 
-BG3 Patch 8+ stories use Osiris versions 1.14 and 1.15.  Older formats
-have different value and type-id encodings and are rejected rather than
-being guessed at.
+BG3's current archives contain Osiris versions 1.13 through 1.15.  The
+1.13 format uses the older expanded value flags; 1.14 introduced the
+compact value layout retained by 1.15.
 """
 
 from __future__ import annotations
@@ -122,7 +122,7 @@ class CompiledStory:
 
 _MAX_COUNT = 10_000_000
 _MAX_STRING = 16 * 1024 * 1024
-_MIN_VERSION = 0x010E
+_MIN_VERSION = 0x010D
 _MAX_VERSION = 0x010F
 
 
@@ -222,13 +222,25 @@ class _Reader:
             type_id = self.aliases[type_id]
         return type_id
 
-    def value(self) -> None:
-        # Compact Value layout introduced in Osiris 1.14.
-        self.i8()  # logical index
-        flags = self.u8()
-        if not flags & 0x08:  # IsValid
-            return
+    def value(self, kind: str = "value") -> None:
+        if self.version >= 0x010E:
+            # Compact Value layout introduced in Osiris 1.14. The flags
+            # encode whether this is a Value, TypedValue, or Variable.
+            self.i8()  # logical index
+            flags = self.u8()
+            if not flags & 0x08:  # IsValid
+                return
+        self._value_payload()
+        if self.version < 0x010E and kind in ("typed", "variable"):
+            self.boolean()  # IsValid
+            self.boolean()  # OutParam
+            self.boolean()  # IsAType
+            if kind == "variable":
+                self.i8()  # logical index
+                self.boolean()  # Unused
+                self.boolean()  # Adapted
 
+    def _value_payload(self) -> None:
         discriminator = self.u8()
         if discriminator == ord("1"):
             self.type_id()
@@ -265,7 +277,11 @@ class _Reader:
         if name:
             if self.u8() > 0:
                 for _ in range(self.u8()):
-                    self.value()
+                    if self.version < 0x010E:
+                        value_kind = "variable" if self.u8() == 1 else "typed"
+                    else:
+                        value_kind = "variable"
+                    self.value(value_kind)
             self.boolean()  # negate
         self.i32()  # goal id or debug hook
 
@@ -277,6 +293,8 @@ class _Reader:
 
     def tuple(self) -> None:
         for _ in range(self.u8()):
+            if self.version < 0x010E:
+                self.u8()  # logical index was outside Value before 1.14
             self.value()
 
 
@@ -287,7 +305,7 @@ def parse_osiris(data: bytes, source: str | None = None) -> CompiledStory:
     reader.version = (header.major << 8) | header.minor
     if not _MIN_VERSION <= reader.version <= _MAX_VERSION:
         raise reader.fail(
-            f"unsupported Osiris version {header.version}; expected 1.14 or 1.15"
+            f"unsupported Osiris version {header.version}; expected 1.13–1.15"
         )
     if header.big_endian:
         raise reader.fail("big-endian Osiris stories are unsupported")
@@ -475,7 +493,9 @@ def _read_nodes(
             _rel_base(reader, owners, derived_entries)
             reader.calls("rule call")
             for _ in range(reader.u8()):
-                reader.value()
+                if reader.version < 0x010E and reader.u8() != 1:
+                    raise reader.fail("illegal value type in rule variable list")
+                reader.value("variable")
             reader.u32()  # source line
             reader.boolean()  # is query
         else:

@@ -193,7 +193,7 @@ for native-speed decompression.
 * **Osiris goal scripts** (`Story/RawFiles/Goals/*.txt`) — metadata
   level: sections, rule counts, and which quests/steps each goal's
   logic touches — `parse_goal`
-* **Compiled Osiris stories** (`Story/story.div.osi`, versions 1.14–1.15)
+* **Compiled Osiris stories** (`Story/story.div.osi`, versions 1.13–1.15)
   — metadata-level traversal of headers, types, functions, databases,
   goals, and rules — `parse_osiris`
 * **Equipment sets** (`Stats/Generated/Equipment.txt`) — character

@@ -38,18 +38,20 @@ Honour/HonourX variants ship only compiled). Same discipline as LSF:
       scripts and diff Gustav vs Honour. Full rule decompilation is
       explicitly out of scope for v1
 - [x] Parser in `parsers/osiris.py`, read-only; `game.story`
-      lazy (six files, but large)
+      lazy (current retail ships 11 files, and they are large)
 - [x] Wire into `validate` (counts + per-file failures) so the retail
       run judges it; add a benchmark stage
 - [x] Fixtures: hand-crafted minimal .osi per the reference structs
       (like the LSF byte-layout pinning tests)
 
-Exit criterion: all six retail `story.div.osi` files parse; goal list
+Exit criterion: all 11 retail `story.div.osi` files parse; goal list
 cross-checks against `game.goals` (every source goal appears in the
 compiled story).
 
 Implementation and synthetic layout tests completed 2026-07-21. The
-exit criterion remains open until the six retail files judge the reader.
+first retail pass parsed ten files and identified Gustav's remaining
+Osiris 1.13 expanded-value layout; the exit criterion remains open until
+the follow-up sweep is clean.
 
 ## 3. BG3 Pathway integration — first real consumer
 

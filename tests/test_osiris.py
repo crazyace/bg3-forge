@@ -39,6 +39,16 @@ def test_parse_compiled_story_metadata():
     assert story.goal_names == {"Act1_DEN_AdventurersQuest"}
 
 
+def test_parse_osiris_1_13_expanded_values():
+    story = parse_osiris(make_story_osi(minor=13), source="Gustav/story.div.osi")
+
+    assert story.header.version == "1.13"
+    assert story.adapter_count == 1  # traversed an old-layout Tuple value
+    assert story.databases[0].fact_count == 1
+    assert story.goals[0].init_call_count == 1  # old-layout Variable value
+    assert story.rule_count == 1
+
+
 @pytest.mark.parametrize("cut", [0, 1, 140, -1])
 def test_truncated_story_is_rejected(cut):
     data = make_story_osi()
@@ -51,8 +61,8 @@ def test_unsupported_story_version_is_rejected():
     data = bytearray(make_story_osi())
     # Header: marker + zero-terminated "Osiris save file", then major/minor.
     minor_offset = 1 + len("Osiris save file") + 1 + 1
-    data[minor_offset] = 13
-    with pytest.raises(OsirisError, match="unsupported Osiris version 1.13"):
+    data[minor_offset] = 12
+    with pytest.raises(OsirisError, match="unsupported Osiris version 1.12"):
         parse_osiris(bytes(data))
 
 

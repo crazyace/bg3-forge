@@ -605,8 +605,8 @@ LOCA_ENTRIES = [
 ]
 
 
-def make_story_osi() -> bytes:
-    """Hand-crafted Osiris 1.15 story, pinned to LSLib's serializers.
+def make_story_osi(minor: int = 15) -> bytes:
+    """Hand-crafted Osiris story, pinned to LSLib's serializers.
 
     It contains one named database, one rule owned by one goal, one fact,
     compact string values, function signatures, and goal/global calls.
@@ -622,12 +622,17 @@ def make_story_osi() -> bytes:
         data.extend(byte ^ scramble for byte in encoded)
         data.append(scramble)
 
-    def value(index, type_id, text):
-        raw("bB", index, 0x0B)  # Variable | IsValid
+    def value(index, type_id, text, kind="variable"):
+        if minor >= 14:
+            raw("bB", index, 0x0B)  # Variable | IsValid
         raw("B", ord("0"))
         raw("H", type_id)
         raw("B", 1)
         string(text)
+        if minor < 14 and kind in ("typed", "variable"):
+            raw("BBB", 1, 0, 0)  # IsValid, OutParam, IsAType
+            if kind == "variable":
+                raw("bBB", index, 0, 0)  # Index, Unused, Adapted
 
     def entry(node=0, goal=0):
         raw("III", node, 0, goal)
@@ -639,6 +644,8 @@ def make_story_osi() -> bytes:
             if parameters:
                 raw("B", len(parameters))
                 for parameter in parameters:
+                    if minor < 14:
+                        raw("B", 1)  # Variable
                     value(*parameter)
             raw("B", 0)  # negate
         raw("i", goal)
@@ -646,8 +653,8 @@ def make_story_osi() -> bytes:
     # SaveFileHeader is plain; strings after it are XOR-scrambled.
     raw("B", 0)
     string("Osiris save file")
-    raw("BBBB", 1, 15, 0, 0)
-    version = b"1.15"
+    raw("BBBB", 1, minor, 0, 0)
+    version = f"1.{minor}".encode()
     data.extend(version + bytes(0x80 - len(version)))
     raw("I", 0x1234)
     scramble = 0xAD
@@ -690,7 +697,13 @@ def make_story_osi() -> bytes:
     raw("B", 0)  # variables
     raw("IB", 42, 0)
 
-    raw("I", 0)  # adapters
+    if minor < 14:
+        # Adapter #1 with one old-layout Tuple constant.
+        raw("IIBB", 1, 1, 1, 0)  # count, index, tuple count, logical index
+        value(0, 6, "S_Constant", kind="value")
+        raw("BbBBB", 1, -1, 1, 0, 0)  # indices + logical map
+    else:
+        raw("I", 0)  # adapters
 
     # Database #1 with one CHARACTER fact.
     raw("I", 1)
@@ -698,7 +711,7 @@ def make_story_osi() -> bytes:
     raw("BH", 1, 6)
     raw("I", 1)
     raw("B", 1)
-    value(0, 6, "S_Player")
+    value(0, 6, "S_Player", kind="value")
 
     # Goal #1 with one init call.
     raw("I", 1)
