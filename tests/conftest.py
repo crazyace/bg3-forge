@@ -27,6 +27,9 @@ type "Weapon"
 using "WPN_Longsword"
 data "Rarity" "Rare"
 data "ValueOverride" "500"
+data "PassivesOnEquip" "SavageAttacks"
+data "StatusOnEquip" "BURNING"
+data "Boosts" "UnlockSpell(Projectile_Fireball);WeaponEnchantment(1)"
 """
 
 SPELL_TXT = """\

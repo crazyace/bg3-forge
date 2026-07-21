@@ -57,6 +57,53 @@ def test_passives_and_statuses(game):
     assert game.statuses[0].status_type == "BOOST"
 
 
+def test_named_lookup(game):
+    sword = game.items["WPN_Longsword"]
+    assert sword.display_name == "Longsword"
+    assert "WPN_Longsword" in game.items
+    assert "WPN_Missing" not in game.items
+    assert game.items.get("WPN_Missing") is None
+    with pytest.raises(KeyError, match="WPN_Missing"):
+        game.items["WPN_Missing"]
+    # integer indexing and iteration still behave like a list
+    assert game.items[0] in list(game.items)
+
+
+def test_find_by_display_name(game):
+    hits = game.items.find("longsword")
+    assert {item.name for item in hits} >= {"WPN_Longsword", "WPN_Longsword_Magic"}
+    assert game.spells.find("fireball")[0].name == "Projectile_Fireball"
+
+
+def test_cross_source_resolution(game):
+    """weapon.passives / .statuses / .spells resolve across data sources."""
+    magic = game.items["WPN_Longsword_Magic"]
+    assert magic.passive_names == ["SavageAttacks"]
+    assert [p.display_name for p in magic.passives] == ["Savage Attacks"]
+    assert [s.name for s in magic.statuses] == ["BURNING"]
+    assert magic.spell_names == ["Projectile_Fireball"]
+    assert [s.display_name for s in magic.spells] == ["Fireball"]
+    assert "WeaponEnchantment(1)" in magic.boosts
+    # the plain longsword grants nothing
+    assert game.items["WPN_Longsword"].passives == []
+
+
+def test_linked_models_still_export_cleanly(game, tmp_path):
+    """The game back-reference must never leak into exports."""
+    import json
+
+    from bg3forge.exporters import export_json
+    from bg3forge.models import to_record
+
+    magic = game.items["WPN_Longsword_Magic"]
+    record = to_record(magic)
+    assert "_game" not in record
+    path = export_json([magic], tmp_path / "item.json")
+    dumped = json.loads(path.read_text("utf-8"))
+    assert dumped[0]["name"] == "WPN_Longsword_Magic"
+    assert "_game" not in dumped[0]
+
+
 def test_treasure_tables(game):
     assert game.treasure_tables[0].items() == ["WPN_Longsword"]
 

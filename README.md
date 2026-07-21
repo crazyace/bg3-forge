@@ -3,27 +3,59 @@
 BG3 Forge is an open-source toolkit for extracting, parsing, and exporting
 Baldur's Gate 3 assets and game data into developer-friendly formats.
 
-Instead of relying on community wikis or manually unpacking files, BG3 Forge
-reads the original game data directly from the installed game and builds a
-structured representation of the game's assets — a fast, offline, and
-reproducible pipeline for developers, modders, and data enthusiasts.
+## Why?
+
+Building anything on top of BG3 data today means scraping community wikis
+(incomplete, unversioned, rate-limited) or hand-rolling a pipeline of
+unpacking tools, format converters, and one-off scripts — and redoing it
+after every game patch.
+
+BG3 Forge replaces that with a reproducible, offline pipeline that reads
+the original data directly from **your installed copy** of the game: pak
+archives, stats, localization, templates, and icons in, clean datasets and
+a typed Python API out. Same input, byte-identical output, every time.
 
 **Library first, CLI second.** Every feature is implemented as a reusable
 Python module; the `bg3forge` command is a thin layer of glue on top. Other
 projects can import the library directly instead of invoking external
 scripts.
 
+## What it looks like
+
+BG3 Forge doesn't just unpack files — it *understands* the data. Values
+are resolved across sources (stats inheritance, RootTemplates,
+localization, atlases) so you never need to know where they came from:
+
 ```python
 from bg3forge import Game
 
 game = Game()  # auto-locates the install (or pass path= / data_dir=)
 
-for item in game.items:
-    print(item.name, item.display_name, item.rarity)
+sword = game.items["WPN_Longsword"]  # or any magic item's stats name
+sword.display_name   # localized name, via RootTemplate + .loca
+sword.description    # localized description
+sword.icon           # atlas icon name
+sword.rarity         # from stats, `using` inheritance applied
+sword.passives       # [Passive(...)] granted on equip
+sword.statuses       # [Status(...)] applied on equip
+sword.spells         # [Spell(...)] unlocked by the item's boosts
 
+game.items.find("longsword")   # search by name / display name
 for spell in game.spells:
     print(f"[{spell.level}] {spell.display_name}: {spell.damage}")
 ```
+
+And from the command line:
+
+```console
+$ bg3forge export json -o export
+exported 12842 items
+exported 4051 spells
+exported 1876 passives
+exported 2410 statuses
+```
+
+(Counts are illustrative — they depend on your game version.)
 
 ```console
 $ bg3forge list Shared.pak
@@ -112,10 +144,20 @@ atlases, and treasure tables straight out of the installed `.pak` archives
 them into typed models (`Item`, `Spell`, `Passive`, `Status`) with resolved
 inheritance and localized display text.
 
+Collections support list iteration, name lookup, and search:
+
 ```python
 game = Game(path="/path/to/Baldurs Gate 3")     # or data_dir= / extracted_dir=
 game = Game(language="German")                   # localization language
+
+game.spells["Projectile_Fireball"]               # lookup by stats name
+game.items.find("amulet")                        # search names + display names
+game.items.get("WPN_Maybe", default=None)        # tolerant lookup
 ```
+
+Models resolve references to each other (`item.passives`, `item.spells`,
+`item.statuses`), and the raw resolved stats are always available via
+`obj.data` when you need a field the typed model doesn't surface.
 
 The install is auto-located via `$BG3_PATH` and well-known Steam/GOG paths
 on Windows, macOS, and Linux.
@@ -144,9 +186,22 @@ src/bg3forge/
 
 ## Roadmap
 
-* Character / equipment / dialog metadata parsers
-* GR2 model metadata
-* Virtual texture (GTS/GTP) atlas support
+* ✅ PAK reader/writer (LSPK v15–v18, multi-part, incremental extraction)
+* ✅ Patch detection
+* ✅ Stats parser with `using` inheritance
+* ✅ Localization (`.loca`) parser
+* ✅ LSX parser/writer
+* ✅ LSF (binary) parser/writer + `bg3forge convert`
+* ✅ RootTemplate parser with parent-template inheritance
+* ✅ Atlas definitions + icon extraction (PNG/WebP)
+* ✅ Progressions and treasure tables
+* ✅ JSON / SQLite / CSV / Markdown / YAML exporters
+* ✅ Typed Python API with cross-source resolution
+* ⏳ Validation against a full retail install (format coverage sweep)
+* ⏳ Character / equipment / dialog metadata parsers
+* ⏳ GR2 model metadata
+* ⏳ Virtual texture (GTS/GTP) atlas support
+* ⏳ PyPI release
 
 ## Development
 
@@ -155,8 +210,9 @@ pip install -e ".[dev]"
 pytest
 ```
 
-The test suite builds real LSPK/`.loca` fixtures in memory, so it runs
-without a game install.
+The test suite builds real LSPK/`.loca`/LSF fixtures in memory, so it
+runs without a game install. See [CONTRIBUTING.md](CONTRIBUTING.md) for
+setup, style, and pull-request guidelines.
 
 ## Legal
 

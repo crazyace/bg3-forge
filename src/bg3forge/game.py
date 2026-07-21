@@ -26,6 +26,7 @@ from .models import (
     SPELL_TYPE,
     STATUS_TYPE,
     Item,
+    NamedCollection,
     Passive,
     Spell,
     Status,
@@ -153,7 +154,7 @@ class Game:
     # -- typed models --------------------------------------------------------
 
     @cached_property
-    def items(self) -> list[Item]:
+    def items(self) -> NamedCollection[Item]:
         items = []
         templates_by_key = self.templates
         for entry in self.stats.by_type(*ITEM_TYPES):
@@ -174,33 +175,39 @@ class Game:
                     map_key=map_key,
                 )
             )
-        return items
+        return self._collect(items)
 
     @cached_property
-    def spells(self) -> list[Spell]:
-        return [
+    def spells(self) -> NamedCollection[Spell]:
+        return self._collect(
             Spell.from_stats(entry.name, data, *self._texts(data))
             for entry in self.stats.by_type(SPELL_TYPE)
             if (data := self.stats.resolved(entry.name)) is not None
-        ]
+        )
 
     @cached_property
-    def passives(self) -> list[Passive]:
-        return [
+    def passives(self) -> NamedCollection[Passive]:
+        return self._collect(
             Passive.from_stats(entry.name, data, *self._texts(data))
             for entry in self.stats.by_type(PASSIVE_TYPE)
             if (data := self.stats.resolved(entry.name)) is not None
-        ]
+        )
 
     @cached_property
-    def statuses(self) -> list[Status]:
-        return [
+    def statuses(self) -> NamedCollection[Status]:
+        return self._collect(
             Status.from_stats(entry.name, data, *self._texts(data))
             for entry in self.stats.by_type(STATUS_TYPE)
             if (data := self.stats.resolved(entry.name)) is not None
-        ]
+        )
 
     # -- internals -----------------------------------------------------------
+
+    def _collect(self, objects) -> NamedCollection:
+        collection = NamedCollection(objects)
+        for obj in collection:
+            obj._link(self)
+        return collection
 
     def _texts(self, data: dict[str, str]) -> tuple[str, str]:
         return (
