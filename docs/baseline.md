@@ -8,11 +8,12 @@ design principle #5) measures optimization proposals against.
 
 | | |
 | --- | --- |
-| bg3forge | 0.1.0 (branch `claude/bg3-forge-toolkit-7xlkef`, post-`3b0d125`) |
+| bg3forge | 0.1.0 (branch `main`, post-`32ba7d2`) |
 | Python | 3.12.10 |
 | OS | Windows 11 (10.0.26200) |
 | Native LZ4 | yes |
 | Data source | Steam install, 52 paks, 154.57 GB |
+| Game data | 4.8.700.7143220 (module GustavDev) |
 | Language | English |
 
 ## Validation (`bg3forge validate`)
@@ -31,40 +32,44 @@ loca files                       9
 loca handles               232,876
 lsx resources               23,061
 lsf resources               83,909
+lsj resources               10,015
 root templates              25,564
 atlases                         11
-files skipped              934,757
+dialogs                     18,757
+dialog nodes               374,082
+timelines                   32,427
+quests                         167
+quest steps                  3,543
+quest markers                  542
+objectives                   1,335
+quest categories                14
+goals                          975
+goal quest refs                367
+equipment files                  5
+equipment sets                 738
+files skipped              923,762
 stats resolved              16,132
 
 OK: every recognized file parsed cleanly.
 ```
 
-Every recognized format parses cleanly on retail data: ~107k LSX/LSF
+Every recognized format parses cleanly on retail data: ~117k LSX/LSF/LSJ
 resources, ~233k localization handles, 16.6k stats definitions layering
 down to 16,132 resolved entries (461 patch-layer redefinitions), zero
 inheritance failures. `files skipped` counts assets we don't claim to
 parse (textures, models, audio, …).
 
-**Release-gate sweep (same install, Patch 8 Hotfix 8, pre-0.1.0):**
-the final pre-release run covers every parser and is fully clean::
+The completed journal layer was retail-verified on 2026-07-21. The two
+previously sample-gated parsers produced 1,335 objectives and 14 quest
+categories with zero issues. A relationship spot check resolved the full
+localized chain:
 
-    lsx resources               23,061
-    lsf resources               83,909
-    lsj resources               10,015
-    dialogs                     18,757   (binary + editor .lsj forms)
-    dialog nodes               374,082
-    timelines                   32,427
-    quests                         167
-    quest steps                  3,543
-    quest markers                  542
-    goals                          975
-    goal quest refs                367
-    equipment files                  5
-    equipment sets                 738
+    PLA_ZhentShipment — Find the Missing Shipment
+      category: Crashside — Nautiloid Crash Region
+      objective: PLA_ZhentShipment_AgreedHelp — Find the missing wagon.
+      marker: PLA_ZhentShipment_Caravan — Wagon
 
-    OK: every recognized file parsed cleanly.
-
-Spot checks along the way: `game.dialogs.lines(...)` returned real
+Other spot checks along the way: `game.dialogs.lines(...)` returned real
 localized lines ("Mmm. Delicious gruel."), `game.quests` real journal
 text ("Find the Nightsong"), and `game.characters` a fully joined NPC
 ("Duke Ulder Ravengard" with his longsword, shield, and plate).

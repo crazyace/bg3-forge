@@ -5,23 +5,22 @@ on this list — it happens whenever the maintainer calls it, and the
 prep (CHANGELOG, release checklist, verified packaging) is already
 done and waiting.
 
-## 1. Retail verification of the completed journal layer
+## 1. Retail verification of the completed journal layer — complete
 
 *Small — one loop of the usual cycle.*
 
-The objectives/categories parsers are the only code not yet proven
+The objectives/categories parsers were the final code not yet proven
 against retail at scale (they were built from 40-line samples).
 
-- [ ] `git pull`, then `bg3forge validate --max-issues 999` on the
+- [x] `git pull`, then `bg3forge validate --max-issues 999` on the
       game machine
-- [ ] Expect: `objectives` in the low thousands (~3.5k steps suggests
-      a similar order), `quest_categories` in the dozens, zero issues
-- [ ] Spot check: a real quest's `quest.category.display_name` and
-      `quest.objectives[0].markers`
-- [ ] Fold the new counts into `docs/baseline.md`
+- [x] Result: 1,335 `objectives`, 14 `quest_categories`, zero issues
+- [x] Spot check: `PLA_ZhentShipment` resolved its localized category,
+      first linked objective, and `PLA_ZhentShipment_Caravan` marker
+- [x] Fold the new counts into `docs/baseline.md`
 
-Exit criterion: clean sweep with the two new counts recorded. Any
-failure follows the standard loop (paste → fix → regression test).
+Completed 2026-07-21 against game data 4.8.700.7143220: clean sweep,
+counts recorded, and the relationship chain verified.
 
 ## 2. Compiled Osiris reader (`story.div.osi`) — metadata level
 
@@ -71,7 +70,7 @@ and the friction list has been triaged into issues.
 
 ## Sequencing
 
-1 is a quick gate and goes first. 2 and 3 are independent and can
+Milestone 1 is complete. Milestones 2 and 3 are independent and can
 interleave; default order is 2 then 3, but if Pathway work is ready to
-start, 3 can lead — its friction list would inform what "metadata
-level" needs to mean for 2.
+start, 3 can lead — its friction list would inform what "metadata level"
+needs to mean for 2.
