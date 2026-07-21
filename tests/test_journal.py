@@ -84,6 +84,31 @@ def test_goals_index_lazy(game):
     assert goal.name == "Act1_DEN_AdventurersQuest"
 
 
+def test_read_entry_reuses_pak_readers(data_dir, monkeypatch):
+    """Loading many indexed resources must not reopen the pak each time
+    (regression: quest.goals reopened Gustav.pak per goal script)."""
+    import bg3forge.game as game_module
+
+    opens = []
+    real_reader = game_module.PakReader
+
+    class CountingReader(real_reader):
+        def __init__(self, path):
+            opens.append(str(path))
+            super().__init__(path)
+
+    monkeypatch.setattr(game_module, "PakReader", CountingReader)
+    with Game(data_dir=data_dir) as game:
+        game.dialogs.load(game.dialogs.paths[0])
+        game.goals.load(game.goals.paths[0])
+        game.timelines.load(game.timelines.paths[0])
+        # _locate_entries opens each pak once per index build (3 indexes),
+        # but the three load() calls above must share ONE cached reader.
+        read_opens = len(opens)
+    game.close()  # idempotent
+    assert read_opens == 3 + 1  # 3 index listings + 1 shared read reader
+
+
 def test_quest_to_goal_cross_link(game):
     quest = game.quests["PLA_ZhentShipment"]
     assert quest.goals == [

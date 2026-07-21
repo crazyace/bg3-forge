@@ -611,8 +611,40 @@ class Game:
         return sources
 
     def _read_entry(self, name: str, source: Path) -> bytes:
-        """Read one archived entry located by :meth:`_locate_entries`."""
+        """Read one archived entry located by :meth:`_locate_entries`.
+
+        Readers are cached per pak: opening one means parsing the whole
+        archive file list, which is far too expensive to repeat per entry
+        (reading ~1,000 goal scripts used to reopen Gustav.pak ~1,000
+        times).  Call :meth:`close` (or use the Game as a context
+        manager) to release the handles early; they are also released
+        when the Game is garbage collected.
+        """
         if self.extracted_dir is not None:
             return source.read_bytes()
-        with PakReader(source) as reader:
-            return reader.read(name)
+        reader = self._pak_readers.get(source)
+        if reader is None:
+            reader = self._pak_readers[source] = PakReader(source)
+        return reader.read(name)
+
+    @cached_property
+    def _pak_readers(self) -> dict[Path, PakReader]:
+        return {}
+
+    def close(self) -> None:
+        """Release cached pak readers (safe to call more than once)."""
+        for reader in self._pak_readers.values():
+            reader.close()
+        self._pak_readers.clear()
+
+    def __enter__(self) -> "Game":
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.close()
+
+    def __del__(self):  # pragma: no cover - interpreter-dependent timing
+        try:
+            self.close()
+        except Exception:
+            pass
