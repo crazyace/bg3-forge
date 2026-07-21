@@ -24,6 +24,7 @@ from .game import (
     _is_atlas_file,
     _is_dialog_file,
     _is_editor_dialog_file,
+    _is_equipment_file,
     _is_goal_file,
     _is_marker_file,
     _is_quest_file,
@@ -32,6 +33,7 @@ from .game import (
     _is_timeline_file,
     _is_treasure_file,
 )
+from .parsers.equipment import parse_equipment_sets
 from .parsers.goals import parse_goal
 from .parsers.journal import parse_markers, parse_quests
 from .parsers.dialogs import parse_dialog
@@ -81,7 +83,8 @@ def validate_data(
         "root_templates",
         "atlases", "dialogs", "dialog_nodes", "timelines", "quests",
         "quest_steps", "quest_markers", "goals", "goal_quest_refs",
-        "files_skipped", "stats_resolved",
+        "equipment_files", "equipment_sets", "files_skipped",
+        "stats_resolved",
     ):
         counts[key] = 0
 
@@ -158,6 +161,14 @@ def _validate_entry(
             counts["treasure_tables"] += len(tables)
         if check("treasure", parse):
             counts["treasure_files"] += 1
+    elif _is_equipment_file(name):
+        def parse(data):
+            sets = parse_equipment_sets(
+                data.decode("utf-8-sig", errors="replace"), source=name
+            )
+            counts["equipment_sets"] += len(sets)
+        if check("equipment", parse):
+            counts["equipment_files"] += 1
     elif _is_goal_file(name):
         def parse(data):
             goal = parse_goal(data.decode("utf-8-sig", errors="replace"), source=name)

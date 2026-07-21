@@ -62,6 +62,14 @@ quest.steps[0].description              # localized journal entry
 quest.goals                             # Osiris goal scripts driving the quest
 game.quest_markers                      # localized map markers
 
+# ...and so do characters:
+goblin = game.characters["GOB_Warrior_Melee"]
+goblin.display_name                     # localized, via its template
+goblin.strength, goblin.vitality        # stat block with `using` inheritance
+goblin.passives                         # [Passive(...)]
+goblin.equipment_items                  # loadout resolved into Item models
+game.passives["SavageAttacks"].characters  # reverse: who has this passive
+
 game.items.find("longsword")   # search by name / display name
 for spell in game.spells:
     print(f"[{spell.level}] {spell.display_name}: {spell.damage}")
@@ -174,6 +182,8 @@ for native-speed decompression.
 * **Osiris goal scripts** (`Story/RawFiles/Goals/*.txt`) — metadata
   level: sections, rule counts, and which quests/steps each goal's
   logic touches — `parse_goal`
+* **Equipment sets** (`Stats/Generated/Equipment.txt`) — character
+  loadouts with weapon sets and slot groups — `parse_equipment_sets`
 * `bg3forge convert` converts `.lsf` ↔ `.lsx` from the command line — no
   lslib/divine required
 
@@ -289,11 +299,13 @@ src/bg3forge/
   quest catalog, steps, markers, and quest↔goal cross-links
 * ✅ Osiris goal metadata (`game.goals`) — lazy index over the shipped
   quest-logic source, with quest references extracted
+* ✅ Characters (`game.characters`) — NPC stat blocks joined to
+  templates: abilities, passives, tags, and equipment resolved to items
+* ✅ Equipment sets (`game.equipment`)
 * ⏳ Objective/category prototypes (`objective_prototypes.lsx`,
   `questcategory_prototypes.lsx`) — samples needed
 * ⏳ Full Osiris parsing (compiled `story.div.osi`) — a format milestone
   of its own
-* ⏳ Character / equipment metadata parsers
 * ⏳ GR2 model metadata
 * ⏳ Virtual texture (GTS/GTP) atlas support
 * ⏳ PyPI release

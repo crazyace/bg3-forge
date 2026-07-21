@@ -12,7 +12,16 @@ reusable modules.
 
 from .game import Game, GameNotFoundError, LoadIssue
 from .locate import find_game
-from .models import GameObject, Item, NamedCollection, Passive, Spell, Status, to_record
+from .models import (
+    Character,
+    GameObject,
+    Item,
+    NamedCollection,
+    Passive,
+    Spell,
+    Status,
+    to_record,
+)
 
 __version__ = "0.1.0"
 
@@ -21,6 +30,7 @@ __all__ = [
     "GameNotFoundError",
     "LoadIssue",
     "find_game",
+    "Character",
     "GameObject",
     "Item",
     "NamedCollection",

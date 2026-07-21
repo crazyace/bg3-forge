@@ -22,16 +22,19 @@ from pathlib import Path
 
 from .locate import find_game
 from .models import (
+    CHARACTER_TYPE,
     ITEM_TYPES,
     PASSIVE_TYPE,
     SPELL_TYPE,
     STATUS_TYPE,
+    Character,
     Item,
     NamedCollection,
     Passive,
     Spell,
     Status,
 )
+from .parsers.equipment import EquipmentSet, parse_equipment_sets
 from .pak.reader import PakReader
 from .parsers.localization import Localization
 from .parsers.resource import parse_resource
@@ -196,6 +199,10 @@ def _is_atlas_file(name: str) -> bool:
 def _is_tag_file(name: str) -> bool:
     lowered = name.lower()
     return "/tags/" in lowered and lowered.endswith((".lsx", ".lsf"))
+
+
+def _is_equipment_file(name: str) -> bool:
+    return name.lower().endswith("/stats/generated/equipment.txt")
 
 
 def _is_quest_file(name: str) -> bool:
@@ -501,6 +508,68 @@ class Game:
             for entry in self.stats.by_type(STATUS_TYPE)
             if (data := self._resolved_or_record(entry)) is not None
         )
+
+    @cached_property
+    def characters(self) -> NamedCollection[Character]:
+        """NPC/creature stat blocks joined to their templates.
+
+        Display names, archetype, and the equipment-set reference come
+        from the root template whose ``Stats`` field names the entry.
+        """
+        characters = []
+        for entry in self.stats.by_type(CHARACTER_TYPE):
+            data = self._resolved_or_record(entry)
+            if data is None:
+                continue
+            display = description = ""
+            map_key = archetype = equipment_name = None
+            owners = self.templates.by_stats(entry.name)
+            if owners:
+                map_key = owners[0].map_key
+                fields = self.templates.resolved(map_key)
+                display = self.localization.resolve(fields.get("DisplayName"))
+                description = self.localization.resolve(fields.get("Description"))
+                archetype = fields.get("Archetype")
+                equipment_name = fields.get("Equipment")
+            characters.append(
+                Character.from_stats(
+                    entry.name,
+                    data,
+                    display_name=display,
+                    description=description,
+                    map_key=map_key,
+                    archetype=archetype,
+                    equipment_name=equipment_name,
+                )
+            )
+        return self._collect(characters)
+
+    @cached_property
+    def equipment(self) -> NamedCollection[EquipmentSet]:
+        """Equipment sets by name (``game.equipment["EQP_Gith_Soldier"]``)."""
+        sets: list[EquipmentSet] = []
+        for name, data in self._iter_files(_is_equipment_file):
+            try:
+                sets.extend(
+                    parse_equipment_sets(
+                        data.decode("utf-8-sig", errors="replace"), source=name
+                    )
+                )
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
+        return NamedCollection(sets)
+
+    def characters_with_passive(self, name: str) -> list[Character]:
+        """Characters whose Passives include ``name`` (reverse edge)."""
+        return list(self._character_passive_index.get(name, ()))
+
+    @cached_property
+    def _character_passive_index(self) -> dict[str, list[Character]]:
+        index: dict[str, list[Character]] = {}
+        for character in self.characters:
+            for passive_name in character.passive_names:
+                index.setdefault(passive_name, []).append(character)
+        return index
 
     # -- relationship graph ---------------------------------------------------
 

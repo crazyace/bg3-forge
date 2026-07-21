@@ -133,8 +133,8 @@ def test_roundtrip_roottemplates_matches_lsx():
     parsed = parse_lsf(write_lsf(original))
     _assert_documents_equal(original, parsed)
     objects = list(parsed.find_all("GameObjects"))
-    assert len(objects) == 2
-    assert objects[1].get("DisplayName") == "h55555555-5555-5555-5555-555555555555"
+    assert len(objects) == 3
+    assert objects[2].get("DisplayName") == "h55555555-5555-5555-5555-555555555555"
 
 
 @pytest.mark.parametrize(

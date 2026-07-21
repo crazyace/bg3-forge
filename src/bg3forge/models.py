@@ -38,6 +38,7 @@ SPELL_TYPE = "SpellData"
 PASSIVE_TYPE = "PassiveData"
 STATUS_TYPE = "StatusData"
 INTERRUPT_TYPE = "InterruptData"
+CHARACTER_TYPE = "Character"
 
 _UNLOCK_SPELL_RE = re.compile(r"UnlockSpell\(\s*([^),\s]+)")
 
@@ -207,6 +208,92 @@ class Item(GameObject):
 
 
 @dataclass
+class Character(GameObject):
+    """An NPC/creature stat block, joined to its root template.
+
+    Unlike items, character stats entries don't name their template —
+    the template's ``Stats`` field points here — so the join runs
+    through ``RootTemplateIndex.by_stats``.
+    """
+
+    map_key: str | None = None       # owning template MapKey, when matched
+    level: int = 0
+    vitality: int | None = None      # hit points
+    armor: int | None = None         # armor class
+    strength: int | None = None
+    dexterity: int | None = None
+    constitution: int | None = None
+    intelligence: int | None = None
+    wisdom: int | None = None
+    charisma: int | None = None
+    archetype: str | None = None     # from the template
+    equipment_name: str | None = None  # equipment set, from the template
+
+    @property
+    def passive_names(self) -> list[str]:
+        return _split_list(self.data.get("Passives"))
+
+    @cached_property
+    def passives(self) -> list["Passive"]:
+        return self._resolve("passives", self.passive_names)
+
+    @cached_property
+    def tag_ids(self) -> list[str]:
+        game = getattr(self, "_game", None)
+        if game is None or not self.map_key:
+            return []
+        return game.templates.resolved_tags(self.map_key)
+
+    @cached_property
+    def tags(self) -> list:
+        game = getattr(self, "_game", None)
+        if game is None:
+            return []
+        return [tag for uuid in self.tag_ids if (tag := game.tags.get(uuid))]
+
+    @cached_property
+    def equipment(self):
+        """The :class:`~bg3forge.parsers.equipment.EquipmentSet` the
+        character's template references, if any."""
+        game = getattr(self, "_game", None)
+        if game is None or not self.equipment_name:
+            return None
+        return game.equipment.get(self.equipment_name)
+
+    @cached_property
+    def equipment_items(self) -> list["Item"]:
+        """The character's loadout resolved into Item models (entries
+        without a stats definition are omitted)."""
+        if self.equipment is None:
+            return []
+        return self._resolve("items", self.equipment.entries())
+
+    @classmethod
+    def from_stats(cls, name, data, display_name="", description="",
+                   map_key=None, archetype=None, equipment_name=None):
+        return cls(
+            name=name,
+            stats_type=CHARACTER_TYPE,
+            display_name=display_name,
+            description=description,
+            icon=data.get("Icon"),
+            data=data,
+            map_key=map_key,
+            level=_to_int(data.get("Level")) or 0,
+            vitality=_to_int(data.get("Vitality")),
+            armor=_to_int(data.get("Armor")),
+            strength=_to_int(data.get("Strength")),
+            dexterity=_to_int(data.get("Dexterity")),
+            constitution=_to_int(data.get("Constitution")),
+            intelligence=_to_int(data.get("Intelligence")),
+            wisdom=_to_int(data.get("Wisdom")),
+            charisma=_to_int(data.get("Charisma")),
+            archetype=archetype,
+            equipment_name=equipment_name,
+        )
+
+
+@dataclass
 class Spell(GameObject):
     spell_type: str = ""        # e.g. "Projectile", "Target", "Shout"
     level: int = 0
@@ -245,6 +332,14 @@ class Passive(GameObject):
     def items(self) -> list["Item"]:
         """Items that grant this passive (reverse of ``Item.passives``)."""
         return self._granted_by("passives")
+
+    @cached_property
+    def characters(self) -> list["Character"]:
+        """Characters with this passive (reverse of ``Character.passives``)."""
+        game = getattr(self, "_game", None)
+        if game is None:
+            return []
+        return game.characters_with_passive(self.name)
 
     @classmethod
     def from_stats(cls, name, data, display_name="", description=""):

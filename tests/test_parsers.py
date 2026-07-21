@@ -171,8 +171,8 @@ def test_parse_lsx_regions_and_attributes():
     templates_region = doc.region("Templates")
     assert templates_region is not None
     objects = list(doc.find_all("GameObjects"))
-    assert len(objects) == 2
-    sword = objects[1]
+    assert len(objects) == 3
+    sword = objects[2]
     assert sword.get("Name") == "WPN_Longsword"
     # TranslatedString attributes expose their handle as text
     assert sword.get("DisplayName") == "h55555555-5555-5555-5555-555555555555"
@@ -190,7 +190,7 @@ def test_parse_lsx_rejects_garbage():
 def test_root_template_inheritance():
     index = RootTemplateIndex()
     index.add_document(parse_lsx(ROOTTEMPLATE_LSX))
-    assert len(index) == 2
+    assert len(index) == 3
     resolved = index.resolved("1111aaaa-0000-0000-0000-000000000001")
     assert resolved["Icon"] == "Item_Generic"    # inherited from parent
     assert resolved["Name"] == "WPN_Longsword"   # own value wins

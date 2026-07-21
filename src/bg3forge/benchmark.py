@@ -103,6 +103,8 @@ def _build_models(game: Game, report: BenchmarkReport):
         report.counts["spells"] = len(game.spells)
         report.counts["passives"] = len(game.passives)
         report.counts["statuses"] = len(game.statuses)
+        report.counts["characters"] = len(game.characters)
+        report.counts["equipment sets"] = len(game.equipment)
     return build
 
 

@@ -125,13 +125,13 @@ def test_search_cli_glob_and_dirs(data_dir, capsys):
     # glob: anchored pattern instead of substring
     assert main(["--data-dir", str(data_dir), "search", "*/stats/generated/data/*.txt"]) == 0
     out = capsys.readouterr().out
-    assert "Weapon.txt" in out and "5 match(es)" in out
+    assert "Weapon.txt" in out and "6 match(es)" in out
 
     # --dirs: aggregate by directory with counts
     assert main(["--data-dir", str(data_dir), "search", ".txt", "--dirs"]) == 0
     out = capsys.readouterr().out
-    assert "      5  Public/Shared/Stats/Generated/Data" in out
-    assert "7 match(es) in 3 directorie(s)" in out
+    assert "      6  Public/Shared/Stats/Generated/Data" in out
+    assert "9 match(es) in 3 directorie(s)" in out
 
 
 def test_dialog_index_from_extracted(tmp_path, sample_pak):

@@ -49,3 +49,14 @@ numbers and `docs/retail-testing.md` for how to reproduce them.
   aggregation) across all paks
 * `unpack`, `list`, `convert`, `patches`, `icons`, and per-dataset
   export commands
+
+### Added after the initial changelog draft
+
+* Characters (`game.characters`): NPC/creature stat blocks with ability
+  scores, joined to root templates for localized names, archetype, and
+  equipment; `character.passives`, `character.tags`,
+  `character.equipment_items` (loadout resolved into Item models), and
+  the reverse `passive.characters` edge
+* Equipment sets (`game.equipment`) parsed from
+  `Stats/Generated/Equipment.txt`
+* `bg3forge characters` export command; `export` covers characters

@@ -15,14 +15,14 @@ def test_validate_clean_fixture(data_dir):
     report = validate_data(data_dir)
     assert report.ok
     assert report.counts["paks"] == 1
-    assert report.counts["stats_files"] == 5
-    assert report.counts["stats_entries"] == 6
+    assert report.counts["stats_files"] == 6
+    assert report.counts["stats_entries"] == 8
     assert report.counts["stats_globals"] == 2
-    assert report.counts["stats_resolved"] == 6  # inheritance checked cross-file
+    assert report.counts["stats_resolved"] == 8  # inheritance checked cross-file
     assert report.counts["treasure_files"] == 1
     assert report.counts["treasure_tables"] == 1
     assert report.counts["loca_files"] == 1
-    assert report.counts["loca_handles"] == 13
+    assert report.counts["loca_handles"] == 14
     assert report.counts["lsx_resources"] == 7   # templates, atlas, tags, registry, journal
     assert report.counts["lsf_resources"] == 2   # dialog + timeline
     assert report.counts["dialogs"] == 2   # binary + editor .lsj
@@ -34,7 +34,9 @@ def test_validate_clean_fixture(data_dir):
     assert report.counts["quest_markers"] == 1
     assert report.counts["goals"] == 1
     assert report.counts["goal_quest_refs"] == 2
-    assert report.counts["root_templates"] == 2
+    assert report.counts["equipment_files"] == 1
+    assert report.counts["equipment_sets"] == 1
+    assert report.counts["root_templates"] == 3
     assert report.counts["atlases"] == 1
     text = format_validation(report)
     assert "OK: every recognized file parsed cleanly." in text
@@ -53,7 +55,7 @@ def test_validate_counts_lsf(tmp_path, data_dir):
     report = validate_data(data_dir)
     assert report.ok
     assert report.counts["lsf_resources"] == 3  # dialog + timeline + added templates
-    assert report.counts["root_templates"] == 4
+    assert report.counts["root_templates"] == 6
 
 
 def test_validate_reports_corrupt_files(tmp_path, data_dir):
@@ -68,7 +70,7 @@ def test_validate_reports_corrupt_files(tmp_path, data_dir):
     assert len(report.issues) == 2
     stages = {issue.stage for issue in report.issues}
     assert stages == {"loca", "resource"}
-    assert report.counts["stats_files"] == 6  # the good file still counted
+    assert report.counts["stats_files"] == 7  # the good file still counted
     text = format_validation(report)
     assert "2 file(s) failed to parse" in text
     assert "broken.loca" in text
@@ -170,12 +172,14 @@ def test_run_benchmark(data_dir, tmp_path):
     assert all(seconds >= 0 for _, seconds in report.stages)
     assert report.counts["items"] == 3
     assert report.counts["spells"] == 1
-    assert report.counts["pak entries"] == 18
+    assert report.counts["pak entries"] == 20
     assert report.counts["tags"] == 2
     assert report.counts["dialogs indexed"] == 1
     assert report.counts["timelines indexed"] == 1
     assert report.counts["quests"] == 1
     assert report.counts["goals indexed"] == 1
+    assert report.counts["characters"] == 2
+    assert report.counts["equipment sets"] == 1
     assert (tmp_path / "export" / "items.json").exists()
     assert report.environment["Language"] == "English"
 

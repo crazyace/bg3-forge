@@ -88,7 +88,7 @@ def test_extractor_incremental(tmp_path, sample_pak):
 def test_extractor_patterns(tmp_path, sample_pak):
     out = tmp_path / "out"
     result = Extractor(out).extract(sample_pak, patterns=["*/stats/generated/data/*"])
-    assert len(result.extracted) == 5
+    assert len(result.extracted) == 6
     assert all("Stats/Generated/Data" in name for name in result.extracted)
 
 

@@ -33,6 +33,37 @@ data "StatusOnEquip" "BURNING"
 data "Boosts" "UnlockSpell(Projectile_Fireball);WeaponEnchantment(1)"
 """
 
+CHARACTER_TXT = """\
+new entry "_BaseCharacter"
+type "Character"
+data "Strength" "10"
+data "Dexterity" "10"
+data "Constitution" "10"
+data "Intelligence" "10"
+data "Wisdom" "10"
+data "Charisma" "10"
+data "Vitality" "6"
+data "Armor" "10"
+
+new entry "GOB_Warrior"
+type "Character"
+using "_BaseCharacter"
+data "Level" "3"
+data "Vitality" "21"
+data "Armor" "15"
+data "Strength" "16"
+data "Passives" "SavageAttacks"
+"""
+
+EQUIPMENT_TXT = """\
+new equipment "EQP_Goblin_Warrior"
+add initialweaponset "Melee"
+add equipmentgroup
+add equipment entry "WPN_Longsword"
+add equipmentgroup
+add equipment entry "ARM_Missing_Leather"
+"""
+
 SPELL_TXT = """\
 // Fireball and friends
 new entry "Projectile_Fireball"
@@ -99,6 +130,14 @@ ROOTTEMPLATE_LSX = """\
               </children>
             </node>
           </children>
+        </node>
+        <node id="GameObjects">
+          <attribute id="MapKey" type="FixedString" value="2222bbbb-0000-0000-0000-000000000002" />
+          <attribute id="Name" type="LSString" value="GOB_Warrior" />
+          <attribute id="Stats" type="FixedString" value="GOB_Warrior" />
+          <attribute id="DisplayName" type="TranslatedString" handle="haaaa0000-0000-0000-0000-0000000000c1" version="1" />
+          <attribute id="Equipment" type="FixedString" value="EQP_Goblin_Warrior" />
+          <attribute id="Archetype" type="FixedString" value="melee" />
         </node>
         <node id="GameObjects">
           <attribute id="MapKey" type="FixedString" value="1111aaaa-0000-0000-0000-000000000001" />
@@ -504,6 +543,7 @@ LOCA_ENTRIES = [
     LocaEntry("haaaa0000-0000-0000-0000-0000000000q2", 3, "We agreed to recover the shipment."),
     LocaEntry("haaaa0000-0000-0000-0000-0000000000q3", 2, "We noticed a struggle on the road."),
     LocaEntry("haaaa0000-0000-0000-0000-0000000000m1", 1, "Shadowfell Portal"),
+    LocaEntry("haaaa0000-0000-0000-0000-0000000000c1", 1, "Goblin Warrior"),
 ]
 
 
@@ -520,6 +560,8 @@ def fixture_files() -> dict[str, bytes]:
         "Public/Shared/Stats/Generated/Data/Passive.txt": PASSIVE_TXT.encode(),
         "Public/Shared/Stats/Generated/Data/Status_BOOST.txt": STATUS_TXT.encode(),
         "Public/Shared/Stats/Generated/Data/Data.txt": DATA_TXT.encode(),
+        "Public/Shared/Stats/Generated/Data/Character.txt": CHARACTER_TXT.encode(),
+        "Public/Shared/Stats/Generated/Equipment.txt": EQUIPMENT_TXT.encode(),
         "Public/Shared/Stats/Generated/TreasureTable.txt": TREASURE_TXT.encode(),
         "Public/Shared/RootTemplates/Weapons.lsx": ROOTTEMPLATE_LSX.encode(),
         "Public/Shared/Tags/aaaa1111-0000-0000-0000-000000000001.lsx": WEAPON_TAG_LSX.encode(),

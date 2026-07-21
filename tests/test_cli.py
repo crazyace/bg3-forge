@@ -79,8 +79,8 @@ def test_convert_lsx_to_lsf_and_back(tmp_path, capsys):
 
     document = load_resource(lsx_out)
     objects = list(document.find_all("GameObjects"))
-    assert objects[1].get("Name") == "WPN_Longsword"
-    assert objects[1].get("DisplayName") == "h55555555-5555-5555-5555-555555555555"
+    assert objects[2].get("Name") == "WPN_Longsword"
+    assert objects[2].get("DisplayName") == "h55555555-5555-5555-5555-555555555555"
 
 
 def test_convert_rejects_unknown_extension(tmp_path, capsys):

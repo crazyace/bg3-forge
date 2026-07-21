@@ -22,6 +22,8 @@ _FIELDS = (
     "Type",
     "ParentTemplateId",
     "LevelName",
+    "Equipment",
+    "Archetype",
 )
 
 
