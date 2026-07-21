@@ -26,7 +26,9 @@ from .game import (
     _is_editor_dialog_file,
     _is_equipment_file,
     _is_goal_file,
+    _is_category_file,
     _is_marker_file,
+    _is_objective_file,
     _is_quest_file,
     _is_roottemplate_file,
     _is_stats_file,
@@ -35,7 +37,12 @@ from .game import (
 )
 from .parsers.equipment import parse_equipment_sets
 from .parsers.goals import parse_goal
-from .parsers.journal import parse_markers, parse_quests
+from .parsers.journal import (
+    parse_markers,
+    parse_objectives,
+    parse_quest_categories,
+    parse_quests,
+)
 from .parsers.dialogs import parse_dialog
 from .pak.reader import PakReader
 from .parsers.lsf import is_lsf
@@ -82,7 +89,8 @@ def validate_data(
         "loca_handles", "lsx_resources", "lsf_resources", "lsj_resources",
         "root_templates",
         "atlases", "dialogs", "dialog_nodes", "timelines", "quests",
-        "quest_steps", "quest_markers", "goals", "goal_quest_refs",
+        "quest_steps", "quest_markers", "objectives", "quest_categories",
+        "goals", "goal_quest_refs",
         "equipment_files", "equipment_sets", "files_skipped",
         "stats_resolved",
     ):
@@ -204,6 +212,12 @@ def _validate_entry(
                 counts["quest_steps"] += sum(len(q.steps) for q in quests)
             elif _is_marker_file(name):
                 counts["quest_markers"] += len(parse_markers(document, source=name))
+            elif _is_objective_file(name):
+                counts["objectives"] += len(parse_objectives(document, source=name))
+            elif _is_category_file(name):
+                counts["quest_categories"] += len(
+                    parse_quest_categories(document, source=name)
+                )
             elif _is_timeline_file(name):
                 counts["timelines"] += 1
         if check("resource", parse):

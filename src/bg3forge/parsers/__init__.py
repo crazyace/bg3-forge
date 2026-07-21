@@ -24,7 +24,17 @@ from .resource import load_resource, parse_resource
 from .roottemplates import RootTemplate, RootTemplateIndex, parse_root_templates
 from .tags import Tag, TagRegistry, parse_tags
 from .dialogs import Dialog, DialogError, DialogNode, Speaker, parse_dialog
-from .journal import Marker, Quest, QuestStep, parse_markers, parse_quests
+from .journal import (
+    Marker,
+    Objective,
+    Quest,
+    QuestCategory,
+    QuestStep,
+    parse_markers,
+    parse_objectives,
+    parse_quest_categories,
+    parse_quests,
+)
 from .goals import Goal, parse_goal
 from .equipment import EquipmentSet, parse_equipment_sets
 from .progressions import Progression, parse_progressions
@@ -71,9 +81,13 @@ __all__ = [
     "Speaker",
     "parse_dialog",
     "Marker",
+    "Objective",
     "Quest",
+    "QuestCategory",
     "QuestStep",
     "parse_markers",
+    "parse_objectives",
+    "parse_quest_categories",
     "parse_quests",
     "Goal",
     "parse_goal",

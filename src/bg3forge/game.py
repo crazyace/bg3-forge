@@ -41,7 +41,16 @@ from .parsers.resource import parse_resource
 from .parsers.roottemplates import RootTemplateIndex
 from .parsers.dialogs import Dialog, parse_dialog
 from .parsers.goals import Goal, parse_goal
-from .parsers.journal import Marker, Quest, parse_markers, parse_quests
+from .parsers.journal import (
+    Marker,
+    Objective,
+    Quest,
+    QuestCategory,
+    parse_markers,
+    parse_objectives,
+    parse_quest_categories,
+    parse_quests,
+)
 from .parsers.stats import StatsCollection
 from .parsers.tags import TagRegistry
 from .parsers.treasure import TreasureTable, parse_treasure_tables
@@ -209,6 +218,20 @@ def _is_quest_file(name: str) -> bool:
     lowered = name.lower()
     return "/story/journal/" in lowered and lowered.rsplit("/", 1)[-1].startswith(
         "quest_prototypes."
+    )
+
+
+def _is_objective_file(name: str) -> bool:
+    lowered = name.lower()
+    return "/story/journal/" in lowered and lowered.rsplit("/", 1)[-1].startswith(
+        "objective_prototypes."
+    )
+
+
+def _is_category_file(name: str) -> bool:
+    lowered = name.lower()
+    return "/story/journal/" in lowered and lowered.rsplit("/", 1)[-1].startswith(
+        "questcategory_prototypes."
     )
 
 
@@ -423,6 +446,73 @@ class Game:
         for marker in markers:
             marker.display_text = self.localization.resolve(marker.display_text_handle)
         return markers
+
+    @cached_property
+    def objectives(self) -> NamedCollection[Objective]:
+        """Quest objectives with localized descriptions
+        (``game.objectives["FOR_UnfortunateGnome_Approach"]``)."""
+        objectives: list[Objective] = []
+        for name, data in self._iter_files(_is_objective_file):
+            try:
+                objectives.extend(parse_objectives(parse_resource(data), source=name))
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
+        for objective in objectives:
+            objective.description = self.localization.resolve(
+                objective.description_handle
+            )
+        return self._collect(objectives)
+
+    @cached_property
+    def quest_categories(self) -> NamedCollection[QuestCategory]:
+        """Journal categories with localized names, by CategoryID."""
+        categories: list[QuestCategory] = []
+        for name, data in self._iter_files(_is_category_file):
+            try:
+                categories.extend(
+                    parse_quest_categories(parse_resource(data), source=name)
+                )
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
+        for category in categories:
+            category.description = self.localization.resolve(
+                category.description_handle
+            )
+        return self._collect(categories)
+
+    def objectives_for_quest(self, quest_id: str) -> list[Objective]:
+        return list(self._objective_quest_index.get(quest_id, ()))
+
+    @cached_property
+    def _objective_quest_index(self) -> dict[str, list[Objective]]:
+        index: dict[str, list[Objective]] = {}
+        for objective in self.objectives:
+            if objective.quest_id:
+                index.setdefault(objective.quest_id, []).append(objective)
+        return index
+
+    def quests_in_category(self, category_id: str) -> list[Quest]:
+        return list(self._quest_category_index.get(category_id, ()))
+
+    @cached_property
+    def _quest_category_index(self) -> dict[str, list[Quest]]:
+        index: dict[str, list[Quest]] = {}
+        for quest in self.quests:
+            if quest.category_id:
+                index.setdefault(quest.category_id, []).append(quest)
+        return index
+
+    def markers_by_id(self, marker_id: str) -> list[Marker]:
+        """Quest markers whose MarkerID matches (objectives link this way)."""
+        return list(self._marker_id_index.get(marker_id, ()))
+
+    @cached_property
+    def _marker_id_index(self) -> dict[str, list[Marker]]:
+        index: dict[str, list[Marker]] = {}
+        for marker in self.quest_markers:
+            if marker.marker_id:
+                index.setdefault(marker.marker_id, []).append(marker)
+        return index
 
     @cached_property
     def goals(self) -> GoalIndex:

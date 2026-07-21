@@ -86,6 +86,20 @@ class Quest:
             return []
         return game.goals_for_quest(self.quest_id)
 
+    @property
+    def category(self) -> "QuestCategory | None":
+        game = getattr(self, "_game", None)
+        if game is None or not self.category_id:
+            return None
+        return game.quest_categories.get(self.category_id)
+
+    @property
+    def objectives(self) -> list["Objective"]:
+        game = getattr(self, "_game", None)
+        if game is None:
+            return []
+        return game.objectives_for_quest(self.quest_id)
+
 
 @dataclass
 class Marker:
@@ -98,6 +112,131 @@ class Marker:
     radius: int = 0
     display_text_handle: str | None = None
     display_text: str = ""             # localized, filled by Game
+
+
+@dataclass
+class Objective:
+    """One entry from ``objective_prototypes.lsx`` (region ``Objectives``)."""
+
+    objective_id: str                  # e.g. "FOR_UnfortunateGnome_Approach"
+    quest_id: str | None = None
+    guid: str | None = None
+    priority: int = 0
+    description_handle: str | None = None
+    description: str = ""              # localized, filled by Game
+    marker_ids: list[str] = field(default_factory=list)
+    source: str | None = None
+
+    # NamedCollection compatibility
+    @property
+    def name(self) -> str:
+        return self.objective_id
+
+    @property
+    def display_name(self) -> str:
+        return self.description
+
+    def _link(self, game) -> None:
+        self._game = game
+
+    @property
+    def quest(self):
+        game = getattr(self, "_game", None)
+        if game is None or not self.quest_id:
+            return None
+        return game.quests.get(self.quest_id)
+
+    @property
+    def markers(self) -> list[Marker]:
+        """The map markers this objective points at (matched by MarkerID)."""
+        game = getattr(self, "_game", None)
+        if game is None:
+            return []
+        return [
+            marker
+            for marker_id in self.marker_ids
+            for marker in game.markers_by_id(marker_id)
+        ]
+
+
+@dataclass
+class QuestCategory:
+    """One entry from ``questcategory_prototypes.lsx``.
+
+    The ``Description`` handle holds the category's display name (the
+    journal section header, e.g. "Companions").
+    """
+
+    category_id: str
+    guid: str | None = None
+    sorting_priority: int = 0
+    description_handle: str | None = None
+    description: str = ""              # localized, filled by Game
+    source: str | None = None
+
+    # NamedCollection compatibility
+    @property
+    def name(self) -> str:
+        return self.category_id
+
+    @property
+    def display_name(self) -> str:
+        return self.description
+
+    def _link(self, game) -> None:
+        self._game = game
+
+    @property
+    def quests(self) -> list[Quest]:
+        game = getattr(self, "_game", None)
+        if game is None:
+            return []
+        return game.quests_in_category(self.category_id)
+
+
+def parse_objectives(document: LsxDocument, source: str | None = None) -> list[Objective]:
+    objectives = []
+    for node in document.find_all("Objective"):
+        objective_id = node.get("ObjectiveID")
+        if not objective_id:
+            continue
+        marker_ids = [
+            value
+            for markers_node in node.find_all("Markers")
+            if (value := markers_node.get("Markers"))
+        ]
+        objectives.append(
+            Objective(
+                objective_id=objective_id,
+                quest_id=node.get("QuestID") or None,
+                guid=node.get("QuestObjectiveGuid"),
+                priority=int(node.get("Priority", "0") or 0),
+                description_handle=_handle(node, "Description"),
+                marker_ids=marker_ids,
+                source=source,
+            )
+        )
+    return objectives
+
+
+def parse_quest_categories(
+    document: LsxDocument, source: str | None = None
+) -> list[QuestCategory]:
+    categories = []
+    for node in document.find_all("QuestCategory"):
+        category_id = node.get("CategoryID")
+        if not category_id:
+            continue
+        categories.append(
+            QuestCategory(
+                category_id=category_id,
+                guid=node.get("QuestCategoryGuid"),
+                sorting_priority=int(node.get("SortingPriority", "0") or 0),
+                description_handle=_handle(node, "Description"),
+                source=source,
+            )
+        )
+    return categories
 
 
 def parse_quests(document: LsxDocument, source: str | None = None) -> list[Quest]:

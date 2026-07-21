@@ -480,6 +480,59 @@ MARKER_LSX = """\
 </save>
 """
 
+# Trimmed from retail objective_prototypes.lsx.
+OBJECTIVE_LSX = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<save>
+  <version major="4" minor="7" revision="1" build="3"/>
+  <region id="Objectives">
+    <node id="root">
+      <children>
+        <node id="Objective">
+          <attribute id="Description" type="TranslatedString" handle="haaaa0000-0000-0000-0000-0000000000o1" version="2"/>
+          <attribute id="ObjectiveID" type="FixedString" value="PLA_ZhentShipment_AgreedHelp"/>
+          <attribute id="Priority" type="int32" value="1000"/>
+          <attribute id="QuestID" type="FixedString" value="PLA_ZhentShipment"/>
+          <attribute id="QuestObjectiveGuid" type="guid" value="8d0d28b1-4dfb-81e8-87d4-095827c891b2"/>
+          <children>
+            <node id="Markers">
+              <attribute id="Markers" type="FixedString" value="SHA_ShadowfellPortal"/>
+            </node>
+          </children>
+        </node>
+        <node id="Objective">
+          <attribute id="Description" type="TranslatedString" handle="haaaa0000-0000-0000-0000-0000000000o2" version="2"/>
+          <attribute id="ObjectiveID" type="FixedString" value="PLA_ZhentShipment_HelpSurvivors"/>
+          <attribute id="Priority" type="int32" value="1100"/>
+          <attribute id="QuestID" type="FixedString" value="PLA_ZhentShipment"/>
+          <attribute id="QuestObjectiveGuid" type="guid" value="a5d4bdab-d5f8-79d6-1e58-ea5493205d96"/>
+        </node>
+      </children>
+    </node>
+  </region>
+</save>
+"""
+
+# Trimmed from retail questcategory_prototypes.lsx.
+CATEGORY_LSX = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<save>
+  <version major="4" minor="7" revision="1" build="3"/>
+  <region id="QuestCategories">
+    <node id="root">
+      <children>
+        <node id="QuestCategory">
+          <attribute id="CategoryID" type="FixedString" value="Crashside"/>
+          <attribute id="Description" type="TranslatedString" handle="haaaa0000-0000-0000-0000-0000000000k1" version="1"/>
+          <attribute id="QuestCategoryGuid" type="guid" value="019f2fb8-179d-e2e4-9735-46d336e37336"/>
+          <attribute id="SortingPriority" type="int32" value="2"/>
+        </node>
+      </children>
+    </node>
+  </region>
+</save>
+"""
+
 # Trimmed from a retail goal script (syntax verbatim).
 GOAL_TXT = """\
 Version 1
@@ -544,6 +597,9 @@ LOCA_ENTRIES = [
     LocaEntry("haaaa0000-0000-0000-0000-0000000000q3", 2, "We noticed a struggle on the road."),
     LocaEntry("haaaa0000-0000-0000-0000-0000000000m1", 1, "Shadowfell Portal"),
     LocaEntry("haaaa0000-0000-0000-0000-0000000000c1", 1, "Goblin Warrior"),
+    LocaEntry("haaaa0000-0000-0000-0000-0000000000o1", 2, "Recover the shipment."),
+    LocaEntry("haaaa0000-0000-0000-0000-0000000000o2", 2, "Help the survivors."),
+    LocaEntry("haaaa0000-0000-0000-0000-0000000000k1", 1, "Wilderness"),
 ]
 
 
@@ -572,6 +628,8 @@ def fixture_files() -> dict[str, bytes]:
         "Mods/Shared/Story/Dialogs/Camp/CAMP_Greeting.lsj": DIALOG_LSJ.encode(),
         "Public/Shared/Timeline/Generated/tttt0000-0000-0000-0000-000000000001.lsf": timeline_lsf,
         "Mods/Shared/Story/Journal/quest_prototypes.lsx": QUEST_PROTOTYPES_LSX.encode(),
+        "Mods/Shared/Story/Journal/objective_prototypes.lsx": OBJECTIVE_LSX.encode(),
+        "Mods/Shared/Story/Journal/questcategory_prototypes.lsx": CATEGORY_LSX.encode(),
         "Mods/Shared/Story/Journal/Markers/9d61b258-a858-7e39-39e6-a13a26c8cd8a.lsx": MARKER_LSX.encode(),
         "Mods/Shared/Story/RawFiles/Goals/Act1_DEN_AdventurersQuest.txt": GOAL_TXT.encode(),
         "Localization/English/english.loca": write_loca(LOCA_ENTRIES),

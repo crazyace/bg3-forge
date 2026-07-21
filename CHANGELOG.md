@@ -60,3 +60,10 @@ numbers and `docs/retail-testing.md` for how to reproduce them.
 * Equipment sets (`game.equipment`) parsed from
   `Stats/Generated/Equipment.txt`
 * `bg3forge characters` export command; `export` covers characters
+* Objectives (`game.objectives`) and quest categories
+  (`game.quest_categories`) complete the journal layer, with
+  `quest.objectives`, `quest.category`, `objective.markers`, and
+  `category.quests` joins
+* Shared cached pak readers: the full pipeline dropped from ~28.6 s to
+  ~8.8 s on the retail baseline (ten stages had each re-parsed every
+  pak file list)

@@ -60,6 +60,8 @@ quest = game.quests["PLA_ZhentShipment"]
 quest.title                             # localized quest title
 quest.steps[0].description              # localized journal entry
 quest.goals                             # Osiris goal scripts driving the quest
+quest.category.display_name             # journal section, localized
+quest.objectives[0].markers             # objective -> map marker join
 game.quest_markers                      # localized map markers
 
 # ...and so do characters:
@@ -177,7 +179,8 @@ for native-speed decompression.
 * **Dialogs** (`Story/DialogsBinary/**.lsf`) — node graphs with
   constructors, speakers, flow edges, and text handles — `parse_dialog`
 * **Quest journal** (`Story/Journal/`) — quest catalog with steps,
-  rewards, and localized titles/descriptions, plus map markers —
+  rewards, objectives, categories, localized titles/descriptions, and
+  map markers —
   `parse_quests` / `parse_markers`
 * **Osiris goal scripts** (`Story/RawFiles/Goals/*.txt`) — metadata
   level: sections, rule counts, and which quests/steps each goal's
@@ -295,15 +298,15 @@ src/bg3forge/
   linkage; internals unmodeled so far
 * ✅ LSJ (JSON) resource format — the third serialization, covering
   editor-side dialogs
-* ✅ Quest journal (`game.quests`, `game.quest_markers`) — localized
-  quest catalog, steps, markers, and quest↔goal cross-links
+* ✅ Quest journal (`game.quests`, `game.quest_markers`,
+  `game.objectives`, `game.quest_categories`) — the complete journal
+  layer: localized quests, steps, objectives (with marker links),
+  categories, and quest↔goal cross-links
 * ✅ Osiris goal metadata (`game.goals`) — lazy index over the shipped
   quest-logic source, with quest references extracted
 * ✅ Characters (`game.characters`) — NPC stat blocks joined to
   templates: abilities, passives, tags, and equipment resolved to items
 * ✅ Equipment sets (`game.equipment`)
-* ⏳ Objective/category prototypes (`objective_prototypes.lsx`,
-  `questcategory_prototypes.lsx`) — samples needed
 * ⏳ Full Osiris parsing (compiled `story.div.osi`) — a format milestone
   of its own
 * ⏳ GR2 model metadata

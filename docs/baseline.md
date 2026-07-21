@@ -110,9 +110,28 @@ quests, goals, characters, and equipment added, the same install
 benchmarked at ~28.6 s / 828 MB — and the stage table itself exposed a
 defect: ten stages each cost a near-identical ~2.3 s, the fixed price
 of re-parsing every pak file list per stage. Cached shared readers
-remove that redundancy; re-benchmark after pulling for the post-fix
-numbers. This is design principle #5 working as intended — the
-optimization exists because the benchmark measured the need.
+remove that redundancy. This is design principle #5 working as
+intended — the optimization exists because the benchmark measured the
+need.
+
+**Post-fix run (same install):** total **~8.8 s** / 827 MB — the
+per-stage toll collapsed to real work::
+
+    Read pak indexes ........   1.83 s
+    Parse stats .............   2.21 s
+    Parse localization ......   0.47 s   (was 2.63)
+    Parse root templates ....   2.46 s   (was 4.78)
+    Parse tags ..............   0.19 s   (was 2.24)
+    Parse atlases ...........   0.48 s
+    Index dialogs ...........   0.11 s   (was 2.33)
+    Index timelines .........   0.10 s
+    Parse quests ............   0.37 s
+    Index goals .............   0.10 s
+    Build models ............   0.17 s
+    Resolve relationships ...   0.01 s
+    Export JSON .............   0.28 s
+
+This is the current reference for optimization PRs.
 
 Per the roadmap, no further optimization is planned until a real
 consumer needs one; any proposal should beat these numbers on

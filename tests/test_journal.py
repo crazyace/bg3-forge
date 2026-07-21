@@ -57,6 +57,32 @@ def test_parse_goal():
     assert goal.quest_refs["PLA_ZhentShipment"] == ["AgreedHelp"]
 
 
+def test_parse_objectives():
+    from bg3forge.parsers import parse_objectives
+    from conftest import OBJECTIVE_LSX
+
+    objectives = parse_objectives(parse_lsx(OBJECTIVE_LSX), source="objective_prototypes.lsx")
+    assert [o.objective_id for o in objectives] == [
+        "PLA_ZhentShipment_AgreedHelp",
+        "PLA_ZhentShipment_HelpSurvivors",
+    ]
+    first = objectives[0]
+    assert first.quest_id == "PLA_ZhentShipment"
+    assert first.priority == 1000
+    assert first.marker_ids == ["SHA_ShadowfellPortal"]
+    assert objectives[1].marker_ids == []
+
+
+def test_parse_quest_categories():
+    from bg3forge.parsers import parse_quest_categories
+    from conftest import CATEGORY_LSX
+
+    categories = parse_quest_categories(parse_lsx(CATEGORY_LSX))
+    assert len(categories) == 1
+    assert categories[0].category_id == "Crashside"
+    assert categories[0].sorting_priority == 2
+
+
 # -- Game integration --------------------------------------------------------
 
 @pytest.fixture
@@ -74,6 +100,28 @@ def test_quests_localized(game):
 def test_quest_markers_localized(game):
     assert len(game.quest_markers) == 1
     assert game.quest_markers[0].display_text == "Shadowfell Portal"
+
+
+def test_objectives_localized_and_linked(game):
+    objective = game.objectives["PLA_ZhentShipment_AgreedHelp"]
+    assert objective.description == "Recover the shipment."
+    assert objective.quest is game.quests["PLA_ZhentShipment"]
+    # objective → marker join by MarkerID
+    assert [m.display_text for m in objective.markers] == ["Shadowfell Portal"]
+    assert game.objectives["PLA_ZhentShipment_HelpSurvivors"].markers == []
+
+
+def test_quest_category_and_objectives(game):
+    quest = game.quests["PLA_ZhentShipment"]
+    assert quest.category is game.quest_categories["Crashside"]
+    assert quest.category.display_name == "Wilderness"
+    assert [o.objective_id for o in quest.objectives] == [
+        "PLA_ZhentShipment_AgreedHelp",
+        "PLA_ZhentShipment_HelpSurvivors",
+    ]
+    # reverse: category → quests
+    assert game.quest_categories["Crashside"].quests == [quest]
+    assert game.quests_in_category("Nope") == []
 
 
 def test_goals_index_lazy(game):

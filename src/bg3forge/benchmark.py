@@ -87,7 +87,12 @@ def run_benchmark(game: Game | None = None, export_dir: str | Path | None = None
     # dialogs/timelines are indexed, not parsed — this measures the cheap half
     timed("Index dialogs", lambda: report.counts.__setitem__("dialogs indexed", len(game.dialogs)))
     timed("Index timelines", lambda: report.counts.__setitem__("timelines indexed", len(game.timelines)))
-    timed("Parse quests", lambda: report.counts.__setitem__("quests", len(game.quests)))
+    def parse_journal() -> None:
+        report.counts["quests"] = len(game.quests)
+        report.counts["objectives"] = len(game.objectives)
+        report.counts["quest categories"] = len(game.quest_categories)
+
+    timed("Parse quests", parse_journal)
     timed("Index goals", lambda: report.counts.__setitem__("goals indexed", len(game.goals)))
     timed("Build models", _build_models(game, report))
     timed("Resolve relationships", resolve_relationships)
