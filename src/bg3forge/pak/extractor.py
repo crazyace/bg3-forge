@@ -9,8 +9,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
 
+from .._paths import UnsafePathError, safe_output_path
 from .format import PakEntry
-from .reader import PakReader
+from .reader import PakError, PakReader
 
 MANIFEST_NAME = ".bg3forge-manifest.json"
 
@@ -56,16 +57,23 @@ class Extractor:
         result = ExtractionResult()
         try:
             for entry in _select(reader, patterns):
+                try:
+                    target = safe_output_path(self.output_dir, entry.name)
+                except UnsafePathError as exc:
+                    raise PakError(
+                        f"unsafe archive entry path {entry.name!r}: {exc}"
+                    ) from None
                 data = reader.read(entry)
                 digest = hashlib.sha256(data).hexdigest()
-                if not force and self._manifest.get(entry.name) == digest and (
-                    self.output_dir / entry.name
-                ).exists():
+                if (
+                    not force
+                    and self._manifest.get(entry.name) == digest
+                    and target.exists()
+                ):
                     result.skipped.append(entry.name)
                     if progress:
                         progress(entry.name, False)
                     continue
-                target = self.output_dir / entry.name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(data)
                 self._manifest[entry.name] = digest

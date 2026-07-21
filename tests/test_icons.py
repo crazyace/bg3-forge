@@ -1,6 +1,6 @@
 import pytest
 
-from bg3forge.assets import parse_atlas, IconExtractor, match_icons
+from bg3forge.assets import IconError, IconExtractor, match_icons, parse_atlas
 from bg3forge.parsers.lsx import parse_lsx
 
 from conftest import ATLAS_LSX
@@ -54,8 +54,20 @@ def test_icon_extraction(tmp_path, atlas):
 
 
 def test_icon_extraction_requires_pillow_or_errors(atlas, tmp_path):
-    from bg3forge.assets.icons import IconError
-
     extractor = IconExtractor(atlas, tmp_path / "missing.dds")
     with pytest.raises((IconError, Exception)):
         extractor.extract("Item_WPN_Longsword")
+
+
+@pytest.mark.parametrize(
+    "icon_name",
+    ["../escaped", "safe/../../escaped", "/absolute", r"C:\escaped"],
+)
+def test_icon_export_rejects_paths_outside_output(atlas, tmp_path, icon_name):
+    output_dir = tmp_path / "icons"
+    extractor = IconExtractor(atlas, tmp_path / "missing.dds")
+
+    with pytest.raises(IconError, match="unsafe icon output name"):
+        extractor.export(icon_name, output_dir)
+
+    assert not (tmp_path / "escaped.png").exists()

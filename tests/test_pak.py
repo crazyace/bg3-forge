@@ -92,6 +92,49 @@ def test_extractor_patterns(tmp_path, sample_pak):
     assert all("Stats/Generated/Data" in name for name in result.extracted)
 
 
+@pytest.mark.parametrize(
+    "entry_name",
+    [
+        "../escaped.txt",
+        "safe/../../escaped.txt",
+        "/absolute.txt",
+        r"..\escaped.txt",
+        r"C:\escaped.txt",
+        r"\\server\share\escaped.txt",
+    ],
+)
+def test_extractor_rejects_paths_outside_output(tmp_path, entry_name):
+    writer = PakWriter()
+    writer.add(entry_name, b"must not be written")
+    pak_path = writer.write(tmp_path / "malicious.pak")
+    output_dir = tmp_path / "output"
+
+    with pytest.raises(PakError, match="unsafe archive entry path"):
+        Extractor(output_dir).extract(pak_path)
+
+    assert not (tmp_path / "escaped.txt").exists()
+
+
+def test_extractor_rejects_symlink_escape(tmp_path):
+    output_dir = tmp_path / "output"
+    outside_dir = tmp_path / "outside"
+    output_dir.mkdir()
+    outside_dir.mkdir()
+    try:
+        (output_dir / "linked").symlink_to(outside_dir, target_is_directory=True)
+    except OSError:
+        pytest.skip("directory symlinks are unavailable on this platform")
+
+    writer = PakWriter()
+    writer.add("linked/escaped.txt", b"must not be written")
+    pak_path = writer.write(tmp_path / "symlink.pak")
+
+    with pytest.raises(PakError, match="unsafe archive entry path"):
+        Extractor(output_dir).extract(pak_path)
+
+    assert not (outside_dir / "escaped.txt").exists()
+
+
 def test_patch_detection(tmp_path, data_dir):
     detector = PatchDetector(tmp_path / "snapshot.json")
     report = detector.compare(data_dir)
