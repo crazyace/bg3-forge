@@ -149,6 +149,35 @@ are the next content family; the forms that reference existing spells and
 statuses can land before (4). As on the read side, build each against a real
 example and verify in game.
 
+## Hotbar casting economy (Misty Step census, Patch 8)
+
+How a granted spell charges the player, from dumping all 25 retail
+`MistyStep` SpellData variants and everything that grants them:
+
+| Pattern | `UseCosts` | `Cooldown` |
+| --- | --- | --- |
+| Class spell, leveled slot | `BonusActionPoint:1;SpellSlotsGroup:1:1:2` (`_3`.._6` for upcasts) | — |
+| Item free-cast, per short rest | `BonusActionPoint:1` | `OncePerShortRestPerItem` |
+| Once per long rest | `BonusActionPoint:1` | `OncePerRest` |
+| Once per turn | `BonusActionPoint:1` | `OncePerTurn` |
+| Fully free | `""` (empty override) | — |
+
+Key facts:
+
+- The economy lives **on the spell**, not the grant: retail items
+  (Teleport Boots, Drow Commander's Amulet, Nightwalkers) all use the
+  bare ``UnlockSpell(SpellName)`` — exactly what ``grants_spells=[...]``
+  emits. Each item grants its *own spell variant* with the desired costs.
+- ``OncePerShortRestPerItem`` is per **item**: two copies of the amulet
+  each carry a charge.
+- The multi-argument form ``UnlockSpell(spell, AddChildren, <guid>, ,
+  Wisdom)`` appears only in *class passives* (e.g. Land Druid's
+  ``Land_Coast``) to override the casting ability — not needed for
+  item-granted casts.
+- Class-*learned* spells (spellbook/prepare/upcast via level-up) are a
+  different mechanism entirely — spell lists + progressions — and remain
+  future work on the write side.
+
 ## ActionType catalog (corpus survey, Patch 8)
 
 From `scripts/wiring_survey.py` over all 25,564 retail templates — the

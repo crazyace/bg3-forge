@@ -114,6 +114,13 @@ The first write primitives aimed at programmatic mod creation:
   damage, auto-derived damage tooltip, and inherited range/cost/visuals —
   confirming the scroll action and `CanUseSpellScroll` accept modded
   SpellData names.
+* Added `cooldown=` to `new_spell` and made `use_costs=""` an explicit
+  empty override, completing the hotbar casting-economy recipes learned
+  from retail's Misty Step family: leveled slot costs
+  (`SpellSlotsGroup:1:1:N`), item free-casts recharging per short rest
+  (`OncePerShortRestPerItem`), per-long-rest and per-turn cooldowns, and
+  fully free casts. Retail items grant spells with the bare
+  `UnlockSpell(...)` form `grants_spells` already emits.
 * Added consumables: `mod.new_potion(status=…)` and `mod.new_elixir(status=…)`
   (a Consume template action applying a status — duration 0, or -1 until long
   rest) and `mod.new_scroll(spell=…)` (the retail cast-from-scroll action,

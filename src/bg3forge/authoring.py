@@ -546,12 +546,24 @@ class Mod:
         tooltip_damage=(),
         damage_type: str | None = None,
         use_costs: str | None = None,
+        cooldown: str | None = None,
         description_params=(),
         data: dict[str, str] | None = None,
     ) -> str:
         """Define a *custom* spell (a ``type "SpellData"`` entry) and return
         its name, for use in ``new_scroll(spell=...)`` or an item's
         ``grants_spells=[...]``.
+
+        ``use_costs`` and ``cooldown`` together set the casting economy
+        (retail recipes, from the Misty Step family):
+        ``"ActionPoint:1"`` alone is a cantrip-style free cast;
+        ``"BonusActionPoint:1;SpellSlotsGroup:1:1:2"`` burns a level-2+
+        spell slot; ``"BonusActionPoint:1"`` with
+        ``cooldown="OncePerShortRestPerItem"`` is the item free-cast
+        pattern (per item — each copy gets its own charge).  Other retail
+        cooldowns: ``OncePerShortRest``, ``OncePerRest`` (long rest),
+        ``OncePerTurn``.  An item-granted spell needs only the bare
+        ``grants_spells=[name]`` — retail items use exactly that form.
 
         The recommended pattern is clone-and-tweak: pass ``using=`` a retail
         base spell (e.g. ``"Projectile_FireBolt"``) to inherit its targeting,
@@ -606,8 +618,10 @@ class Mod:
             stats_data["TooltipDamageList"] = tooltip_field
         if damage_type:
             stats_data["DamageType"] = damage_type
-        if use_costs:
+        if use_costs is not None:
             stats_data["UseCosts"] = use_costs
+        if cooldown:
+            stats_data["Cooldown"] = cooldown
         if description_params:
             # values substituted into [1], [2], ... placeholders in the text
             stats_data["DescriptionParams"] = ";".join(

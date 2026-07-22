@@ -424,6 +424,35 @@ def test_scroll_of_a_custom_spell():
     assert attrs.get("Conditions") == 'CanUseSpellScroll("Projectile_Forge_Bolt")'
 
 
+def test_new_spell_item_freecast_recipe():
+    """The retail item free-cast pattern (Misty Step amulets/boots): no
+    slot in UseCosts, recharge on the spell's Cooldown — the granting item
+    needs only the bare UnlockSpell form."""
+    mod = Mod("StepMod")
+    s = mod.new_spell(
+        "Target_Forge_Step",
+        using="Target_MistyStep",
+        use_costs="BonusActionPoint:1",
+        cooldown="OncePerShortRestPerItem",
+    )
+    entry = _entries_by_name(mod)["Target_Forge_Step"]
+    assert entry.get("UseCosts") == "BonusActionPoint:1"
+    assert entry.get("Cooldown") == "OncePerShortRestPerItem"
+    mod.new_armor("ARM_Step_Amulet", grants_spells=[s])
+    amulet = _entries_by_name(mod)["ARM_Step_Amulet"]
+    assert amulet.get("Boosts") == "UnlockSpell(Target_Forge_Step)"
+
+
+def test_new_spell_empty_use_costs_is_an_override():
+    """use_costs='' must emit an empty override (retail's
+    Target_MistyStep_Free is a fully free cast); None omits the field."""
+    mod = Mod("FreeMod")
+    mod.new_spell("Target_Free", using="Target_MistyStep", use_costs="")
+    assert _entries_by_name(mod)["Target_Free"].get("UseCosts") == ""
+    mod.new_spell("Target_Inherit", using="Target_MistyStep")
+    assert _entries_by_name(mod)["Target_Inherit"].get("UseCosts") is None
+
+
 def test_item_grants_a_custom_spell():
     """The other delivery path (retail-verified for base-game spells): an
     equipped item unlocks the custom spell."""
