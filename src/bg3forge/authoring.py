@@ -38,7 +38,12 @@ from .parsers.localization import LocaEntry, write_loca
 from .parsers.lsf import write_lsf
 from .parsers.lsx import write_lsx
 from .parsers.meta import ModuleInfo, build_meta_document
-from .parsers.roottemplates import build_root_template_node, build_templates_document
+from .parsers.roottemplates import (
+    build_consume_action,
+    build_root_template_node,
+    build_templates_document,
+    build_use_spell_action,
+)
 from .parsers.stats import StatsDocument, StatsEntry, write_stats_document
 from .parsers.treasure import (
     TreasureObject,
@@ -152,6 +157,7 @@ class Mod:
         statuses=(),
         grants_spells=(),
         treasure: str | None = None,
+        on_use=(),
         template_type: str = "item",
         data: dict[str, str] | None = None,
     ) -> str:
@@ -207,6 +213,7 @@ class Mod:
                 description=description_handle,
                 parent_template_id=parent_template,
                 tags=tags,
+                on_use=on_use,
             )
         )
         if treasure:
@@ -318,6 +325,98 @@ class Mod:
             statuses=statuses,
             treasure=treasure,
             data=stats_data,
+        )
+
+    def new_potion(
+        self,
+        name: str,
+        *,
+        status: str,
+        duration: int = 0,
+        stats_using: str | None = "_Potion",
+        parent_template: str | None = None,
+        display_name: str | None = None,
+        description: str | None = None,
+        icon: str | None = None,
+        treasure: str | None = None,
+        data: dict[str, str] | None = None,
+    ) -> str:
+        """A drinkable consumable: using it applies ``status`` (a StatusData
+        name) and consumes the item.
+
+        The mechanism matches retail potions — an ``OnUsePeaceActions``
+        Consume action on the template with ``StatsId``/``StatusDuration``,
+        while the stats entry (``using "_Potion"`` by default) carries the
+        bonus-action cost, Consumable tab, and use conditions.
+        """
+        return self.new_item(
+            name,
+            item_type="Object",
+            stats_using=stats_using,
+            parent_template=parent_template,
+            display_name=display_name,
+            description=description,
+            icon=icon,
+            treasure=treasure,
+            on_use=[build_consume_action(status, duration)],
+            data=data,
+        )
+
+    def new_elixir(
+        self,
+        name: str,
+        *,
+        status: str,
+        stats_using: str | None = "_Potion",
+        parent_template: str | None = None,
+        display_name: str | None = None,
+        description: str | None = None,
+        icon: str | None = None,
+        treasure: str | None = None,
+        data: dict[str, str] | None = None,
+    ) -> str:
+        """A potion whose ``status`` lasts until long rest
+        (``StatusDuration -1``), the retail elixir pattern."""
+        return self.new_potion(
+            name,
+            status=status,
+            duration=-1,
+            stats_using=stats_using,
+            parent_template=parent_template,
+            display_name=display_name,
+            description=description,
+            icon=icon,
+            treasure=treasure,
+            data=data,
+        )
+
+    def new_scroll(
+        self,
+        name: str,
+        *,
+        spell: str,
+        stats_using: str | None = "OBJ_Scroll",
+        parent_template: str | None = None,
+        display_name: str | None = None,
+        description: str | None = None,
+        icon: str | None = None,
+        treasure: str | None = None,
+        data: dict[str, str] | None = None,
+    ) -> str:
+        """A spell scroll: using it casts ``spell`` (a SpellData name) and
+        consumes the item — the retail cast-from-scroll action, gated by
+        ``CanUseSpellScroll``."""
+        return self.new_item(
+            name,
+            item_type="Object",
+            stats_using=stats_using,
+            parent_template=parent_template,
+            display_name=display_name,
+            description=description,
+            icon=icon,
+            treasure=treasure,
+            on_use=[build_use_spell_action(spell)],
+            data=data,
         )
 
     def new_passive(

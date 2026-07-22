@@ -146,9 +146,9 @@ composing them and minting stable UUID5 identifiers/handles.
       boosts and localized name, granted through an item's `passives=[...]`
 - [ ] Custom spells/statuses (`type "SpellData"`/`"StatusData"`) — the
       richest schemas; build against a real example when a mod needs them
-- [ ] Consumables — scrolls (cast a spell), potions/elixirs (apply a status).
-      Reference-existing forms can land before fully-custom spells/statuses.
-      See `docs/authoring-notes.md` §5
+- [x] Consumables (reference-existing forms): `new_potion`/`new_elixir`
+      (Consume action applying a status) and `new_scroll` (cast-from-scroll
+      action). Fully-original consumables await custom spells/statuses
 
 The item slice is complete and retail-verified. Remaining authoring work is
 consumer-driven — build what a real mod needs and verify each in game.

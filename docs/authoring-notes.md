@@ -97,7 +97,14 @@ are `type "StatusData"` with a `StatusType`. Both are the richest stats
 schemas and are best modeled per-`SpellType`/`StatusType` when a consumer
 needs them — not speculatively.
 
-## 5. Consumables — scrolls, potions, elixirs (planned)
+## 5. Consumables — scrolls, potions, elixirs — reference-existing forms DONE
+
+*Implemented: `new_potion(status=…)`, `new_elixir(status=…)` (Consume action,
+`StatusDuration` 0 / -1), and `new_scroll(spell=…)` (ActionType 12 with
+`SkillID`, `CanUseSpellScroll` condition, shared retail `ClassId`). The
+mechanism lives on the RootTemplate as `OnUsePeaceActions` — found by
+inspecting retail templates; attribute types pinned (`int32`/`bool`/`guid`).
+Fully-original consumables still await custom `SpellData`/`StatusData` (4).*
 
 Consumables are `type "Object"` items with an on-use action, plus the usual
 RootTemplate + treasure obtainability. Concrete slices to build when needed,
