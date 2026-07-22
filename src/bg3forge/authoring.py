@@ -40,6 +40,12 @@ from .parsers.lsx import write_lsx
 from .parsers.meta import ModuleInfo, build_meta_document
 from .parsers.roottemplates import build_root_template_node, build_templates_document
 from .parsers.stats import StatsDocument, StatsEntry, write_stats_document
+from .parsers.treasure import (
+    TreasureObject,
+    TreasureSubtable,
+    TreasureTable,
+    write_treasure_tables,
+)
 from .pak.writer import PakWriter
 
 # Fixed namespace so a given mod name always mints the same UUIDs/handles.
@@ -89,6 +95,7 @@ class Mod:
         self._stats: list[StatsEntry] = []
         self._templates: list = []
         self._loca: list[LocaEntry] = []
+        self._treasure: dict[str, TreasureTable] = {}
 
     # -- identifier minting --------------------------------------------------
 
@@ -107,6 +114,26 @@ class Mod:
         self._loca.append(LocaEntry(key=handle, version=version, text=text))
         return handle
 
+    def place_in_treasure(
+        self, table_name: str, item_name: str, *, frequency: int = 1
+    ) -> None:
+        """Make an item obtainable by injecting it into an existing treasure
+        table (e.g. ``"TUT_Chest_Potions"`` for the tutorial chest).
+
+        The table is emitted with ``CanMerge`` so the item is *added* to the
+        base-game container rather than replacing it.
+        """
+        table = self._treasure.get(table_name)
+        if table is None:
+            table = TreasureTable(name=table_name, can_merge=True)
+            self._treasure[table_name] = table
+        table.subtables.append(
+            TreasureSubtable(
+                drop_counts="-1",
+                objects=[TreasureObject(name=f"I_{item_name}", frequency=frequency)],
+            )
+        )
+
     # -- content -------------------------------------------------------------
 
     def new_item(
@@ -124,12 +151,17 @@ class Mod:
         passives=(),
         statuses=(),
         grants_spells=(),
+        treasure: str | None = None,
         template_type: str = "item",
         data: dict[str, str] | None = None,
     ) -> str:
         """Add an item (a stats entry plus its RootTemplate) and return its
         template UUID.  ``name`` is the internal stats/template identifier;
         ``display_name`` is the localized name shown in game.
+
+        Pass ``treasure="<TableName>"`` to make the item obtainable by
+        injecting it into an existing treasure table (see
+        :meth:`place_in_treasure`).
 
         The ability parameters apply when the item is equipped:
         ``boosts`` are boost functions (``"Ability(Strength,2)"``, ``"AC(1)"``,
@@ -177,6 +209,8 @@ class Mod:
                 tags=tags,
             )
         )
+        if treasure:
+            self.place_in_treasure(treasure, name)
         return template_uuid
 
     def new_armor(
@@ -194,6 +228,7 @@ class Mod:
         passives=(),
         statuses=(),
         grants_spells=(),
+        treasure: str | None = None,
         data: dict[str, str] | None = None,
     ) -> str:
         """Convenience over :meth:`new_item` for ``type "Armor"`` entries."""
@@ -213,6 +248,7 @@ class Mod:
             passives=passives,
             statuses=statuses,
             grants_spells=grants_spells,
+            treasure=treasure,
             data=stats_data,
         )
 
@@ -240,6 +276,10 @@ class Mod:
             entries[
                 f"Localization/{self.language}/{self.folder}.loca"
             ] = write_loca(self._loca)
+        if self._treasure:
+            entries[
+                f"Public/{self.folder}/Stats/Generated/TreasureTable.txt"
+            ] = write_treasure_tables(list(self._treasure.values())).encode("utf-8")
         return entries
 
     def build(self, output: str | Path) -> Path:

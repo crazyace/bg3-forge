@@ -264,8 +264,9 @@ mod.new_armor(
     icon="Item_Plate_Body",
     boosts=["Ability(Strength,2)"],       # applied on equip
     grants_spells=["Target_Fireball"],    # added as UnlockSpell(...)
+    treasure="TUT_Chest_Potions",         # drops from the tutorial chest
 )
-mod.build("SunforgedArmors.pak")          # stats + template + meta + loca → pak
+mod.build("SunforgedArmors.pak")          # stats + template + meta + loca + treasure → pak
 ```
 
 Rebuilding the same mod reproduces byte-identical identifiers (UUID5 from

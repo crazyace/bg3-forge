@@ -53,6 +53,12 @@ The first write primitives aimed at programmatic mod creation:
   item resolved end to end — spawned by UUID, AC applied, localized
   name/description rendered, icon inherited, and an `Ability(Strength,2)`
   boost applied to the character. See `docs/baseline.md`.
+* Added item obtainability: `mod.place_in_treasure(table, item)` (and a
+  `treasure=` shortcut on `new_item`/`new_armor`) injects an item into an
+  existing treasure table with `CanMerge`, so it drops from a base-game
+  container (e.g. `"TUT_Chest_Potions"` for the tutorial chest) instead of
+  being console-spawn-only. Backed by a new treasure-table writer
+  (`write_treasure_tables`).
 
 ## 0.1.0 — 2026-07-21
 

@@ -1,10 +1,11 @@
 # Plan: current milestones
 
-Agreed working plan as of 2026-07. The first real consumer integration
-has exercised the item/template/icon API against retail data, and 0.1.0
-is now published. Work remains consumer-driven: finish the typed
-progression graph for build-planning and data-export consumers before
-opening another large binary-format project.
+Working plan as of 2026-07. 0.1.0 is published; 0.2.0 development is
+accumulating on `main`. Two consumer-driven tracks are now active: the
+typed **progression graph** (read side — for build-planning and
+data-export consumers) and **mod authoring** (write side — generating
+loadable mods, retail-verified for items). Neither opens a speculative
+binary-format project; the backlog formats wait for a concrete consumer.
 
 ## 1. Retail verification of the completed journal layer — complete
 
@@ -104,7 +105,7 @@ Released 2026-07-21. The trusted workflow uploaded both distributions,
 and a clean `pip install bg3forge==0.1.0` installed the wheel with zero
 dependencies and passed CLI/import smoke tests.
 
-## 5. Post-release consumer milestone — typed progressions — current
+## 5. Post-release consumer milestone — typed progressions — first slice complete
 
 Model the existing progression parser as a relationship graph rather than
 starting a speculative format project. The target API is classes/races →
@@ -119,7 +120,31 @@ choices, load-order overrides are applied, and the stage costs 0.29 s. Class
 and race description records are the next join now that the shipped table
 references and counts are pinned.
 
-## 6. Format backlog
+## 6. Mod authoring — item pipeline complete, retail-verified — current
+
+The inverse of the read stack: generate a loadable mod. Built on the
+format writers (stats, RootTemplate `_merged.lsf`, `meta.lsx`, Version64,
+`.loca`, `PakWriter`), with the `Mod` capstone (`bg3forge.authoring`)
+composing them and minting stable UUID5 identifiers/handles.
+
+- [x] Write primitives: stats writer, RootTemplate builder, `meta.lsx`
+      builder + Version64 pack/unpack
+- [x] `Mod` capstone: `new_item`/`new_armor` assemble a `.pak`, rebuilds
+      byte-identical
+- [x] Retail-verified in a Patch 8 game — item spawns, stats and localized
+      name/description resolve, icon inherits, equip boosts apply. Found and
+      fixed the `_merged.lsf` requirement by diffing a known-good retail mod
+- [x] Equip abilities: `boosts` / `grants_spells` / `passives` / `statuses`
+- [x] Obtainability: `place_in_treasure` / `treasure=` injects into an
+      existing table with `CanMerge`, so items drop from a base-game
+      container instead of console-spawn only
+- [ ] Weapons (`new_weapon`) and custom passives/spells/statuses — formats
+      documented in `docs/authoring-notes.md`; build as a real mod needs them
+
+The item slice is complete and retail-verified. Remaining authoring work is
+consumer-driven — build what a real mod needs and verify each in game.
+
+## 7. Format backlog
 
 In priority order unless a consumer changes it:
 
@@ -133,7 +158,9 @@ is the largest project and has no current consumer requirement.
 
 ## Sequencing
 
-Milestones 1–4 are complete. The typed progression graph is current;
-let concrete consumer queries shape its API and joins. Do not start a
-backlog format without a concrete consumer or a separately agreed
-research goal.
+Milestones 1–4 are complete. Two active tracks: **mod authoring** (item
+pipeline done and retail-verified; weapons and custom passives/spells are
+next as a real mod needs them) and the **typed progression graph** (first
+slice done; the class/race description join resumes when the data consumer
+needs it). Do not start a backlog format without a concrete consumer or a
+separately agreed research goal.

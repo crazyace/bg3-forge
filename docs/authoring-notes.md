@@ -9,9 +9,12 @@ learned by diffing a known-good retail item mod. They describe structure
 only (generic BG3 field names), so the reference mod itself is not needed
 again. Each maps to a proposed capstone API.
 
-## 1. Obtainability — `TreasureTable.txt`
+## 1. Obtainability — `TreasureTable.txt` — DONE
 
-Items currently only exist; they aren't placed in the world. A mod makes
+*Implemented: `write_treasure_tables`, `mod.place_in_treasure(table, item)`,
+and the `treasure=` shortcut on `new_item`/`new_armor`.*
+
+Items otherwise only exist; they aren't placed in the world. A mod makes
 them obtainable by *patching an existing treasure table* (e.g. the
 tutorial chest) at `Public/<Mod>/Stats/Generated/TreasureTable.txt`:
 
