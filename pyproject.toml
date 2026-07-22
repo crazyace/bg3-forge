@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,14 +7,14 @@ name = "bg3forge"
 version = "0.1.0"
 description = "Toolkit for extracting, parsing, and exporting Baldur's Gate 3 assets and game data"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [{ name = "BG3 Forge contributors" }]
 keywords = ["baldurs-gate-3", "bg3", "modding", "game-data", "pak", "larian"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
