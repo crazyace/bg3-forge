@@ -48,6 +48,7 @@ game.passives["ExtraAttack"].items      # items granting a passive
 game.spells["Projectile_Fireball"].items  # items unlocking a spell
 game.statuses["BURNING"].items          # items applying a status
 game.tags["LONGSWORD"].items            # items carrying a tag (by name or UUID)
+game.spells["Shout_Rage"].progressions  # class/level progressions that grant it
 
 # Dialogs are indexed, not eagerly parsed (there are ~9,400 of them):
 game.dialogs.find("Karlach")            # search archived paths — free
@@ -89,6 +90,28 @@ Everything resolves **lazily**: constructing `Game()` reads nothing,
 collections load on first access, and each relationship is resolved once
 and cached on the instance. You only pay for the data you actually touch.
 
+And it doesn't only *read* the game — Forge writes mods back into it. A
+`Mod` composes the same models into a loadable `.pak` (retail-verified in
+a Patch 8 game — the item spawns, its stats and localized text resolve,
+and equip boosts apply):
+
+```python
+from bg3forge import Mod
+
+mod = Mod("MyArmors", author="you")
+mod.new_armor(
+    "ARM_Sunforged",
+    armor_class=21,
+    stats_using="_Armor",                 # inherit stats from a base entry
+    parent_template="<base-template-uuid>",  # reuse an existing item's visuals
+    display_name="Sunforged Plate",       # a localization handle is minted for you
+    boosts=["Ability(Strength,2)"],       # applied on equip
+)
+mod.build("MyArmors.pak")
+```
+
+See [Mod authoring](#mod-authoring-experimental) below for the full API.
+
 And from the command line:
 
 ```console
@@ -125,7 +148,7 @@ $ bg3forge doctor
 ✓ BG3 installation — /home/you/.steam/steam/steamapps/common/Baldurs Gate 3
 ✓ Pak archives — 34 readable (v18), 12 part files
 ✓ Shared.pak — present
-✓ Game data version — 4.68.1.200 (module Gustav)
+✓ Game data version — 4.1.1.4859133 (module GustavDev)
 ✓ English localization — present
 
 Warnings
