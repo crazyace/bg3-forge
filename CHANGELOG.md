@@ -133,6 +133,14 @@ The first write primitives aimed at programmatic mod creation:
   damage, auto-derived damage tooltip, and inherited range/cost/visuals —
   confirming the scroll action and `CanUseSpellScroll` accept modded
   SpellData names.
+* Added `add_class_spell(game, mod, class_name, spell, level=…)`: makes a
+  custom spell a real class spell by extending every list the class
+  selects from (progression `SelectSpells`) or prepares/learns from
+  (`ClassDescription` pool) that already carries spells of that level —
+  cantrip lists are never polluted, and lists already containing the
+  spell are skipped. The read side supplies current lists so the mod
+  tracks the installed patch. Works for classes without a convenient
+  sibling spell (e.g. adding a Misty Step clone to Bard).
 * `new_scroll` now emits the ActionType 33 learn action (`SpellId`)
   alongside the cast action, making scrolls wizard-transcribable by
   default (`learnable=False` for cast-only, retail's pattern for

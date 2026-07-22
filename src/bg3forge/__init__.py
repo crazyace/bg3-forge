@@ -10,7 +10,7 @@ reusable modules.
         print(item.name)
 """
 
-from .authoring import Mod
+from .authoring import Mod, add_class_spell
 from .game import Game, GameNotFoundError, LoadIssue
 from .locate import find_game
 from .models import (
@@ -31,6 +31,7 @@ __all__ = [
     "GameNotFoundError",
     "LoadIssue",
     "Mod",
+    "add_class_spell",
     "find_game",
     "Character",
     "GameObject",
