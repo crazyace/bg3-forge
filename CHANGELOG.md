@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0 — unreleased
+
+_No changes yet._
+
 ## 0.1.0 — 2026-07-21
 
 First release. Everything below is validated against a full retail
