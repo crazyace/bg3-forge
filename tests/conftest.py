@@ -170,6 +170,35 @@ SPELL_LISTS_LSX = """\
 </save>
 """
 
+CLASS_DESCRIPTIONS_LSX = """\
+<save>
+  <region id="ClassDescriptions">
+    <node id="root">
+      <children>
+        <node id="ClassDescription">
+          <attribute id="Name" type="FixedString" value="Wizard" />
+          <attribute id="UUID" type="guid" value="eeeeeeee-0000-0000-0000-000000000001" />
+          <attribute id="DisplayName" type="TranslatedString" handle="h99999999-9999-9999-9999-999999999999" version="1" />
+          <attribute id="CanLearnSpells" type="bool" value="true" />
+          <attribute id="MustPrepareSpells" type="bool" value="true" />
+          <attribute id="SpellList" type="guid" value="cccccccc-0000-0000-0000-000000000001" />
+          <attribute id="ProgressionTableUUID" type="guid" value="bbbbbbbb-0000-0000-0000-000000000001" />
+          <attribute id="BaseHp" type="int32" value="6" />
+          <attribute id="HpPerLevel" type="int32" value="4" />
+          <attribute id="PrimaryAbility" type="uint8" value="4" />
+          <attribute id="SpellCastingAbility" type="uint8" value="4" />
+        </node>
+        <node id="ClassDescription">
+          <attribute id="Name" type="FixedString" value="EvocationSchool" />
+          <attribute id="UUID" type="guid" value="eeeeeeee-0000-0000-0000-000000000002" />
+          <attribute id="ParentGuid" type="guid" value="eeeeeeee-0000-0000-0000-000000000001" />
+        </node>
+      </children>
+    </node>
+  </region>
+</save>
+"""
+
 ROOTTEMPLATE_LSX = """\
 <?xml version="1.0" encoding="utf-8"?>
 <save>
@@ -701,6 +730,7 @@ LOCA_ENTRIES = [
     LocaEntry("haaaa0000-0000-0000-0000-0000000000o1", 2, "Recover the shipment."),
     LocaEntry("haaaa0000-0000-0000-0000-0000000000o2", 2, "Help the survivors."),
     LocaEntry("haaaa0000-0000-0000-0000-0000000000k1", 1, "Wilderness"),
+    LocaEntry("h99999999-9999-9999-9999-999999999999", 1, "Wizard"),
 ]
 
 
@@ -848,6 +878,7 @@ def fixture_files() -> dict[str, bytes]:
         "Public/Shared/Stats/Generated/TreasureTable.txt": TREASURE_TXT.encode(),
         "Public/Shared/Progressions/Progressions.lsx": PROGRESSION_LSX.encode(),
         "Public/Shared/Lists/SpellLists.lsx": SPELL_LISTS_LSX.encode(),
+        "Public/Shared/ClassDescriptions/ClassDescriptions.lsx": CLASS_DESCRIPTIONS_LSX.encode(),
         "Public/Shared/RootTemplates/Weapons.lsx": ROOTTEMPLATE_LSX.encode(),
         "Mods/Shared/Globals/WLD_Main_A/Items/_merged.lsx": GLOBAL_ITEMS_LSX.encode(),
         "Mods/Shared/Levels/WLD_Main_A/Items/_merged.lsx": LEVEL_ITEMS_LSX.encode(),

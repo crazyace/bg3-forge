@@ -178,6 +178,33 @@ def test_progression_graph(game):
     assert fireball.progression_choices == [level_one]
 
 
+def test_class_descriptions_join_the_spell_machinery(game):
+    """game.classes ties a class to its learnable spell list, progression
+    table, and subclasses — the joins behind wizard transcription and
+    class-spell authoring."""
+    wizard = game.classes["Wizard"]
+    assert wizard.display_name == "Wizard"
+    assert wizard.can_learn_spells is True
+    assert wizard.must_prepare_spells is True
+    assert wizard.base_hp == 6 and wizard.hp_per_level == 4
+    assert wizard.spell_list.uuid == "cccccccc-0000-0000-0000-000000000001"
+    assert [s.name for s in wizard.spell_list.spells] == ["Projectile_Fireball"]
+    assert [p.level for p in wizard.progressions] == [1, 2]
+
+    evocation = game.classes["EvocationSchool"]
+    assert evocation.parent is wizard
+    assert wizard.subclasses == [evocation]
+    assert evocation.spell_list is None
+
+    # The class-spell authoring query: every list carrying a sibling spell.
+    lists = game.spell_lists_containing("Projectile_Fireball")
+    assert {l.uuid for l in lists} == {
+        "cccccccc-0000-0000-0000-000000000001",
+        "cccccccc-0000-0000-0000-000000000002",
+    }
+    assert game.spell_lists_containing("Target_Nonexistent") == []
+
+
 def test_progression_uuid_follows_pak_load_order(data_dir):
     from conftest import PROGRESSION_LSX
     from bg3forge.pak import PakWriter

@@ -59,6 +59,7 @@ from .journal import (
 from .goals import Goal, parse_goal
 from .equipment import EquipmentSet, parse_equipment_sets
 from .progressions import Progression, ProgressionCollection, parse_progressions
+from .classdescriptions import ClassDescription, parse_class_descriptions
 from .spelllists import (
     WIZARD_LEARNABLE_LIST,
     SpellList,
@@ -154,6 +155,8 @@ __all__ = [
     "Progression",
     "ProgressionCollection",
     "parse_progressions",
+    "ClassDescription",
+    "parse_class_descriptions",
     "SpellList",
     "WIZARD_LEARNABLE_LIST",
     "build_spell_list_node",

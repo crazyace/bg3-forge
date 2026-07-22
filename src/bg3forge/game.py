@@ -45,6 +45,7 @@ from .parsers.progressions import (
 )
 from .parsers.resource import parse_resource
 from .parsers.roottemplates import RootTemplateIndex
+from .parsers.classdescriptions import ClassDescription, parse_class_descriptions
 from .parsers.spelllists import SpellList, parse_spell_lists
 from .parsers.dialogs import Dialog, parse_dialog
 from .parsers.goals import Goal, parse_goal
@@ -252,6 +253,11 @@ def _is_equipment_file(name: str) -> bool:
 def _is_progression_file(name: str) -> bool:
     lowered = name.lower()
     return "/progressions/" in lowered and lowered.endswith((".lsx", ".lsf"))
+
+
+def _is_class_description_file(name: str) -> bool:
+    lowered = name.lower()
+    return "/classdescriptions/" in lowered and lowered.endswith((".lsx", ".lsf"))
 
 
 def _is_spell_list_file(name: str) -> bool:
@@ -711,6 +717,46 @@ class Game:
             except ValueError as exc:
                 self.load_issues.append(LoadIssue(file=name, error=str(exc)))
         return tables
+
+    @cached_property
+    def classes(self) -> NamedCollection[ClassDescription]:
+        """Class and subclass descriptions, joined to the spell machinery.
+
+        ``game.classes["Wizard"]`` resolves the class's learnable/preparable
+        ``.spell_list``, its ``.progressions`` (via ``ProgressionTableUUID``),
+        and ``.subclasses``/``.parent`` links.  Later records with the same
+        UUID replace earlier ones in pak load order.
+        """
+        by_uuid: dict[str, ClassDescription] = {}
+        for name, data in self._iter_files(_is_class_description_file):
+            try:
+                records = parse_class_descriptions(parse_resource(data), source=name)
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
+                continue
+            for record in records:
+                by_uuid[record.uuid] = record
+        records = sorted(by_uuid.values(), key=lambda record: (record.name, record.uuid))
+        for record in records:
+            if record.display_name_handle:
+                record.display_name = self.localization.resolve(
+                    record.display_name_handle
+                )
+        return self._collect(records)
+
+    def spell_lists_containing(self, spell_name: str) -> list[SpellList]:
+        """Every spell list carrying ``spell_name``.
+
+        The practical query behind class-spell authoring: retail ships
+        cumulative per-level lists, so a custom spell belongs in every list
+        where its same-class, same-level siblings appear — e.g. all lists
+        containing ``Target_MistyStep`` for a level-2 arcane spell.
+        """
+        return [
+            spell_list
+            for spell_list in self.spell_lists
+            if spell_name in spell_list.spell_names
+        ]
 
     @cached_property
     def spell_lists(self) -> NamedCollection[SpellList]:

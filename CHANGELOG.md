@@ -14,6 +14,13 @@
 * Retail verification found 1,004 effective progression records across 144
   tables and 315 effective spell lists, with zero unresolved joins; the new
   benchmark stage takes 0.29 seconds on the reference install.
+* Added `game.classes` (class descriptions): each class/subclass joined to
+  its learnable spell list (`SpellList` + `CanLearnSpells` — the wizard
+  transcription pool), its progression table, and `parent`/`subclasses`
+  links, with localized display names. `game.spell_lists_containing(spell)`
+  answers the class-spell authoring question "which cumulative per-level
+  lists should also carry my custom spell". Class descriptions are counted
+  by `validate`.
 * RootTemplates now capture their `InventoryList` object references
   (`RootTemplate.inventory` / `.treasure_tables`), and
   `RootTemplateIndex.by_treasure_table(name)` returns the containers that
