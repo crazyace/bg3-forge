@@ -1,9 +1,10 @@
-# Plan: next three milestones
+# Plan: current milestones
 
-Agreed working plan as of 2026-07. The release is intentionally *not*
-on this list — it happens whenever the maintainer calls it, and the
-prep (CHANGELOG, release checklist, verified packaging) is already
-done and waiting.
+Agreed working plan as of 2026-07. The first real consumer integration
+has now exercised the item/template/icon API against retail data, so the
+next gate is the 0.1.0 release. Work after that remains consumer-driven:
+finish Pathway's leveling-data migration before opening another large
+binary-format project.
 
 ## 1. Retail verification of the completed journal layer — complete
 
@@ -53,27 +54,69 @@ ten files and identified Gustav's older Osiris 1.13 expanded-value
 layout; the pinned follow-up fix produced a clean sweep. All 943 unique
 source-goal names were present in compiled data.
 
-## 3. BG3 Pathway integration — first real consumer
+## 3. BG3 Pathway integration — item-data slice complete
 
 *The point of the whole library. Also the best API review we can get.*
 
-- [ ] Inventory what Pathway actually needs from game data (items,
-      spells, icons, builds/progressions, quests?)
-- [ ] Depend on bg3forge via git ref (pinned commit) until the release
+- [x] Inventory the first integration slice: items, passives, statuses,
+      placed templates, and icons
+- [x] Depend on bg3forge via git ref (pinned commit) until the release
       is cut; no vendored copies
-- [ ] Replace any existing extraction/scraping in Pathway with
-      `Game`-API calls; Pathway should contain zero pak/format code
-- [ ] Keep a running list of friction: every awkward call, missing
-      field, or slow path becomes an issue here — real consumer
-      feedback beats speculative API design
-- [ ] Progressions are the likely gap: the parser exists but has no
-      typed model/joins yet (classes → levels → spells/passives).
-      Expect this milestone to drive that work
+- [x] Replace the Script Extender/Lua item dump and Multitool icon path
+      with `Game`-API calls; Pathway contains no pak/format code for this
+      pipeline
+- [x] Feed consumer friction back into Forge: global and level-placed
+      templates, `TemplateName` inheritance, and selected in-pak icon
+      export were all added from this integration
+- [x] Validate the generated Pathway database against the existing
+      consumer data: 7,081 named items, 146/146 curated records enriched,
+      and 994/994 gear icon keys covered after two documented fallbacks
+- [ ] Add typed progression joins (classes/races → levels →
+      spells/passives) for Pathway's leveling/build data
+- [ ] Migrate any remaining game-derived Pathway inputs once the typed
+      progression API is available
 
-Exit criterion: Pathway builds its dataset entirely through bg3forge,
-and the friction list has been triaged into issues.
+The item-data exit criterion is met. The broader consumer milestone closes
+when Pathway's remaining leveling data also comes through BG3 Forge.
+
+## 4. Release 0.1.0 — current
+
+*The library is retail-proven and now has a real downstream consumer.*
+
+- [x] Reconcile README and changelog with everything added since the
+      initial release draft
+- [x] Confirm current `main` CI passes across Linux, Windows, and macOS
+      on Python 3.10–3.12 plus the zero-dependency job
+- [x] Retail `doctor` and full `validate` gate pass on game data
+      4.8.700.7143220
+- [x] Run the current test, package-build, wheel-content, and fresh-venv
+      smoke gates from `docs/release-checklist.md`
+- [ ] Date the changelog, tag `v0.1.0`, publish to PyPI, and create the
+      GitHub release
+
+## 5. Post-release consumer milestone — typed progressions
+
+Model the existing progression parser as a relationship graph rather than
+starting a speculative format project. The target API is classes/races →
+level records → granted spells/passives, with reverse lookups where a real
+Pathway query needs them. Retail counts and joins must be added to
+`validate` and `benchmark` before the consumer migrates.
+
+## 6. Format backlog
+
+In priority order unless a consumer changes it:
+
+1. Virtual texture (GTS/GTP) atlas support
+2. GR2 model metadata
+3. Full Osiris rule decompilation
+
+Compiled Osiris already exposes header, type, function, database, goal,
+and rule metadata. Executable rule reconstruction remains last because it
+is the largest project and has no current consumer requirement.
 
 ## Sequencing
 
-Milestones 1 and 2 are complete. BG3 Pathway integration is next; its
-friction list will drive any additional API or parser work.
+Milestones 1 and 2 are complete, and milestone 3 proved the first consumer
+slice. Finish the 0.1.0 release next, then let Pathway's progression needs
+shape milestone 5. Do not start a backlog format without a concrete
+consumer or a separately agreed research goal.
