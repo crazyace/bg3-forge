@@ -147,6 +147,49 @@ def test_no_treasure_means_no_treasure_file():
     assert not any("TreasureTable" in name for name in mod.files())
 
 
+def test_new_weapon_sets_weapon_fields_and_mainhand_boosts():
+    """Weapons carry damage/properties, and on-wield effects go in
+    BoostsOnEquipMainHand (not Boosts), matching retail weapon stats."""
+    mod = Mod("WeaponMod")
+    mod.new_weapon(
+        "WPN_Divine_Greatsword",
+        damage="2d6",
+        damage_type="Slashing",
+        weapon_properties=["Twohanded", "Heavy", "Melee"],
+        boosts=["Ability(Strength,2)"],
+        grants_spells=["Target_PommelStrike", "Zone_Cleave"],
+        default_boosts=["WeaponProperty(Magical)"],
+    )
+    entry = parse_stats(
+        mod.files()["Public/WeaponMod/Stats/Generated/Data/WeaponMod.txt"].decode("utf-8")
+    )[0]
+    assert entry.type == "Weapon"
+    assert entry.get("Damage") == "2d6"
+    assert entry.get("Damage Type") == "Slashing"
+    assert entry.get("Weapon Properties") == "Twohanded;Heavy;Melee"
+    assert entry.get("DefaultBoosts") == "WeaponProperty(Magical)"
+    # weapon on-wield effects land in BoostsOnEquipMainHand, and Boosts stays clear
+    assert entry.get("BoostsOnEquipMainHand") == (
+        "Ability(Strength,2);UnlockSpell(Target_PommelStrike);UnlockSpell(Zone_Cleave)"
+    )
+    assert entry.get("Boosts") is None
+
+
+def test_new_weapon_binds_template_and_can_be_placed_in_treasure():
+    mod = Mod("WpnDrop")
+    mod.new_weapon("WPN_Test", damage="1d8", stats_using="WPN_Longsword",
+                   treasure="TUT_Chest_Potions")
+    entry = parse_stats(
+        mod.files()["Public/WpnDrop/Stats/Generated/Data/WpnDrop.txt"].decode("utf-8")
+    )[0]
+    assert entry.using == "WPN_Longsword"
+    assert entry.get("RootTemplate")  # template UUID bound
+    table = parse_treasure_tables(
+        mod.files()["Public/WpnDrop/Stats/Generated/TreasureTable.txt"].decode("utf-8")
+    )[0]
+    assert table.items() == ["WPN_Test"]
+
+
 def test_place_in_treasure_accumulates_across_items():
     mod = Mod("Multi")
     mod.new_armor("ARM_A", treasure="TUT_Chest_Potions")
