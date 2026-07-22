@@ -91,8 +91,13 @@ when Pathway's remaining leveling data also comes through BG3 Forge.
       4.8.700.7143220
 - [x] Run the current test, package-build, wheel-content, and fresh-venv
       smoke gates from `docs/release-checklist.md`
-- [ ] Date the changelog, tag `v0.1.0`, publish to PyPI, and create the
-      GitHub release
+- [x] Record the final retail benchmark: ~25.1 s total, 827 MB peak RSS;
+      compiled-story parsing is 16.05 s and the remaining stages match
+      the post-reader-cache baseline
+- [ ] Configure the PyPI pending trusted publisher and GitHub `pypi`
+      environment for `.github/workflows/publish.yml`
+- [ ] Date the changelog, tag `v0.1.0`, publish the GitHub release, and
+      verify the trusted workflow's PyPI upload
 
 ## 5. Post-release consumer milestone — typed progressions
 
