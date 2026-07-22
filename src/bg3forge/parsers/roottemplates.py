@@ -219,8 +219,11 @@ def build_root_template_node(
 
 
 #: The ClassId retail spell scrolls carry on their cast-from-scroll action
-#: (identical across shipped scrolls).
-SCROLL_CLASS_ID = "a865965f-501b-46e9-aa9e-4877c0e8094d"
+#: (identical across shipped scrolls).  It is the Wizard ClassDescription
+#: UUID — the class marked ``IsDefaultForUseSpellAction`` — in canonical
+#: text form (earlier releases rendered LSF guids with the last two groups
+#: byte-swapped; the on-disk bytes are unchanged).
+SCROLL_CLASS_ID = "a865965f-501b-46e9-9eaa-7748e8c04d09"
 
 
 def _use_action(action_type: int, attributes: dict[str, LsxAttribute]) -> LsxNode:

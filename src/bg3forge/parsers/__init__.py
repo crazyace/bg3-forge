@@ -58,7 +58,13 @@ from .journal import (
 from .goals import Goal, parse_goal
 from .equipment import EquipmentSet, parse_equipment_sets
 from .progressions import Progression, ProgressionCollection, parse_progressions
-from .spelllists import SpellList, parse_spell_lists
+from .spelllists import (
+    WIZARD_LEARNABLE_LIST,
+    SpellList,
+    build_spell_list_node,
+    build_spell_lists_document,
+    parse_spell_lists,
+)
 from .treasure import (
     TreasureObject,
     TreasureSubtable,
@@ -147,6 +153,9 @@ __all__ = [
     "ProgressionCollection",
     "parse_progressions",
     "SpellList",
+    "WIZARD_LEARNABLE_LIST",
+    "build_spell_list_node",
+    "build_spell_lists_document",
     "parse_spell_lists",
     "TreasureObject",
     "TreasureSubtable",

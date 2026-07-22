@@ -156,6 +156,9 @@ composing them and minting stable UUID5 identifiers/handles.
 - [x] Consumables: `new_potion`/`new_elixir` (Consume action applying a
       status) and `new_scroll` (cast-from-scroll action) — with custom
       statuses and spells, fully-original consumables end to end
+- [x] Teachable spells: `replace_spell_list` re-ships a class's learnable
+      list with a custom spell appended, so wizards can transcribe its
+      scroll (pending retail verification)
 
 **Milestone complete and retail-verified end to end** — items, weapons,
 obtainability, and custom passives, statuses, and spells: a mod can ship

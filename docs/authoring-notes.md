@@ -149,6 +149,32 @@ are the next content family; the forms that reference existing spells and
 statuses can land before (4). As on the read side, build each against a real
 example and verify in game.
 
+## Teachable spells — wizard transcription (Patch 8)
+
+How "Learn Spell" on a scroll works, traced through retail data:
+
+- A class's ``ClassDescription`` (LSX) carries ``CanLearnSpells`` and a
+  ``SpellList`` guid.  The Wizard's is
+  ``beb9389e-24f8-49b0-86a5-e8d08b6fdc2e``
+  (``WIZARD_LEARNABLE_LIST``, 112 spells) — the transcription pool.
+- The scroll needs nothing special: learnability = list membership plus a
+  spell slot of the spell's level (combined caster levels); cost is
+  50 gp × spell level; the scroll is consumed.
+- Wizard progressions carry ``SelectSpells`` only at level 1 (verified in
+  every file, all sources) — level-up and transcription both draw on the
+  ClassDescription list, not per-level selector lists.
+- The game replaces spell lists wholesale by UUID, so
+  ``mod.replace_spell_list(uuid, spells)`` must ship the full set — read
+  the current list via ``game.spell_lists[uuid]`` at build time.  Two
+  mods replacing the same list conflict (last in load order wins).
+
+Related discovery: the scroll action's ``ClassId`` *is* the Wizard
+ClassDescription UUID (the class marked ``IsDefaultForUseSpellAction``).
+Spotting that required fixing the LSF guid text rendering — Larian
+stores the last two guid groups as little-endian 16-bit words, which
+earlier releases rendered byte-swapped (on-disk bytes were always
+correct; only cross-format text comparisons were affected).
+
 ## Hotbar casting economy (Misty Step census, Patch 8)
 
 How a granted spell charges the player, from dumping all 25 retail

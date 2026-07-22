@@ -22,6 +22,18 @@
   `TUT_Chest_Potions`, and what's its spawn UUID" — closing the loop with
   the authoring `treasure=` feature.
 
+### Fixed
+
+* LSF guid attributes now render in canonical text form. Larian stores
+  the last two guid groups as little-endian 16-bit words; earlier
+  releases rendered those bytes swapped (e.g. the scroll ClassId read as
+  `…-aa9e-4877c0e8094d` instead of `…-9eaa-7748e8c04d09`). On-disk bytes
+  were always correct — reader and writer were symmetric — so packs and
+  round trips are unaffected; only text comparisons across formats (LSF
+  guid vs. LSX/stats text) saw the mismatch. Found when the scroll
+  `ClassId` turned out to be the Wizard ClassDescription UUID (the class
+  marked `IsDefaultForUseSpellAction`).
+
 ### Mod authoring (experimental)
 
 The first write primitives aimed at programmatic mod creation:
@@ -114,6 +126,16 @@ The first write primitives aimed at programmatic mod creation:
   damage, auto-derived damage tooltip, and inherited range/cost/visuals —
   confirming the scroll action and `CanUseSpellScroll` accept modded
   SpellData names.
+* Added teachable spells: `mod.replace_spell_list(uuid, spells, name=…)`
+  ships a full spell-list replacement (`Lists/SpellLists.lsx`, backed by
+  new `build_spell_list_node`/`build_spell_lists_document` writers).
+  Adding a custom spell to the Wizard ClassDescription's list
+  (`WIZARD_LEARNABLE_LIST`) makes its scroll transcribable — "Learn
+  Spell" for 50 gp × level. Traced through retail: learnability is pure
+  list membership (wizard progressions carry `SelectSpells` only at
+  level 1); the game swaps lists wholesale, so extending one means
+  re-shipping its current spells plus yours (documented conflict caveat).
+  `SpellList.display_name` now reads the retail `Name` attribute.
 * Added `cooldown=` to `new_spell` and made `use_costs=""` an explicit
   empty override, completing the hotbar casting-economy recipes learned
   from retail's Misty Step family: leveled slot costs

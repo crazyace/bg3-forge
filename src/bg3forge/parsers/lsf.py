@@ -127,6 +127,26 @@ _GUID = 31
 _SCRATCH_BUFFER = 25
 
 
+def _guid_to_text(buf: bytes) -> str:
+    """Canonical GUID text for Larian's LSF byte layout.
+
+    LSF stores the first three GUID groups little-endian (like Microsoft
+    ``bytes_le``) but the last two groups as four little-endian 16-bit
+    words — one extra pairwise swap over ``bytes_le``.  Verified against
+    retail: the scroll action ``ClassId`` bytes decode to the Wizard
+    ``ClassDescription`` UUID exactly as written in Larian's own LSX text.
+    """
+    tail = bytes(buf[i + 1 - 2 * (i % 2)] for i in range(8, 16))
+    return str(uuid.UUID(bytes_le=buf[:8] + tail))
+
+
+def _guid_from_text(value: str) -> bytes:
+    """Inverse of :func:`_guid_to_text` (byte-identical round trip)."""
+    raw = uuid.UUID(value).bytes_le
+    tail = bytes(raw[i + 1 - 2 * (i % 2)] for i in range(8, 16))
+    return raw[:8] + tail
+
+
 class LsfError(ValueError):
     pass
 
@@ -426,7 +446,7 @@ def _decode_attribute(
     if type_id == _BOOL:
         return LsxAttribute(id=name, type=type_name, value="True" if buf[0] else "False")
     if type_id == _GUID:
-        return LsxAttribute(id=name, type=type_name, value=str(uuid.UUID(bytes_le=buf)))
+        return LsxAttribute(id=name, type=type_name, value=_guid_to_text(buf))
     if type_id == _SCRATCH_BUFFER:
         return LsxAttribute(
             id=name, type=type_name, value=base64.b64encode(buf).decode("ascii")
@@ -728,7 +748,7 @@ def _encode_attribute(attr: LsxAttribute) -> bytes:
     if type_id == _BOOL:
         return b"\x01" if (value or "").lower() in ("true", "1") else b"\x00"
     if type_id == _GUID:
-        return uuid.UUID(value or "00000000-0000-0000-0000-000000000000").bytes_le
+        return _guid_from_text(value or "00000000-0000-0000-0000-000000000000")
     if type_id == _SCRATCH_BUFFER:
         return base64.b64decode(value or "")
     if type_id == 0:
