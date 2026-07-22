@@ -40,11 +40,25 @@ every release.
 
 ## 4. Publish
 
+The repository publishes through `.github/workflows/publish.yml`. Its
+build job has read-only repository access; only the separate publish job
+can request an OIDC token, and no long-lived PyPI token is stored.
+
+First release only:
+
+- [ ] Create a protected GitHub environment named `pypi`
+- [ ] Register a pending PyPI trusted publisher with these exact values:
+      project `bg3forge`, owner `crazyace`, repository `bg3-forge`,
+      workflow `publish.yml`, environment `pypi`
+
+Every release:
+
 - [ ] Tag: `git tag v<ver> && git push origin v<ver>`
-- [ ] Upload: `python -m twine upload dist/*` (or a GitHub Actions
-      trusted-publisher workflow, preferred once configured)
+- [ ] Publish a GitHub release for that tag with the changelog section as
+      its body; this triggers the trusted-publisher workflow
+- [ ] Confirm the `Publish to PyPI` workflow built, checked, and uploaded
+      both the sdist and wheel
 - [ ] Verify: `pip install bg3forge==<ver>` from a clean venv
-- [ ] GitHub release with the changelog section as the body
 
 ## 5. After
 
