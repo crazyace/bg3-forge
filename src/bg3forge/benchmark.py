@@ -72,10 +72,19 @@ def run_benchmark(game: Game | None = None, export_dir: str | Path | None = None
         for item in game.items:
             item.passives, item.statuses, item.spells
             item.tags, item.owner_templates
+        for progression in game.progressions:
+            progression.passives, progression.removed_passives
+            progression.spells, progression.selectable_spells
+        game.progressions_granting_passive("")
+        game.progressions_granting_spell("")
+        game.progressions_offering_spell("")
 
     def export() -> None:
         target = Path(export_dir) if export_dir else Path(tempfile.mkdtemp(prefix="bg3forge-bench-"))
-        for dataset in ("items", "spells", "passives", "statuses"):
+        for dataset in (
+            "items", "spells", "passives", "statuses",
+            "progressions", "spell_lists",
+        ):
             export_json(getattr(game, dataset), target / f"{dataset}.json")
 
     def parse_compiled_stories() -> None:
@@ -86,6 +95,25 @@ def run_benchmark(game: Game | None = None, export_dir: str | Path | None = None
             len(story.databases) for story in stories
         )
         report.counts["story rules"] = sum(story.rule_count for story in stories)
+
+    def parse_progressions() -> None:
+        report.counts["progressions"] = len(game.progressions)
+        report.counts["progression tables"] = len(game.progressions.table_ids)
+        report.counts["spell lists"] = len(game.spell_lists)
+        report.counts["progression passive grants"] = sum(
+            len(record.passives_added) for record in game.progressions
+        )
+        report.counts["progression spell grants"] = sum(
+            sum(len(spell_list.spell_names) for spell_list in record.added_spell_lists)
+            for record in game.progressions
+        )
+        report.counts["progression spell choices"] = sum(
+            sum(
+                len(spell_list.spell_names)
+                for spell_list in record.selectable_spell_lists
+            )
+            for record in game.progressions
+        )
 
     timed("Read pak indexes", read_pak_indexes)
     timed("Parse stats", lambda: report.counts.__setitem__("stats entries", len(game.stats)))
@@ -104,6 +132,7 @@ def run_benchmark(game: Game | None = None, export_dir: str | Path | None = None
     timed("Parse quests", parse_journal)
     timed("Index goals", lambda: report.counts.__setitem__("goals indexed", len(game.goals)))
     timed("Parse compiled stories", parse_compiled_stories)
+    timed("Parse progressions", parse_progressions)
     timed("Build models", _build_models(game, report))
     timed("Resolve relationships", resolve_relationships)
     timed("Export JSON", export)

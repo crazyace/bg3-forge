@@ -38,8 +38,14 @@ from .parsers.equipment import EquipmentSet, parse_equipment_sets
 from .pak.reader import PakReader
 from .parsers.localization import Localization
 from .parsers.osiris import CompiledStory, parse_osiris
+from .parsers.progressions import (
+    Progression,
+    ProgressionCollection,
+    parse_progressions,
+)
 from .parsers.resource import parse_resource
 from .parsers.roottemplates import RootTemplateIndex
+from .parsers.spelllists import SpellList, parse_spell_lists
 from .parsers.dialogs import Dialog, parse_dialog
 from .parsers.goals import Goal, parse_goal
 from .parsers.journal import (
@@ -241,6 +247,21 @@ def _is_tag_file(name: str) -> bool:
 
 def _is_equipment_file(name: str) -> bool:
     return name.lower().endswith("/stats/generated/equipment.txt")
+
+
+def _is_progression_file(name: str) -> bool:
+    lowered = name.lower()
+    return "/progressions/" in lowered and lowered.endswith((".lsx", ".lsf"))
+
+
+def _is_spell_list_file(name: str) -> bool:
+    lowered = name.lower()
+    basename = lowered.rsplit("/", 1)[-1]
+    return (
+        "/lists/" in lowered
+        and "spelllist" in basename
+        and lowered.endswith((".lsx", ".lsf"))
+    )
 
 
 def _is_quest_file(name: str) -> bool:
@@ -691,6 +712,55 @@ class Game:
                 self.load_issues.append(LoadIssue(file=name, error=str(exc)))
         return tables
 
+    @cached_property
+    def spell_lists(self) -> NamedCollection[SpellList]:
+        """Spell lists referenced by progression ``Add/SelectSpells``.
+
+        Later records with the same UUID replace earlier ones, following the
+        same pak load order used by the rest of :class:`Game`.
+        """
+        by_uuid: dict[str, SpellList] = {}
+        for name, data in self._iter_files(_is_spell_list_file):
+            try:
+                records = parse_spell_lists(parse_resource(data), source=name)
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
+                continue
+            for record in records:
+                by_uuid[record.uuid] = record
+        return self._collect(by_uuid[uuid] for uuid in sorted(by_uuid))
+
+    @cached_property
+    def progressions(self) -> ProgressionCollection:
+        """Level progressions indexed by record UUID and grouped by table.
+
+        Use ``game.progressions.by_table(table_uuid)`` for the ordered levels
+        in one class/race table.  Automatic spell grants and player choices
+        are exposed separately on each record.
+        """
+        by_uuid: dict[str, Progression] = {}
+        for name, data in self._iter_files(_is_progression_file):
+            try:
+                records = parse_progressions(parse_resource(data), source=name)
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
+                continue
+            for record in records:
+                by_uuid[record.uuid] = record
+        records = sorted(
+            by_uuid.values(),
+            key=lambda record: (
+                record.table_uuid,
+                record.level,
+                record.is_multiclass,
+                record.uuid,
+            ),
+        )
+        collection = ProgressionCollection(records)
+        for record in collection:
+            record._link(self)
+        return collection
+
     # -- typed models --------------------------------------------------------
 
     @cached_property
@@ -803,6 +873,43 @@ class Game:
         for character in self.characters:
             for passive_name in character.passive_names:
                 index.setdefault(passive_name, []).append(character)
+        return index
+
+    def progressions_granting_passive(self, name: str) -> list[Progression]:
+        """Progression records whose ``PassivesAdded`` contains ``name``."""
+        return list(self._progression_passive_index.get(name, ()))
+
+    @cached_property
+    def _progression_passive_index(self) -> dict[str, list[Progression]]:
+        index: dict[str, list[Progression]] = {}
+        for progression in self.progressions:
+            for name in progression.passives_added:
+                index.setdefault(name, []).append(progression)
+        return index
+
+    def progressions_granting_spell(self, name: str) -> list[Progression]:
+        """Progressions that automatically grant ``name`` via AddSpells."""
+        return list(self._progression_spell_index.get(name, ()))
+
+    def progressions_offering_spell(self, name: str) -> list[Progression]:
+        """Progressions that offer ``name`` via SelectSpells."""
+        return list(self._progression_spell_choice_index.get(name, ()))
+
+    @cached_property
+    def _progression_spell_index(self) -> dict[str, list[Progression]]:
+        return self._index_progression_spells("spells")
+
+    @cached_property
+    def _progression_spell_choice_index(self) -> dict[str, list[Progression]]:
+        return self._index_progression_spells("selectable_spells")
+
+    def _index_progression_spells(
+        self, relation: str
+    ) -> dict[str, list[Progression]]:
+        index: dict[str, list[Progression]] = {}
+        for progression in self.progressions:
+            for spell in getattr(progression, relation):
+                index.setdefault(spell.name, []).append(progression)
         return index
 
     # -- relationship graph ---------------------------------------------------

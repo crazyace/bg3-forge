@@ -112,6 +112,64 @@ object category "I_WPN_Longsword",1,0,0,0,0,0,0,0
 object category "T_EmptyChest",3,0,0,0,0,0,0,0
 """
 
+PROGRESSION_LSX = """\
+<save>
+  <region id="Progressions">
+    <node id="root">
+      <children>
+        <node id="Progression">
+          <attribute id="UUID" type="guid" value="aaaaaaaa-0000-0000-0000-000000000001" />
+          <attribute id="Name" type="LSString" value="Wizard" />
+          <attribute id="TableUUID" type="guid" value="bbbbbbbb-0000-0000-0000-000000000001" />
+          <attribute id="Level" type="uint8" value="1" />
+          <attribute id="ProgressionType" type="uint8" value="0" />
+          <attribute id="PassivesAdded" type="LSString" value="SavageAttacks" />
+          <attribute id="Selectors" type="LSString" value="AddSpells(cccccccc-0000-0000-0000-000000000001,,,,AlwaysPrepared);SelectSpells(cccccccc-0000-0000-0000-000000000002,1,0)" />
+          <children>
+            <node id="SubClasses">
+              <children>
+                <node id="SubClass">
+                  <attribute id="Object" type="guid" value="dddddddd-0000-0000-0000-000000000001" />
+                </node>
+              </children>
+            </node>
+          </children>
+        </node>
+        <node id="Progression">
+          <attribute id="UUID" type="guid" value="aaaaaaaa-0000-0000-0000-000000000002" />
+          <attribute id="Name" type="LSString" value="Wizard" />
+          <attribute id="TableUUID" type="guid" value="bbbbbbbb-0000-0000-0000-000000000001" />
+          <attribute id="Level" type="uint8" value="2" />
+          <attribute id="ProgressionType" type="uint8" value="0" />
+          <attribute id="PassivesRemoved" type="LSString" value="SavageAttacks" />
+        </node>
+      </children>
+    </node>
+  </region>
+</save>
+"""
+
+SPELL_LISTS_LSX = """\
+<save>
+  <region id="SpellLists">
+    <node id="root">
+      <children>
+        <node id="SpellList">
+          <attribute id="UUID" type="guid" value="cccccccc-0000-0000-0000-000000000001" />
+          <attribute id="Comment" type="LSString" value="Automatic wizard spells" />
+          <attribute id="Spells" type="LSString" value="Projectile_Fireball" />
+        </node>
+        <node id="SpellList">
+          <attribute id="UUID" type="guid" value="cccccccc-0000-0000-0000-000000000002" />
+          <attribute id="Comment" type="LSString" value="Wizard choices" />
+          <attribute id="Spells" type="LSString" value="Projectile_Fireball" />
+        </node>
+      </children>
+    </node>
+  </region>
+</save>
+"""
+
 ROOTTEMPLATE_LSX = """\
 <?xml version="1.0" encoding="utf-8"?>
 <save>
@@ -788,6 +846,8 @@ def fixture_files() -> dict[str, bytes]:
         "Public/Shared/Stats/Generated/Data/Character.txt": CHARACTER_TXT.encode(),
         "Public/Shared/Stats/Generated/Equipment.txt": EQUIPMENT_TXT.encode(),
         "Public/Shared/Stats/Generated/TreasureTable.txt": TREASURE_TXT.encode(),
+        "Public/Shared/Progressions/Progressions.lsx": PROGRESSION_LSX.encode(),
+        "Public/Shared/Lists/SpellLists.lsx": SPELL_LISTS_LSX.encode(),
         "Public/Shared/RootTemplates/Weapons.lsx": ROOTTEMPLATE_LSX.encode(),
         "Mods/Shared/Globals/WLD_Main_A/Items/_merged.lsx": GLOBAL_ITEMS_LSX.encode(),
         "Mods/Shared/Levels/WLD_Main_A/Items/_merged.lsx": LEVEL_ITEMS_LSX.encode(),

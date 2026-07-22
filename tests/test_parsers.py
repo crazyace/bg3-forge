@@ -14,6 +14,7 @@ from bg3forge.parsers import (
     RootTemplateIndex,
 )
 from bg3forge.parsers.progressions import parse_progressions
+from bg3forge.parsers.spelllists import parse_spell_lists
 
 from conftest import ROOTTEMPLATE_LSX, TREASURE_TXT, WEAPON_TXT
 
@@ -219,12 +220,24 @@ PROGRESSION_LSX = """\
     <node id="root">
       <children>
         <node id="Progression">
-          <attribute id="UUID" type="guid" value="aaaa-bbbb" />
+          <attribute id="UUID" type="guid" value="aaaaaaaa-0000-0000-0000-000000000001" />
           <attribute id="Name" type="LSString" value="Barbarian" />
-          <attribute id="TableUUID" type="guid" value="cccc-dddd" />
+          <attribute id="TableUUID" type="guid" value="bbbbbbbb-0000-0000-0000-000000000001" />
           <attribute id="Level" type="uint8" value="1" />
           <attribute id="ProgressionType" type="uint8" value="0" />
           <attribute id="PassivesAdded" type="LSString" value="Rage;UnarmoredDefense" />
+          <attribute id="PassivesRemoved" type="LSString" value="OldRage" />
+          <attribute id="Boosts" type="LSString" value="ActionResource(Rage,2);Proficiency(MartialWeapons)" />
+          <attribute id="Selectors" type="LSString" value="AddSpells(cccccccc-0000-0000-0000-000000000001);SelectSpells(cccccccc-0000-0000-0000-000000000002,1,0)" />
+          <children>
+            <node id="SubClasses">
+              <children>
+                <node id="SubClass">
+                  <attribute id="Object" type="guid" value="dddddddd-0000-0000-0000-000000000001" />
+                </node>
+              </children>
+            </node>
+          </children>
         </node>
       </children>
     </node>
@@ -240,3 +253,39 @@ def test_parse_progressions():
     assert p.name == "Barbarian"
     assert p.level == 1
     assert p.passives_added == ["Rage", "UnarmoredDefense"]
+    assert p.passives_removed == ["OldRage"]
+    assert p.boosts == ["ActionResource(Rage,2)", "Proficiency(MartialWeapons)"]
+    assert p.added_spell_list_ids == [
+        "cccccccc-0000-0000-0000-000000000001"
+    ]
+    assert p.selectable_spell_list_ids == [
+        "cccccccc-0000-0000-0000-000000000002"
+    ]
+    assert p.subclass_ids == ["dddddddd-0000-0000-0000-000000000001"]
+
+
+SPELL_LIST_LSX = """\
+<save>
+  <region id="SpellLists">
+    <node id="root">
+      <children>
+        <node id="SpellList">
+          <attribute id="UUID" type="guid" value="cccccccc-0000-0000-0000-000000000001" />
+          <attribute id="Comment" type="LSString" value="Barbarian rituals" />
+          <attribute id="Spells" type="LSString" value="Shout_Rage;Target_Jump" />
+        </node>
+      </children>
+    </node>
+  </region>
+</save>
+"""
+
+
+def test_parse_spell_lists():
+    spell_lists = parse_spell_lists(parse_lsx(SPELL_LIST_LSX), source="lists.lsx")
+    assert len(spell_lists) == 1
+    spell_list = spell_lists[0]
+    assert spell_list.uuid == "cccccccc-0000-0000-0000-000000000001"
+    assert spell_list.comment == "Barbarian rituals"
+    assert spell_list.spell_names == ["Shout_Rage", "Target_Jump"]
+    assert spell_list.source == "lists.lsx"

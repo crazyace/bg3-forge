@@ -151,6 +151,49 @@ def test_reverse_links(game):
     assert magic.passives[0].items[0] is magic
 
 
+def test_progression_graph(game):
+    table_uuid = "bbbbbbbb-0000-0000-0000-000000000001"
+    records = game.progressions.by_table(table_uuid)
+    assert [record.level for record in records] == [1, 2]
+    assert game.progressions.at_level(1, table_uuid) == [records[0]]
+    assert game.progressions[records[0].uuid] is records[0]
+    assert records[0].subclass_ids == [
+        "dddddddd-0000-0000-0000-000000000001"
+    ]
+
+    level_one = records[0]
+    assert [passive.name for passive in level_one.passives] == ["SavageAttacks"]
+    assert [spell.name for spell in level_one.spells] == ["Projectile_Fireball"]
+    assert [spell.name for spell in level_one.selectable_spells] == [
+        "Projectile_Fireball"
+    ]
+    assert [passive.name for passive in records[1].removed_passives] == [
+        "SavageAttacks"
+    ]
+
+    passive = game.passives["SavageAttacks"]
+    fireball = game.spells["Projectile_Fireball"]
+    assert passive.progressions == [level_one]
+    assert fireball.progressions == [level_one]
+    assert fireball.progression_choices == [level_one]
+
+
+def test_progression_uuid_follows_pak_load_order(data_dir):
+    from conftest import PROGRESSION_LSX
+    from bg3forge.pak import PakWriter
+
+    patched = PROGRESSION_LSX.replace(
+        'value="Wizard"', 'value="PatchedWizard"', 1
+    )
+    writer = PakWriter(priority=10)
+    writer.add("Public/Patch/Progressions/Progressions.lsx", patched.encode())
+    writer.write(data_dir / "Patch.pak")
+
+    game = Game(data_dir=data_dir)
+    record = game.progressions["aaaaaaaa-0000-0000-0000-000000000001"]
+    assert record.name == "PatchedWizard"
+
+
 def test_owner_templates_and_requirements(game):
     sword = game.items["WPN_Longsword"]
     assert sword.requirements == ["Str 13"]

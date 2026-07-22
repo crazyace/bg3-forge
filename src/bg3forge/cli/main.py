@@ -76,6 +76,8 @@ def build_parser() -> argparse.ArgumentParser:
         ("passives", "export passives"),
         ("statuses", "export statuses"),
         ("characters", "export characters"),
+        ("progressions", "export level progressions"),
+        ("spell-lists", "export progression spell lists"),
     ):
         cmd = sub.add_parser(name, help=help_text)
         _add_export_args(cmd, default_output=Path(f"{name}.json"))
@@ -274,9 +276,13 @@ def _dispatch(args) -> int:
             print(f"snapshot written to {args.snapshot}")
         return 0
 
-    if args.command in ("items", "spells", "passives", "statuses", "characters"):
+    if args.command in (
+        "items", "spells", "passives", "statuses", "characters",
+        "progressions", "spell-lists",
+    ):
         game = _open_game(args)
-        objects = getattr(game, args.command)
+        dataset = args.command.replace("-", "_")
+        objects = getattr(game, dataset)
         FORMATS[args.format](objects, args.output)
         print(f"wrote {len(objects)} {args.command} to {args.output}")
         return 0
@@ -286,7 +292,10 @@ def _dispatch(args) -> int:
         exporter = FORMATS[args.format]
         suffix = {"json": "json", "csv": "csv", "sqlite": "db",
                   "markdown": "md", "yaml": "yaml"}[args.format]
-        for dataset in ("items", "spells", "passives", "statuses", "characters"):
+        for dataset in (
+            "items", "spells", "passives", "statuses", "characters",
+            "progressions", "spell_lists",
+        ):
             objects = getattr(game, dataset)
             if args.format == "sqlite":
                 exporter(objects, args.output / "bg3.db", table=dataset)

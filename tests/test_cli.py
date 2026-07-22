@@ -39,19 +39,40 @@ def test_items_csv(tmp_path, data_dir):
     assert "WPN_Longsword" in output.read_text("utf-8")
 
 
+def test_progressions_json(tmp_path, data_dir):
+    output = tmp_path / "progressions.json"
+    assert main([
+        "--data-dir", str(data_dir), "progressions", "-o", str(output)
+    ]) == 0
+    records = json.loads(output.read_text("utf-8"))
+    assert [record["level"] for record in records] == [1, 2]
+
+    spell_lists = tmp_path / "spell-lists.json"
+    assert main([
+        "--data-dir", str(data_dir), "spell-lists", "-o", str(spell_lists)
+    ]) == 0
+    assert len(json.loads(spell_lists.read_text("utf-8"))) == 2
+
+
 def test_export_all_sqlite(tmp_path, data_dir, capsys):
     out_dir = tmp_path / "export"
     assert main(["--data-dir", str(data_dir), "export", "sqlite", "-o", str(out_dir)]) == 0
     with sqlite3.connect(out_dir / "bg3.db") as conn:
         tables = {row[0] for row in conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")}
-    assert {"items", "spells", "passives", "statuses"} <= tables
+    assert {
+        "items", "spells", "passives", "statuses", "progressions",
+        "spell_lists",
+    } <= tables
 
 
 def test_export_all_json(tmp_path, data_dir):
     out_dir = tmp_path / "export"
     assert main(["--data-dir", str(data_dir), "export", "json", "-o", str(out_dir)]) == 0
-    for dataset in ("items", "spells", "passives", "statuses"):
+    for dataset in (
+        "items", "spells", "passives", "statuses", "progressions",
+        "spell_lists",
+    ):
         assert (out_dir / f"{dataset}.json").exists()
 
 

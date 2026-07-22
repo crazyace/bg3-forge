@@ -112,6 +112,13 @@ level records → granted spells/passives, with reverse lookups driven by
 concrete build-planning and data-export queries. Retail counts and joins
 must be added to `validate` and `benchmark` before downstream migration.
 
+First vertical slice retail-validated 2026-07-21: 1,004 effective progression
+records across 144 tables, 315 effective spell lists, and zero missing passive,
+spell-list, or spell joins. Automatic grants remain distinct from player
+choices, load-order overrides are applied, and the stage costs 0.29 s. Class
+and race description records are the next join now that the shipped table
+references and counts are pinned.
+
 ## 6. Format backlog
 
 In priority order unless a consumer changes it:
