@@ -334,7 +334,7 @@ src/bg3forge/
 * ✅ First real consumer integration — item, passive, status, template,
   and icon datasets generated entirely through BG3 Forge; the integration
   drove placed-template coverage and direct in-pak icon export
-* ⏳ PyPI release
+* ✅ PyPI release — [0.1.0 is available](https://pypi.org/project/bg3forge/0.1.0/)
 * ⏳ Typed progression graph — classes/races → level progressions →
   granted spells/passives, with reverse lookups for build-planning and
   data-export consumers
