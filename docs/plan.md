@@ -150,13 +150,18 @@ composing them and minting stable UUID5 identifiers/handles.
 - [x] Custom spells (`new_spell`): `SpellData` clone-and-tweak — `using` a
       retail base inherits targeting/animation/VFX; overrides carry identity
       and effect (`SpellSuccess`, `SpellProperties`, tooltip fields).
-      Delivered via `new_scroll(spell=…)` or an item's `grants_spells`
+      Delivered via `new_scroll(spell=…)` or an item's `grants_spells`.
+      Retail-verified: a scroll of a cloned Fire Bolt cast in game with
+      overridden 3d10 damage and an auto-derived damage tooltip
 - [x] Consumables: `new_potion`/`new_elixir` (Consume action applying a
       status) and `new_scroll` (cast-from-scroll action) — with custom
       statuses and spells, fully-original consumables end to end
 
-The item slice is complete and retail-verified. Remaining authoring work is
-consumer-driven — build what a real mod needs and verify each in game.
+**Milestone complete and retail-verified end to end** — items, weapons,
+obtainability, and custom passives, statuses, and spells: a mod can ship
+fully-original content with every piece invented by the library. Further
+authoring work is consumer-driven — build what a real mod needs and verify
+each in game.
 
 ## 7. Format backlog
 
@@ -172,9 +177,10 @@ is the largest project and has no current consumer requirement.
 
 ## Sequencing
 
-Milestones 1–4 are complete. Two active tracks: **mod authoring** (item
-pipeline done and retail-verified; weapons and custom passives/spells are
-next as a real mod needs them) and the **typed progression graph** (first
-slice done; the class/race description join resumes when the data consumer
-needs it). Do not start a backlog format without a concrete consumer or a
-separately agreed research goal.
+Milestones 1–4 and 6 are complete. **Mod authoring is retail-verified end
+to end** (fully-original items, weapons, consumables, passives, statuses,
+and spells); further authoring features are consumer-driven. The remaining
+active track is the **typed progression graph** (first slice done; the
+class/race description join resumes when the data consumer needs it). Do
+not start a backlog format without a concrete consumer or a separately
+agreed research goal.
