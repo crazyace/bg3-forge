@@ -294,3 +294,19 @@ That is the level-placed chest object (its `InventoryList` references the
 table), and its `map_key` is the object UUID — matching, from data alone,
 the chest the item was found in. The full write path — author → pack →
 load → equip → **find in the world** — is retail-verified.
+
+### Weapons and custom passives — verified 2026-07-22
+
+- `new_weapon`: a generated 2d6 slashing blade (cloning a base via
+  `ParentTemplateId`) appeared in the tutorial chest with correct damage,
+  inherited traits and finesse properties, the magical shimmer from
+  `DefaultBoosts`, and its granted weapon action — confirming the
+  `BoostsOnEquipMainHand` routing.
+- `new_passive`: a custom `PassiveData` ("Forge Warding",
+  `DamageReduction(All, Flat, 3)`) granted through an armor's
+  `PassivesOnEquip` appeared under Notable Features on the character
+  sheet with its localized name — a passive that does not exist in the
+  base game, defined entirely by the library.
+- Operational note learned along the way: container loot is rolled at
+  new-game generation and stored in the save, so treasure-table tests
+  need a fresh game (or spawn the item by its deterministic UUID).
