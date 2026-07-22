@@ -331,6 +331,31 @@ def test_custom_status_wires_into_elixir():
     assert attrs.get("StatusDuration") == "-1"       # until long rest
 
 
+def test_on_use_description_is_authored_and_resolves():
+    """The item-tooltip effect blurb: without it, a cloned consumable shows
+    the base's blurb (the healing potion's 'Heals and removes Burning')."""
+    mod = Mod("BlurbMod")
+    mod.new_elixir(
+        "OBJ_Blurb_Brew",
+        status="FORGE_FIRE",
+        display_name="Blurb Brew",
+        on_use_description="Grants Forgefire: +2 Strength and Fire resistance until long rest.",
+    )
+    node, _ = _template_actions(mod, "OBJ_Blurb_Brew")
+    attr = node.attributes["OnUseDescription"]
+    assert attr.handle and attr.handle.startswith("h")
+    loca = Localization()
+    loca.load_bytes(mod.files()["Localization/English/BlurbMod.loca"])
+    assert loca.resolve(attr.handle).startswith("Grants Forgefire")
+
+
+def test_on_use_description_absent_when_unset():
+    mod = Mod("NoBlurb")
+    mod.new_potion("OBJ_Plain_Brew", status="X")
+    node, _ = _template_actions(mod, "OBJ_Plain_Brew")
+    assert "OnUseDescription" not in node.attributes  # inherits the base's
+
+
 def test_place_in_treasure_accumulates_across_items():
     mod = Mod("Multi")
     mod.new_armor("ARM_A", treasure="TUT_Chest_Potions")

@@ -30,6 +30,7 @@ _FIELDS = (
     "Name",
     "DisplayName",
     "Description",
+    "OnUseDescription",
     "Stats",
     "Icon",
     "Type",
@@ -145,6 +146,7 @@ def build_root_template_node(
     icon: str | None = None,
     display_name: str | None = None,
     description: str | None = None,
+    on_use_description: str | None = None,
     parent_template_id: str | None = None,
     tags: Iterable[str] = (),
     on_use: Iterable[LsxNode] = (),
@@ -180,7 +182,11 @@ def build_root_template_node(
     put("Stats", stats)
     put("Icon", icon)
     put("ParentTemplateId", parent_template_id)
-    for field_id, handle in (("DisplayName", display_name), ("Description", description)):
+    for field_id, handle in (
+        ("DisplayName", display_name),
+        ("Description", description),
+        ("OnUseDescription", on_use_description),
+    ):
         if handle is not None:
             attributes[field_id] = LsxAttribute(
                 id=field_id,
