@@ -45,6 +45,19 @@ objectives                   1,335
 quest categories                14
 goals                          975
 goal quest refs                367
+progression files               10
+progressions                 1,073
+progression tables             144
+progression passive grants       397
+progression passive removals        19
+progression passives missing         0
+progression spell list grants       240
+progression spell list choices       294
+progression spell lists missing         0
+spell list files                 3
+spell lists                    358
+spell list spells            3,293
+spell list spells missing         0
 compiled stories                11
 story functions            182,780
 story databases            140,190
@@ -82,6 +95,15 @@ traversed 182,780 function records, 140,190 databases, 8,164 goal records,
 and 435,803 rules with zero parse failures. All 943 unique source-goal
 names appeared in at least one compiled story variant; the difference
 from 975 source files is duplicate goal names across modules.
+
+The first typed-progression slice was retail-verified on 2026-07-21.
+All ten progression resources and all three spell-list resources parsed
+cleanly. The validation sweep saw 1,073 physical progression definitions
+and 358 physical spell-list definitions; load-order deduplication produces
+1,004 effective progression records in 144 tables and 315 effective spell
+lists through `Game`. All 397 passive grants, 19 passive removals, 534
+progression spell-list references, and 3,293 spell-list spell references
+resolved with zero missing joins.
 
 Other spot checks along the way: `game.dialogs.lines(...)` returned real
 localized lines ("Mmm. Delicious gruel."), `game.quests` real journal
@@ -199,7 +221,36 @@ load-order overrides by archived path, so the benchmark parses the six
 effective logical stories. Both numbers are correct for their respective
 purposes.
 
-This release-gate run is the current reference for optimization PRs.
+**0.2.0.dev0 typed-progression gate (same install):** the new progression
+stage adds 0.29 s and keeps peak RSS at 826 MB::
+
+    Read pak indexes .........   1.82 s
+    Parse stats ..............   2.19 s
+    Parse localization .......   0.47 s
+    Parse root templates .....   2.48 s
+    Parse tags ...............   0.19 s
+    Parse atlases ............   0.49 s
+    Index dialogs ............   0.10 s
+    Index timelines ..........   0.09 s
+    Parse quests .............   0.58 s
+    Index goals ..............   0.10 s
+    Parse compiled stories ...  15.98 s
+    Parse progressions .......   0.29 s
+    Build models .............   0.17 s
+    Resolve relationships ....   0.02 s
+    Export JSON ..............   0.29 s
+
+    progressions .............    1,004
+    progression tables .......      144
+    spell lists ..............      315
+    progression passive grants       397
+    progression spell grants .      558
+    progression spell choices    11,587
+
+The benchmark's 558 automatic grants and 11,587 choices count resolved
+spell entries after expanding referenced lists; the validation counters
+count the 240 `AddSpells` and 294 `SelectSpells` list references themselves.
+This typed-progression gate is the current reference for optimization PRs.
 
 Per the roadmap, no further optimization is planned until a real
 consumer needs one; any proposal should beat these numbers on

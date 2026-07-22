@@ -11,6 +11,9 @@
   `SelectSpells` choices, with reverse links on `Passive` and `Spell`.
 * Added progression and spell-list coverage, unresolved-reference counts,
   and a progression stage to `validate`/`benchmark`.
+* Retail verification found 1,004 effective progression records across 144
+  tables and 315 effective spell lists, with zero unresolved joins; the new
+  benchmark stage takes 0.29 seconds on the reference install.
 
 ## 0.1.0 — 2026-07-21
 
