@@ -19,6 +19,10 @@ numbers and `docs/retail-testing.md` for how to reproduce them.
 * Texture atlases + DDS icon extraction to PNG/WebP (optional Pillow)
 * Quest journal (`quest_prototypes.lsx`, markers) and metadata-level
   Osiris goal scripts
+* Compiled Osiris stories (`story.div.osi`, versions 1.13–1.15):
+  metadata traversal for headers, types, functions, databases, goals,
+  and rules, plus source-goal cross-checking
+* Character equipment sets from `Stats/Generated/Equipment.txt`
 * Core library has **zero required dependencies** (pure-Python LZ4
   block + frame codecs included); native speedups via extras
 
@@ -34,8 +38,13 @@ numbers and `docs/retail-testing.md` for how to reproduce them.
   (`game.items["WPN_Longsword"]`, `game.quests.find("nightsong")`)
 * Indexed datasets for large families: `game.dialogs` (graph model,
   localized lines), `game.timelines` (dialog↔cinematic linkage),
-  `game.goals` — listing from pak indexes only, parse per file on
-  demand
+  `game.goals`, and `game.story` — listing from pak indexes only, parse
+  large resources per file on demand
+* Runtime-facing item templates (`game.item_templates`) combine canonical
+  RootTemplates with stable objects placed under module Globals/Levels and
+  resolve `TemplateName` references through the RootTemplate chain
+* Selected icon export (`game.export_icons`) reads DDS atlases directly
+  from game paks and writes lossless PNG/WebP without an extraction step
 * Exporters: deterministic JSON, SQLite, CSV, Markdown, YAML
 
 ### Tooling
@@ -67,3 +76,7 @@ numbers and `docs/retail-testing.md` for how to reproduce them.
 * Shared cached pak readers: the full pipeline dropped from ~28.6 s to
   ~8.8 s on the retail baseline (ten stages had each re-parsed every
   pak file list)
+* BG3 Pathway became the first downstream consumer: its item database now
+  sources 7,081 named items plus passives, statuses, placed templates, and
+  icons through BG3 Forge; all 146 curated items enrich successfully and
+  all 994 referenced gear icon keys are covered
