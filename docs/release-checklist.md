@@ -6,6 +6,8 @@ every release.
 ## 1. Freshness
 
 - [ ] `pytest` — all green
+- [ ] Latest `main` GitHub Actions CI is green across the full OS/Python
+      matrix and the zero-dependency job
 - [ ] **Read the entire README top to bottom** against the current
       code. Examples and roadmaps update themselves during development;
       inventory sections (feature lists, project layout tree, extras
@@ -25,6 +27,7 @@ every release.
 ## 3. Package
 
 - [ ] `python -m build`
+- [ ] `python -m twine check dist/*`
 - [ ] Wheel contains only `bg3forge/**` (no tests, no docs):
       `python -m zipfile -l dist/bg3forge-<ver>-py3-none-any.whl`
 - [ ] Fresh-venv smoke test:
