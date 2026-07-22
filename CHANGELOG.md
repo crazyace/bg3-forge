@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 — unreleased
+## 0.1.0 — 2026-07-21
 
 First release. Everything below is validated against a full retail
 install (Patch 8, 154 GB, 52 paks) — see `docs/baseline.md` for the

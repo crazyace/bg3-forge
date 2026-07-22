@@ -95,7 +95,7 @@ when the remaining leveling-data inputs can be served through BG3 Forge.
 - [x] Record the final retail benchmark: ~25.1 s total, 827 MB peak RSS;
       compiled-story parsing is 16.05 s and the remaining stages match
       the post-reader-cache baseline
-- [ ] Configure the PyPI pending trusted publisher and GitHub `pypi`
+- [x] Configure the PyPI pending trusted publisher and GitHub `pypi`
       environment for `.github/workflows/publish.yml`
 - [ ] Date the changelog, tag `v0.1.0`, publish the GitHub release, and
       verify the trusted workflow's PyPI upload
