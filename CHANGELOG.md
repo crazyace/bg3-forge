@@ -45,6 +45,14 @@ The first write primitives aimed at programmatic mod creation:
   `meta.lsx`, stats layout, `.loca` keys, and `h…g…` handle format all
   matched what the capstone already produced; the RootTemplate file was the
   one difference.
+* Added equip-ability parameters to `new_item`/`new_armor`: `boosts`,
+  `grants_spells` (added as `UnlockSpell(...)` boosts), `passives`
+  (`PassivesOnEquip`), and `statuses` (`StatusOnEquip`), each merging with
+  any explicit `data`. Saves hand-writing the semicolon-joined stats fields.
+* **Retail-verified in game (Patch 8):** a capstone-built mod loaded and its
+  item resolved end to end — spawned by UUID, AC applied, localized
+  name/description rendered, icon inherited, and an `Ability(Strength,2)`
+  boost applied to the character. See `docs/baseline.md`.
 
 ## 0.1.0 — 2026-07-21
 

@@ -51,6 +51,16 @@ _NAMESPACE = uuid.UUID("f9e6c7a2-1b3d-5e4f-8a09-abcdef012345")
 _ROOTTEMPLATE_LSF_VERSION = 7
 
 
+def _merge_semicolon(existing: str | None, *groups) -> str:
+    """Join an existing ``;``-separated stats field with more entries."""
+    parts: list[str] = []
+    if existing:
+        parts.extend(p.strip() for p in existing.split(";") if p.strip())
+    for group in groups:
+        parts.extend(group)
+    return ";".join(parts)
+
+
 class Mod:
     """A mod under construction: add content, then :meth:`build` a ``.pak``."""
 
@@ -110,15 +120,40 @@ class Mod:
         description: str | None = None,
         icon: str | None = None,
         tags=(),
+        boosts=(),
+        passives=(),
+        statuses=(),
+        grants_spells=(),
         template_type: str = "item",
         data: dict[str, str] | None = None,
     ) -> str:
         """Add an item (a stats entry plus its RootTemplate) and return its
         template UUID.  ``name`` is the internal stats/template identifier;
-        ``display_name`` is the localized name shown in game."""
+        ``display_name`` is the localized name shown in game.
+
+        The ability parameters apply when the item is equipped:
+        ``boosts`` are boost functions (``"Ability(Strength,2)"``, ``"AC(1)"``,
+        …), ``grants_spells`` are spell names added as ``UnlockSpell(...)``
+        boosts, ``passives`` populate ``PassivesOnEquip``, and ``statuses``
+        populate ``StatusOnEquip``.  Each merges with any matching key already
+        in ``data``.
+        """
         template_uuid = self.new_uuid(f"template:{name}")
         stats_data = dict(data or {})
         stats_data.setdefault("RootTemplate", template_uuid)
+
+        boost_field = _merge_semicolon(
+            stats_data.get("Boosts"), boosts, [f"UnlockSpell({s})" for s in grants_spells]
+        )
+        if boost_field:
+            stats_data["Boosts"] = boost_field
+        passive_field = _merge_semicolon(stats_data.get("PassivesOnEquip"), passives)
+        if passive_field:
+            stats_data["PassivesOnEquip"] = passive_field
+        status_field = _merge_semicolon(stats_data.get("StatusOnEquip"), statuses)
+        if status_field:
+            stats_data["StatusOnEquip"] = status_field
+
         self._stats.append(
             StatsEntry(name=name, type=item_type, using=stats_using, data=stats_data)
         )
@@ -155,6 +190,10 @@ class Mod:
         description: str | None = None,
         icon: str | None = None,
         tags=(),
+        boosts=(),
+        passives=(),
+        statuses=(),
+        grants_spells=(),
         data: dict[str, str] | None = None,
     ) -> str:
         """Convenience over :meth:`new_item` for ``type "Armor"`` entries."""
@@ -170,6 +209,10 @@ class Mod:
             description=description,
             icon=icon,
             tags=tags,
+            boosts=boosts,
+            passives=passives,
+            statuses=statuses,
+            grants_spells=grants_spells,
             data=stats_data,
         )
 
