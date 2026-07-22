@@ -366,7 +366,9 @@ class Mod:
         data: dict[str, str] | None = None,
     ) -> str:
         """A drinkable consumable: using it applies ``status`` (a StatusData
-        name) and consumes the item.
+        name) and consumes the item.  ``duration`` follows retail usage:
+        ``0`` = instant/permanent-style, ``-1`` = until long rest, or a
+        positive number of turns (retail uses 1-50 and beyond).
 
         The mechanism matches retail potions — an ``OnUsePeaceActions``
         Consume action on the template with ``StatsId``/``StatusDuration``,
