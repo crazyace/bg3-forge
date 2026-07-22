@@ -71,7 +71,13 @@ The first write primitives aimed at programmatic mod creation:
   `weapon_properties` set the weapon stats fields, and on-wield effects
   (`boosts`, `grants_spells`) route to `BoostsOnEquipMainHand` — not
   `Boosts` — with always-on effects in `DefaultBoosts`, matching retail
-  weapon layout.
+  weapon layout. Retail-verified: a generated weapon dropped in the tutorial
+  chest with correct damage, inherited traits, and its weapon action.
+* Added `mod.new_passive(...)`: define a *custom* passive (`type
+  "PassiveData"`) with its own `boosts` and a localized name/description,
+  returning the name for use in an item's `passives=[...]`. Handles carry the
+  `;version` suffix BG3 uses for PassiveData, and `Properties` defaults to
+  `Highlighted` so the passive shows on the character sheet.
 
 ## 0.1.0 — 2026-07-21
 

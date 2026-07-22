@@ -140,9 +140,15 @@ composing them and minting stable UUID5 identifiers/handles.
       container instead of console-spawn only. Retail-verified: the item
       appeared in the tutorial chest on a fresh playthrough
 - [x] Weapons (`new_weapon`): damage/type/properties, with on-wield boosts
-      and granted actions routed to `BoostsOnEquipMainHand`
-- [ ] Custom passives/spells/statuses — formats documented in
-      `docs/authoring-notes.md`; build as a real mod needs them
+      and granted actions routed to `BoostsOnEquipMainHand`. Retail-verified
+      in the tutorial chest (correct damage, inherited traits, weapon action)
+- [x] Custom passives (`new_passive`): `type "PassiveData"` with its own
+      boosts and localized name, granted through an item's `passives=[...]`
+- [ ] Custom spells/statuses (`type "SpellData"`/`"StatusData"`) — the
+      richest schemas; build against a real example when a mod needs them
+- [ ] Consumables — scrolls (cast a spell), potions/elixirs (apply a status).
+      Reference-existing forms can land before fully-custom spells/statuses.
+      See `docs/authoring-notes.md` §5
 
 The item slice is complete and retail-verified. Remaining authoring work is
 consumer-driven — build what a real mod needs and verify each in game.

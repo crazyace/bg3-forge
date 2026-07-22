@@ -320,6 +320,49 @@ class Mod:
             data=stats_data,
         )
 
+    def new_passive(
+        self,
+        name: str,
+        *,
+        using: str | None = None,
+        display_name: str | None = None,
+        description: str | None = None,
+        boosts=(),
+        properties=("Highlighted",),
+        icon: str | None = None,
+        data: dict[str, str] | None = None,
+    ) -> str:
+        """Define a *custom* passive (a ``type "PassiveData"`` stats entry) and
+        return its name, for use in an item's ``passives=[...]``.
+
+        ``boosts`` are the effects it applies (e.g.
+        ``"DamageReduction(All, Flat, 3)"``).  ``properties`` default to
+        ``"Highlighted"`` so the passive shows on the character sheet.  A
+        passive is stats-only — it has no template and isn't obtainable on its
+        own; grant it through an item.  Note BG3 references a PassiveData
+        ``DisplayName``/``Description`` handle with a ``;<version>`` suffix.
+        """
+        stats_data = dict(data or {})
+        if display_name:
+            handle = self.add_string(f"{name}:DisplayName", display_name)
+            stats_data["DisplayName"] = f"{handle};1"
+        if description:
+            handle = self.add_string(f"{name}:Description", description)
+            stats_data["Description"] = f"{handle};1"
+        boost_field = _merge_semicolon(stats_data.get("Boosts"), boosts)
+        if boost_field:
+            stats_data["Boosts"] = boost_field
+        if properties:
+            stats_data["Properties"] = _merge_semicolon(
+                stats_data.get("Properties"), properties
+            )
+        if icon:
+            stats_data["Icon"] = icon
+        self._stats.append(
+            StatsEntry(name=name, type="PassiveData", using=using, data=stats_data)
+        )
+        return name
+
     # -- packaging -----------------------------------------------------------
 
     def files(self) -> dict[str, bytes]:
