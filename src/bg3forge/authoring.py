@@ -448,6 +448,8 @@ class Mod:
         icon: str | None = None,
         status_type: str = "BOOST",
         stack_id: str | None = None,
+        apply_effect: str | None = None,
+        property_flags=(),
         data: dict[str, str] | None = None,
     ) -> str:
         """Define a *custom* status (a ``type "StatusData"`` entry) and return
@@ -459,6 +461,13 @@ class Mod:
         ``OnApplyFunctors`` (e.g. ``"RegainHitPoints(2d4+2)"``).  ``StackId``
         defaults to the status name, matching retail statuses.  Handles carry
         the ``;version`` suffix StatusData uses.
+
+        Visibility: with no ``property_flags`` the status announces itself —
+        overhead floating name, combat-log line, and portrait indicator (the
+        channels retail's ``POTION_OF_HEALING`` explicitly disables with
+        ``DisableOverhead;DisableCombatlog;DisablePortraitIndicator``).
+        ``apply_effect`` plays a VFX on application (a resource GUID — e.g.
+        the healing potion's swirl).
         """
         stats_data = dict(data or {})
         stats_data.setdefault("StatusType", status_type)
@@ -477,6 +486,13 @@ class Mod:
             stats_data["OnApplyFunctors"] = apply_field
         if icon:
             stats_data["Icon"] = icon
+        if apply_effect:
+            stats_data["ApplyEffect"] = apply_effect
+        flags_field = _merge_semicolon(
+            stats_data.get("StatusPropertyFlags"), property_flags
+        )
+        if flags_field:
+            stats_data["StatusPropertyFlags"] = flags_field
         self._stats.append(
             StatsEntry(name=name, type="StatusData", using=None, data=stats_data)
         )

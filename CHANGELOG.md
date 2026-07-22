@@ -83,6 +83,11 @@ The first write primitives aimed at programmatic mod creation:
   `on_apply` functors, a localized name/description, and `StackId`
   defaulting to the name — enabling fully-original consumables
   (`new_elixir(status=<your status>)`).
+* Added visibility knobs to `new_status`: `apply_effect=` (a VFX GUID played
+  on application, e.g. the healing potion's swirl) and `property_flags=`
+  (`StatusPropertyFlags`). By default no flags are emitted, so custom
+  statuses announce themselves via overhead text, combat log, and portrait
+  indicator — the channels retail's `POTION_OF_HEALING` explicitly disables.
 * Added `on_use_description=` to `new_item` and the consumables — the
   item-tooltip effect blurb (`OnUseDescription` TranslatedString on the
   template). Without it, a consumable cloned via `parent_template` inherits
