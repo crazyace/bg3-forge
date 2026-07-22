@@ -27,6 +27,12 @@ The first write primitives aimed at programmatic mod creation:
   manifest via `write_lsx`, with `parse_meta` to read one back.
 * Added `pack_version64`/`unpack_version64` (the public inverse pair for
   Larian's 64-bit module version).
+* Added a RootTemplate node builder: `build_root_template_node` constructs a
+  `GameObjects` item template (MapKey, Stats, Icon, TranslatedString
+  DisplayName/Description handles, `ParentTemplateId` for reused visuals, and
+  tags), and `build_templates_document` wraps them in the `Templates` region
+  a RootTemplate file uses. Built templates round-trip through
+  `parse_root_templates` and resolve inheritance via `RootTemplateIndex`.
 
 ## 0.1.0 — 2026-07-21
 

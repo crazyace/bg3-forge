@@ -179,7 +179,8 @@ for native-speed decompression.
   and `parse_resource` sniffs the format, so downstream code never
   cares which one the game shipped
 * **RootTemplates** (`.lsx` or `.lsf`) with `ParentTemplateId`
-  inheritance — `RootTemplateIndex`
+  inheritance — `RootTemplateIndex` (see *Mod authoring* for building new
+  ones)
 * **Progressions** (class/race level tables) and referenced spell lists —
   `parse_progressions` / `parse_spell_lists`
 * **Treasure tables** — `parse_treasure_tables`
@@ -207,14 +208,21 @@ for native-speed decompression.
 Write primitives for generating a mod programmatically — the inverse of
 the parsers above, and the beginning of first-class mod-creation support:
 
+* **Stats content** — serialize `new entry` definitions back to
+  game-readable `.txt` — `write_stats` / `write_stats_document`
+* **Item templates** — build a `GameObjects` RootTemplate (stats, icon,
+  localized name/description handles, `ParentTemplateId` to reuse an
+  existing item's visuals, tags) — `build_root_template_node` /
+  `build_templates_document`
 * **Module manifest** — build a game-readable `meta.lsx` from a
   `ModuleInfo` (name, folder, UUID, packed version) — `build_meta_document`,
   with `parse_meta` to read one back
 * **Version64** — pack/unpack Larian's 64-bit module version, the inverse
   pair `doctor` already relied on — `pack_version64` / `unpack_version64`
 
-This is the manifest layer; stats and RootTemplate content primitives
-follow, building toward a "create a new item" authoring API.
+With the existing `.loca` writer and `PakWriter`, these are the pieces of a
+complete item mod; a `Mod` orchestration to assemble them into a `.pak` is
+next.
 
 ### Icon pipeline (`bg3forge.assets`)
 
@@ -360,9 +368,9 @@ src/bg3forge/
 * ✅ Typed progression graph (`game.progressions`) — classes/races → level
   records → granted `AddSpells` and selectable `SelectSpells`, resolved
   spell lists and passives, with reverse links on `Spell`/`Passive`
-* ⏳ Mod authoring — write primitives for generating a mod: `meta.lsx`
-  manifest and `Version64` packing are done; stats and RootTemplate
-  content primitives follow
+* ⏳ Mod authoring — write primitives are in place (stats, RootTemplate,
+  `meta.lsx` manifest, `Version64`, plus the existing `.loca`/`.pak`
+  writers); a `Mod` orchestration to assemble a complete item mod is next
 * ⏳ Virtual texture (GTS/GTP) atlas support
 * ⏳ GR2 model metadata
 * ⏳ Full Osiris rule decompilation — metadata traversal is complete;
