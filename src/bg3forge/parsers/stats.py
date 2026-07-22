@@ -104,6 +104,50 @@ def parse_stats(text: str, source: str | None = None) -> list[StatsEntry]:
     return parse_stats_document(text, source).entries
 
 
+def _write_entry(entry: StatsEntry) -> str:
+    lines = [f'new entry "{entry.name}"']
+    if entry.type:
+        lines.append(f'type "{entry.type}"')
+    if entry.using is not None:
+        lines.append(f'using "{entry.using}"')
+    for key, value in entry.data.items():
+        lines.append(f'data "{key}" "{value}"')
+    return "\n".join(lines)
+
+
+def write_stats_document(document: StatsDocument) -> str:
+    """Serialize a :class:`StatsDocument` back to Larian stats ``.txt`` form.
+
+    The inverse of :func:`parse_stats_document` at the data-model level:
+    re-parsing the result yields an equivalent document (entries in the
+    same order with the same ``type``/``using``/``data``, and the same
+    globals).  What is intentionally *not* round-tripped carries no data:
+    comments, blank-line layout, the provenance ``source`` field, and
+    unmodeled ``new <kind>`` blocks (which parsing already discards).
+
+    A global block, if any, is emitted first as consecutive ``key`` lines;
+    entries follow, each separated by a blank line, matching retail files.
+    """
+    chunks: list[str] = []
+    if document.globals:
+        chunks.append(
+            "\n".join(
+                f'key "{name}","{value}"' for name, value in document.globals.items()
+            )
+        )
+    chunks.extend(_write_entry(entry) for entry in document.entries)
+    return "\n\n".join(chunks) + "\n" if chunks else ""
+
+
+def write_stats(
+    entries: Iterable[StatsEntry], globals: dict[str, str] | None = None
+) -> str:
+    """Serialize loose entries (plus optional globals) to stats ``.txt`` form."""
+    return write_stats_document(
+        StatsDocument(entries=list(entries), globals=dict(globals or {}))
+    )
+
+
 class StatsCollection:
     """All stats entries across any number of files, with inheritance.
 
