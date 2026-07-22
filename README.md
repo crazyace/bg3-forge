@@ -267,6 +267,10 @@ mod.new_armor(
     grants_spells=["Target_Fireball"],    # added as UnlockSpell(...)
     treasure="TUT_Chest_Potions",         # drops from the tutorial chest
 )
+mod.new_potion("OBJ_Sunforged_Brew",      # drinking applies a status...
+    status="MY_BREW", treasure="TUT_Chest_Potions")
+mod.new_scroll("OBJ_Scroll_Sunbolt",      # ...and a scroll casts a spell
+    spell="Projectile_Fireball")
 mod.build("SunforgedArmors.pak")          # stats + template + meta + loca + treasure → pak
 ```
 
@@ -275,7 +279,8 @@ the mod name). Under the hood it composes the write primitives:
 
 * **Stats content** — `write_stats` / `write_stats_document`
 * **Item templates** — `build_root_template_node` /
-  `build_templates_document` (with `ParentTemplateId` to reuse visuals)
+  `build_templates_document` (with `ParentTemplateId` to reuse visuals,
+  and `on_use` consume/cast actions for consumables)
 * **Module manifest** — `build_meta_document` (+ `parse_meta`)
 * **Version64** — `pack_version64` / `unpack_version64`
 * plus the existing `.loca` writer and `PakWriter`

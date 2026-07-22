@@ -78,6 +78,12 @@ The first write primitives aimed at programmatic mod creation:
   returning the name for use in an item's `passives=[...]`. Handles carry the
   `;version` suffix BG3 uses for PassiveData, and `Properties` defaults to
   `Highlighted` so the passive shows on the character sheet.
+* Added consumables: `mod.new_potion(status=…)` and `mod.new_elixir(status=…)`
+  (a Consume template action applying a status — duration 0, or -1 until long
+  rest) and `mod.new_scroll(spell=…)` (the retail cast-from-scroll action,
+  `CanUseSpellScroll`-gated). The template builder gained `on_use=` action
+  children (`build_consume_action` / `build_use_spell_action`) with attribute
+  types pinned from retail templates (`int32`/`bool`/`guid`/…).
 
 ## 0.1.0 — 2026-07-21
 

@@ -147,6 +147,7 @@ def build_root_template_node(
     description: str | None = None,
     parent_template_id: str | None = None,
     tags: Iterable[str] = (),
+    on_use: Iterable[LsxNode] = (),
     handle_version: int = 1,
     fields: dict[str, str] | None = None,
 ) -> LsxNode:
@@ -157,7 +158,10 @@ def build_root_template_node(
     (``h...``); ``parent_template_id`` is the base template this object
     inherits from — the usual way to reuse an existing item's visuals.
     ``fields`` passes through any additional scalar attributes (``Equipment``,
-    ``Archetype``, …).  Serialize the node inside a document from
+    ``Archetype``, …).  ``on_use`` takes ``Action`` nodes (from
+    :func:`build_consume_action` / :func:`build_use_spell_action`) and wraps
+    them in an ``OnUsePeaceActions`` child — the consumable use mechanism.
+    Serialize the node inside a document from
     :func:`build_templates_document`.
     """
     attributes: dict[str, LsxAttribute] = {}
@@ -189,6 +193,9 @@ def build_root_template_node(
         put(field_id, value)
 
     children: list[LsxNode] = []
+    action_nodes = list(on_use)
+    if action_nodes:
+        children.append(LsxNode(id="OnUsePeaceActions", children=action_nodes))
     tag_nodes = [
         LsxNode(
             id="Tag",
@@ -200,6 +207,62 @@ def build_root_template_node(
         children.append(LsxNode(id="Tags", children=tag_nodes))
 
     return LsxNode(id="GameObjects", attributes=attributes, children=children)
+
+
+#: The ClassId retail spell scrolls carry on their cast-from-scroll action
+#: (identical across shipped scrolls).
+SCROLL_CLASS_ID = "a865965f-501b-46e9-aa9e-4877c0e8094d"
+
+
+def _use_action(action_type: int, attributes: dict[str, LsxAttribute]) -> LsxNode:
+    return LsxNode(
+        id="Action",
+        attributes={
+            "ActionType": LsxAttribute("ActionType", "int32", str(action_type))
+        },
+        children=[LsxNode(id="Attributes", attributes=attributes)],
+    )
+
+
+def build_consume_action(
+    status_id: str, duration: int = 0, animation: str = ""
+) -> LsxNode:
+    """An ``OnUsePeaceActions`` Consume action (ActionType 7): using the item
+    consumes it and applies ``status_id``.  ``duration`` 0 applies the
+    status instantly (potions); ``-1`` keeps it until long rest (elixirs).
+    Field names and attribute types match retail consumable templates.
+    """
+    return _use_action(
+        7,
+        {
+            "Animation": LsxAttribute("Animation", "FixedString", animation),
+            "Conditions": LsxAttribute("Conditions", "LSString", ""),
+            "Consume": LsxAttribute("Consume", "bool", "True"),
+            "StatsId": LsxAttribute("StatsId", "FixedString", status_id),
+            "StatusDuration": LsxAttribute("StatusDuration", "int32", str(duration)),
+        },
+    )
+
+
+def build_use_spell_action(
+    spell_id: str, class_id: str = SCROLL_CLASS_ID
+) -> LsxNode:
+    """An ``OnUsePeaceActions`` cast-from-item action (ActionType 12): using
+    the item casts ``spell_id`` and consumes it — the spell-scroll pattern,
+    gated by the same ``CanUseSpellScroll`` condition retail scrolls use.
+    """
+    return _use_action(
+        12,
+        {
+            "Animation": LsxAttribute("Animation", "FixedString", ""),
+            "ClassId": LsxAttribute("ClassId", "guid", class_id),
+            "Conditions": LsxAttribute(
+                "Conditions", "LSString", f'CanUseSpellScroll("{spell_id}")'
+            ),
+            "Consume": LsxAttribute("Consume", "bool", "True"),
+            "SkillID": LsxAttribute("SkillID", "FixedString", spell_id),
+        },
+    )
 
 
 def build_templates_document(nodes: Iterable[LsxNode]) -> LsxDocument:

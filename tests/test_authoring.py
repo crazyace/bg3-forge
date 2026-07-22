@@ -227,6 +227,69 @@ def test_item_can_grant_a_custom_passive():
     assert entries["ARM_Warded"].get("PassivesOnEquip") == "MY_Warding"
 
 
+def _template_actions(mod, name):
+    """Parse the built pak's _merged.lsf and return (node, actions) for name."""
+    blob = mod.files()[f"Public/{mod.folder}/RootTemplates/_merged.lsf"]
+    doc = parse_resource(blob)
+    node = next(n for n in doc.find_all("GameObjects") if n.get("Name") == name)
+    onuse = next((c for c in node.children if c.id == "OnUsePeaceActions"), None)
+    return node, (onuse.children if onuse else [])
+
+
+def test_new_potion_emits_consume_action():
+    """Potion = Object stats (using _Potion) + template Consume action
+    (ActionType 7, StatsId, StatusDuration 0) — the retail mechanism,
+    surviving the LSF v7 round trip with typed attributes."""
+    mod = Mod("PotionMod")
+    mod.new_potion("OBJ_My_Potion", status="MY_BREW", display_name="My Brew")
+    entry = _entries_by_name(mod)["OBJ_My_Potion"]
+    assert entry.type == "Object"
+    assert entry.using == "_Potion"
+    node, actions = _template_actions(mod, "OBJ_My_Potion")
+    assert len(actions) == 1
+    action = actions[0]
+    assert action.get("ActionType") == "7"
+    assert action.attributes["ActionType"].type == "int32"
+    attrs = action.children[0]  # <Attributes>
+    assert attrs.get("StatsId") == "MY_BREW"
+    assert attrs.get("StatusDuration") == "0"
+    assert attrs.attributes["StatusDuration"].type == "int32"
+    assert attrs.attributes["Consume"].type == "bool"
+
+
+def test_new_elixir_lasts_until_long_rest():
+    mod = Mod("ElixirMod")
+    mod.new_elixir("OBJ_My_Elixir", status="MY_TONIC")
+    _, actions = _template_actions(mod, "OBJ_My_Elixir")
+    attrs = actions[0].children[0]
+    assert attrs.get("StatusDuration") == "-1"
+
+
+def test_new_scroll_emits_cast_action():
+    """Scroll = OBJ_Scroll stats + cast-from-scroll action (ActionType 12,
+    SkillID, CanUseSpellScroll condition, shared retail ClassId)."""
+    from bg3forge.parsers import SCROLL_CLASS_ID
+
+    mod = Mod("ScrollMod")
+    mod.new_scroll("OBJ_Scroll_MyFireball", spell="Projectile_Fireball",
+                   treasure="TUT_Chest_Potions")
+    entry = _entries_by_name(mod)["OBJ_Scroll_MyFireball"]
+    assert entry.using == "OBJ_Scroll"
+    _, actions = _template_actions(mod, "OBJ_Scroll_MyFireball")
+    action = actions[0]
+    assert action.get("ActionType") == "12"
+    attrs = action.children[0]
+    assert attrs.get("SkillID") == "Projectile_Fireball"
+    assert attrs.get("Conditions") == 'CanUseSpellScroll("Projectile_Fireball")'
+    assert attrs.get("ClassId") == SCROLL_CLASS_ID
+    assert attrs.attributes["ClassId"].type == "guid"
+    # obtainable like any other item
+    table = parse_treasure_tables(
+        mod.files()[f"Public/ScrollMod/Stats/Generated/TreasureTable.txt"].decode("utf-8")
+    )[0]
+    assert table.items() == ["OBJ_Scroll_MyFireball"]
+
+
 def test_place_in_treasure_accumulates_across_items():
     mod = Mod("Multi")
     mod.new_armor("ARM_A", treasure="TUT_Chest_Potions")

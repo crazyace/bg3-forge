@@ -35,8 +35,11 @@ from .resource import load_resource, parse_resource
 from .roottemplates import (
     RootTemplate,
     RootTemplateIndex,
+    SCROLL_CLASS_ID,
+    build_consume_action,
     build_root_template_node,
     build_templates_document,
+    build_use_spell_action,
     parse_root_templates,
 )
 from .tags import Tag, TagRegistry, parse_tags
@@ -113,8 +116,11 @@ __all__ = [
     "parse_resource",
     "RootTemplate",
     "RootTemplateIndex",
+    "SCROLL_CLASS_ID",
+    "build_consume_action",
     "build_root_template_node",
     "build_templates_document",
+    "build_use_spell_action",
     "parse_root_templates",
     "Tag",
     "TagRegistry",
