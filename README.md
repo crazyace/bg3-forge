@@ -267,10 +267,16 @@ mod.new_armor(
     grants_spells=["Target_Fireball"],    # added as UnlockSpell(...)
     treasure="TUT_Chest_Potions",         # drops from the tutorial chest
 )
-mod.new_potion("OBJ_Sunforged_Brew",      # drinking applies a status...
-    status="MY_BREW", treasure="TUT_Chest_Potions")
-mod.new_scroll("OBJ_Scroll_Sunbolt",      # ...and a scroll casts a spell
-    spell="Projectile_Fireball")
+status = mod.new_status("SUN_BLESSING",   # a custom status...
+    boosts=["Ability(Strength,2)"], display_name="Sun's Blessing")
+mod.new_potion("OBJ_Sunforged_Brew",      # ...applied by drinking this
+    status=status, treasure="TUT_Chest_Potions")
+spell = mod.new_spell("Projectile_Sunbolt",  # a custom spell cloned from
+    using="Projectile_FireBolt",             # a retail base (visuals/sounds
+    display_name="Sunbolt",                  # inherit; effects override)
+    spell_success=["DealDamage(2d10,Fire,Magical)"])
+mod.new_scroll("OBJ_Scroll_Sunbolt",      # ...cast from a scroll
+    spell=spell)
 mod.build("SunforgedArmors.pak")          # stats + template + meta + loca + treasure → pak
 ```
 
@@ -436,9 +442,11 @@ src/bg3forge/
   records → granted `AddSpells` and selectable `SelectSpells`, resolved
   spell lists and passives, with reverse links on `Spell`/`Passive`
 * ✅ Mod authoring — a `Mod` capstone assembles stats, RootTemplate
-  (`_merged.lsf`), `meta.lsx`, and localization into a `.pak`, with
-  equip boosts/passives/statuses/spells; **retail-verified in a Patch 8
-  game** (item spawns, stats + localized text resolve, boosts apply)
+  (`_merged.lsf`), `meta.lsx`, localization, and treasure tables into a
+  `.pak`: armor, weapons, consumables (potions/elixirs/scrolls), and
+  custom passives, statuses, and spells; **retail-verified in a Patch 8
+  game** (items drop from a base-game chest, boosts/passives apply,
+  consumables consume, custom status + retail-parity tooltips render)
 * ⏳ Virtual texture (GTS/GTP) atlas support
 * ⏳ GR2 model metadata
 * ⏳ Full Osiris rule decompilation — metadata traversal is complete;

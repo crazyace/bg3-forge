@@ -147,11 +147,13 @@ composing them and minting stable UUID5 identifiers/handles.
 - [x] Custom statuses (`new_status`): `StatusData` BOOST with boosts,
       instant `OnApplyFunctors`, and localized name — enables fully-original
       consumables
-- [ ] Custom spells (`type "SpellData"`) — the richest schema; build against
-      a real example when a mod needs it
-- [x] Consumables (reference-existing forms): `new_potion`/`new_elixir`
-      (Consume action applying a status) and `new_scroll` (cast-from-scroll
-      action). Fully-original consumables await custom spells/statuses
+- [x] Custom spells (`new_spell`): `SpellData` clone-and-tweak — `using` a
+      retail base inherits targeting/animation/VFX; overrides carry identity
+      and effect (`SpellSuccess`, `SpellProperties`, tooltip fields).
+      Delivered via `new_scroll(spell=…)` or an item's `grants_spells`
+- [x] Consumables: `new_potion`/`new_elixir` (Consume action applying a
+      status) and `new_scroll` (cast-from-scroll action) — with custom
+      statuses and spells, fully-original consumables end to end
 
 The item slice is complete and retail-verified. Remaining authoring work is
 consumer-driven — build what a real mod needs and verify each in game.
