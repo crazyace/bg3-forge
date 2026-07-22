@@ -4,6 +4,7 @@ from bg3forge.parsers import (
     Localization,
     parse_lsx,
     parse_meta,
+    parse_resource,
     parse_root_templates,
     parse_stats,
 )
@@ -30,7 +31,8 @@ def test_mod_builds_a_loadable_item_pak(tmp_path):
         # files land under the folder convention the engine expects
         assert "Mods/SunforgedArmors/meta.lsx" in names
         stats_path = "Public/SunforgedArmors/Stats/Generated/Data/SunforgedArmors.txt"
-        template_path = "Public/SunforgedArmors/RootTemplates/SunforgedArmors.lsx"
+        # BG3 loads RootTemplates only from a binary LSF named _merged.lsf
+        template_path = "Public/SunforgedArmors/RootTemplates/_merged.lsf"
         loca_path = "Localization/English/SunforgedArmors.loca"
         assert {stats_path, template_path, loca_path} <= set(names)
 
@@ -43,7 +45,8 @@ def test_mod_builds_a_loadable_item_pak(tmp_path):
         assert entry.get("RootTemplate") == template_uuid
 
         # template: points back at the stats entry and reuses the base visuals
-        template = parse_root_templates(parse_lsx(reader.read(template_path).decode("utf-8")))[0]
+        # (_merged.lsf is binary LSF; parse_resource sniffs the format)
+        template = parse_root_templates(parse_resource(reader.read(template_path)))[0]
         assert template.map_key == template_uuid
         assert template.stats_name == "ARM_Sunforged_Plate"
         assert template.parent_id == "0000base-0000-0000-0000-00000000000f"
