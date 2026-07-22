@@ -1,10 +1,10 @@
 # Plan: current milestones
 
 Agreed working plan as of 2026-07. The first real consumer integration
-has now exercised the item/template/icon API against retail data, so the
-next gate is the 0.1.0 release. Work after that remains consumer-driven:
-finish the typed progression graph for build-planning and data-export
-consumers before opening another large binary-format project.
+has exercised the item/template/icon API against retail data, and 0.1.0
+is now published. Work remains consumer-driven: finish the typed
+progression graph for build-planning and data-export consumers before
+opening another large binary-format project.
 
 ## 1. Retail verification of the completed journal layer — complete
 
@@ -80,7 +80,7 @@ source-goal names were present in compiled data.
 The item-data exit criterion is met. The broader consumer milestone closes
 when the remaining leveling-data inputs can be served through BG3 Forge.
 
-## 4. Release 0.1.0 — current
+## 4. Release 0.1.0 — complete
 
 *The library is retail-proven and now has a real downstream consumer.*
 
@@ -97,10 +97,14 @@ when the remaining leveling-data inputs can be served through BG3 Forge.
       the post-reader-cache baseline
 - [x] Configure the PyPI pending trusted publisher and GitHub `pypi`
       environment for `.github/workflows/publish.yml`
-- [ ] Date the changelog, tag `v0.1.0`, publish the GitHub release, and
+- [x] Date the changelog, tag `v0.1.0`, publish the GitHub release, and
       verify the trusted workflow's PyPI upload
 
-## 5. Post-release consumer milestone — typed progressions
+Released 2026-07-21. The trusted workflow uploaded both distributions,
+and a clean `pip install bg3forge==0.1.0` installed the wheel with zero
+dependencies and passed CLI/import smoke tests.
+
+## 5. Post-release consumer milestone — typed progressions — current
 
 Model the existing progression parser as a relationship graph rather than
 starting a speculative format project. The target API is classes/races →
@@ -122,7 +126,7 @@ is the largest project and has no current consumer requirement.
 
 ## Sequencing
 
-Milestones 1 and 2 are complete, and milestone 3 proved the first consumer
-slice. Finish the 0.1.0 release next, then let concrete consumer progression
-needs shape milestone 5. Do not start a backlog format without a concrete
-consumer or a separately agreed research goal.
+Milestones 1–4 are complete. The typed progression graph is current;
+let concrete consumer queries shape its API and joins. Do not start a
+backlog format without a concrete consumer or a separately agreed
+research goal.
