@@ -84,3 +84,43 @@ def test_folder_defaults_to_name_and_can_be_overridden(tmp_path):
     files = mod.files()
     assert "Mods/MyMod/meta.lsx" in files
     assert mod.module.folder == "MyMod"
+
+
+def _stats_entry(mod):
+    txt = mod.files()[
+        f"Public/{mod.folder}/Stats/Generated/Data/{mod.folder}.txt"
+    ].decode("utf-8")
+    return parse_stats(txt)[0]
+
+
+def test_ability_params_populate_equip_fields():
+    """boosts / grants_spells / passives / statuses land in the right stats
+    fields (verified in game: a +2 STR boost applied to the character)."""
+    mod = Mod("AbilityMod")
+    mod.new_armor(
+        "ARM_Test",
+        armor_class=18,
+        boosts=["Ability(Strength,2)", "AC(1)"],
+        grants_spells=["Target_Fireball"],
+        passives=["SavageAttacker"],
+        statuses=["MAG_BLADE_WARD"],
+    )
+    entry = _stats_entry(mod)
+    assert entry.get("ArmorClass") == "18"
+    assert entry.get("Boosts") == "Ability(Strength,2);AC(1);UnlockSpell(Target_Fireball)"
+    assert entry.get("PassivesOnEquip") == "SavageAttacker"
+    assert entry.get("StatusOnEquip") == "MAG_BLADE_WARD"
+
+
+def test_ability_params_merge_with_explicit_data():
+    mod = Mod("MergeMod")
+    mod.new_item("I", data={"Boosts": "AC(2)"}, boosts=["Ability(Dexterity,1)"])
+    assert _stats_entry(mod).get("Boosts") == "AC(2);Ability(Dexterity,1)"
+
+
+def test_no_ability_params_leaves_fields_absent():
+    mod = Mod("PlainMod")
+    mod.new_armor("ARM_Plain", armor_class=12)
+    entry = _stats_entry(mod)
+    assert entry.get("Boosts") is None
+    assert entry.get("PassivesOnEquip") is None

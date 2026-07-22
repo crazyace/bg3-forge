@@ -255,3 +255,24 @@ This typed-progression gate is the current reference for optimization PRs.
 Per the roadmap, no further optimization is planned until a real
 consumer needs one; any proposal should beat these numbers on
 comparable hardware and include its own before/after reports.
+
+## Mod authoring — retail-verified (2026-07-22)
+
+The write side reached the same bar as the read side: a mod generated
+entirely by `bg3forge.authoring.Mod` was installed into a retail Patch 8
+game and loaded successfully. The generated item (an armor cloning a base
+template via `ParentTemplateId`) resolved every layer in game:
+
+- item spawned by its template UUID (`RootTemplates/_merged.lsf` loaded)
+- stats bound — Armour Class 21 applied
+- localized name and description rendered (not raw handles)
+- icon inherited from the base template
+- an equip boost applied to the character — `Ability(Strength,2)` showed
+  as `+2 from <item>` on the character's Strength sheet
+
+Getting here surfaced one write-only defect, invisible to round-tripping
+against our own parsers: BG3 loads RootTemplates only from a binary LSF
+named exactly `_merged.lsf`, not an arbitrary `.lsx`. A known-good retail
+item mod confirmed the rest of the output (meta.lsx, stats layout, `.loca`
+keys, and `h…g…` handle format) already matched byte-for-byte. See the git
+history around the `_merged.lsf` fix.

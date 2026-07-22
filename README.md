@@ -222,6 +222,8 @@ mod.new_armor(
     display_name="Sunforged Plate",       # localized; a handle is minted for you
     description="Warm to the touch.",
     icon="Item_Plate_Body",
+    boosts=["Ability(Strength,2)"],       # applied on equip
+    grants_spells=["Target_Fireball"],    # added as UnlockSpell(...)
 )
 mod.build("SunforgedArmors.pak")          # stats + template + meta + loca → pak
 ```
@@ -236,8 +238,11 @@ the mod name). Under the hood it composes the write primitives:
 * **Version64** — `pack_version64` / `unpack_version64`
 * plus the existing `.loca` writer and `PakWriter`
 
-Everything is verified by round-tripping against Forge's own parsers;
-in-game load verification against a retail install is the remaining step.
+**Retail-verified:** a capstone-built mod loads in a Patch 8 game — the
+item spawns, its stats and localized name/description resolve, the icon
+inherits, and equip boosts apply to the character. See
+[`docs/mod-authoring.md`](docs/mod-authoring.md) for the load-test steps
+and [`docs/baseline.md`](docs/baseline.md) for the verified result.
 
 ### Icon pipeline (`bg3forge.assets`)
 
@@ -383,9 +388,10 @@ src/bg3forge/
 * ✅ Typed progression graph (`game.progressions`) — classes/races → level
   records → granted `AddSpells` and selectable `SelectSpells`, resolved
   spell lists and passives, with reverse links on `Spell`/`Passive`
-* ⏳ Mod authoring — a `Mod` capstone assembles stats, RootTemplate,
-  `meta.lsx`, and localization into a `.pak` (all round-trip-verified);
-  in-game load verification against a retail install is the remaining step
+* ✅ Mod authoring — a `Mod` capstone assembles stats, RootTemplate
+  (`_merged.lsf`), `meta.lsx`, and localization into a `.pak`, with
+  equip boosts/passives/statuses/spells; **retail-verified in a Patch 8
+  game** (item spawns, stats + localized text resolve, boosts apply)
 * ⏳ Virtual texture (GTS/GTP) atlas support
 * ⏳ GR2 model metadata
 * ⏳ Full Osiris rule decompilation — metadata traversal is complete;
