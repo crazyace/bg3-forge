@@ -109,3 +109,12 @@ Those four artifacts are the baseline the contributor policy
 (CONTRIBUTING.md, principle #5) measures every future optimization
 against — and the validate issues list, if any, is the highest-priority
 bug list the project can have.
+
+## Wiring survey (authoring assumptions)
+
+`python scripts/wiring_survey.py` sweeps every RootTemplate in the install
+and prints a census of the structures the authoring layer writes — action
+types and their attribute types, text-slot usage, the scroll `ClassId`
+constant, consume durations, and unresolved references. Run it after each
+game patch: any drift from the assumptions baked into
+`bg3forge.authoring` shows up here first.
