@@ -205,24 +205,39 @@ for native-speed decompression.
 
 ### Mod authoring (experimental)
 
-Write primitives for generating a mod programmatically — the inverse of
-the parsers above, and the beginning of first-class mod-creation support:
+The inverse of everything above: generate a mod programmatically. A `Mod`
+mints stable UUIDs and localization handles, lays files out under the
+folder convention BG3 expects, and packs a `.pak` — writing only to the
+output path you choose, never to your install.
 
-* **Stats content** — serialize `new entry` definitions back to
-  game-readable `.txt` — `write_stats` / `write_stats_document`
-* **Item templates** — build a `GameObjects` RootTemplate (stats, icon,
-  localized name/description handles, `ParentTemplateId` to reuse an
-  existing item's visuals, tags) — `build_root_template_node` /
-  `build_templates_document`
-* **Module manifest** — build a game-readable `meta.lsx` from a
-  `ModuleInfo` (name, folder, UUID, packed version) — `build_meta_document`,
-  with `parse_meta` to read one back
-* **Version64** — pack/unpack Larian's 64-bit module version, the inverse
-  pair `doctor` already relied on — `pack_version64` / `unpack_version64`
+```python
+from bg3forge import Mod
 
-With the existing `.loca` writer and `PakWriter`, these are the pieces of a
-complete item mod; a `Mod` orchestration to assemble them into a `.pak` is
-next.
+mod = Mod("SunforgedArmors", author="you")
+mod.new_armor(
+    "ARM_Sunforged_Plate",
+    armor_class=21,
+    stats_using="_Armor",                 # inherit stats from a base entry
+    parent_template="<base-template-uuid>",  # reuse an existing item's visuals
+    display_name="Sunforged Plate",       # localized; a handle is minted for you
+    description="Warm to the touch.",
+    icon="Item_Plate_Body",
+)
+mod.build("SunforgedArmors.pak")          # stats + template + meta + loca → pak
+```
+
+Rebuilding the same mod reproduces byte-identical identifiers (UUID5 from
+the mod name). Under the hood it composes the write primitives:
+
+* **Stats content** — `write_stats` / `write_stats_document`
+* **Item templates** — `build_root_template_node` /
+  `build_templates_document` (with `ParentTemplateId` to reuse visuals)
+* **Module manifest** — `build_meta_document` (+ `parse_meta`)
+* **Version64** — `pack_version64` / `unpack_version64`
+* plus the existing `.loca` writer and `PakWriter`
+
+Everything is verified by round-tripping against Forge's own parsers;
+in-game load verification against a retail install is the remaining step.
 
 ### Icon pipeline (`bg3forge.assets`)
 
@@ -368,9 +383,9 @@ src/bg3forge/
 * ✅ Typed progression graph (`game.progressions`) — classes/races → level
   records → granted `AddSpells` and selectable `SelectSpells`, resolved
   spell lists and passives, with reverse links on `Spell`/`Passive`
-* ⏳ Mod authoring — write primitives are in place (stats, RootTemplate,
-  `meta.lsx` manifest, `Version64`, plus the existing `.loca`/`.pak`
-  writers); a `Mod` orchestration to assemble a complete item mod is next
+* ⏳ Mod authoring — a `Mod` capstone assembles stats, RootTemplate,
+  `meta.lsx`, and localization into a `.pak` (all round-trip-verified);
+  in-game load verification against a retail install is the remaining step
 * ⏳ Virtual texture (GTS/GTP) atlas support
 * ⏳ GR2 model metadata
 * ⏳ Full Osiris rule decompilation — metadata traversal is complete;
