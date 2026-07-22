@@ -316,6 +316,28 @@ def test_new_status_defines_statusdata_with_retail_shape():
     assert loca.resolve(display) == "Forgefire"
 
 
+def test_new_status_visibility_knobs():
+    """apply_effect becomes ApplyEffect (VFX on application) and
+    property_flags fills StatusPropertyFlags; neither is emitted by default,
+    so a custom status announces itself (overhead/log/portrait)."""
+    mod = Mod("VisMod")
+    mod.new_status("LOUD", boosts=["AC(1)"])
+    loud = _entries_by_name(mod)["LOUD"]
+    assert loud.get("StatusPropertyFlags") is None
+    assert loud.get("ApplyEffect") is None
+
+    mod2 = Mod("QuietMod")
+    mod2.new_status(
+        "QUIET",
+        boosts=["AC(1)"],
+        apply_effect="89f2d0ac-9295-4657-bfa6-fb6d61adf59c",
+        property_flags=["DisableOverhead", "DisableCombatlog"],
+    )
+    quiet = _entries_by_name(mod2)["QUIET"]
+    assert quiet.get("ApplyEffect") == "89f2d0ac-9295-4657-bfa6-fb6d61adf59c"
+    assert quiet.get("StatusPropertyFlags") == "DisableOverhead;DisableCombatlog"
+
+
 def test_custom_status_wires_into_elixir():
     """The fully-original consumable: an elixir applying a status the base
     game has never seen."""
