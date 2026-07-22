@@ -157,9 +157,14 @@ How "Learn Spell" on a scroll works, traced through retail data:
   ``SpellList`` guid.  The Wizard's is
   ``beb9389e-24f8-49b0-86a5-e8d08b6fdc2e``
   (``WIZARD_LEARNABLE_LIST``, 112 spells) — the transcription pool.
-- The scroll needs nothing special: learnability = list membership plus a
-  spell slot of the spell's level (combined caster levels); cost is
-  50 gp × spell level; the scroll is consumed.
+- The scroll must carry an **ActionType 33 learn action** (`SpellId`)
+  alongside its ActionType 12 cast action — found by diffing our
+  non-learnable scroll against retail's in the live engine.  List
+  membership is necessary but not sufficient; both together, plus a spell
+  slot of the spell's level (combined caster levels), produce "Learn
+  Spell".  Cost is 50 gp × spell level; the scroll is consumed.
+  (`new_scroll` emits the learn action by default; `learnable=False`
+  matches the 54 retail cast-only scrolls.)
 - Wizard progressions carry ``SelectSpells`` only at level 1 (verified in
   every file, all sources) — level-up and transcription both draw on the
   ClassDescription list, not per-level selector lists.
@@ -216,7 +221,7 @@ authoring layer: **7** (Consume) and **12** (cast from scroll).
 | 11 | 1,071 | read book — `BookId` |
 | **7** | 298 | **consume — `StatsId`, `StatusDuration`, `IsHiddenStatus`** |
 | **12** | 165 | **cast from scroll — `SkillID`, `ClassId` (optional: 31 omit it), `Consume`** |
-| 33 | 111 | secondary cast variant — `SpellId` |
+| **33** | 111 | **learn spell from scroll (wizard transcription) — `SpellId`**; retail learnable scrolls carry this alongside 12 |
 | 15 / 14 | 78 / 16 | heal actions — `Heal` |
 | 3 | 39 | teleport/event — `EventID`, `Source`, `Target` |
 | 23 / 16 | 28 / 10 | combine/insert — `CombineSlots`, `InsertSlots` |

@@ -280,6 +280,23 @@ def build_use_spell_action(
     return _use_action(12, attributes)
 
 
+def build_learn_spell_action(spell_id: str) -> LsxNode:
+    """An ``OnUsePeaceActions`` learn action (ActionType 33): offers
+    ``spell_id`` for wizard transcription ("Learn Spell", consuming the
+    scroll).  Retail learnable scrolls carry this *alongside* the
+    ActionType 12 cast action — the learn action alone is what makes the
+    transcribe UI list the scroll; the spell must also be on the class's
+    ``ClassDescription`` learnable spell list.  Keyed by ``SpellId``
+    (unlike the cast action's ``SkillID``)."""
+    attributes = {
+        "Animation": LsxAttribute("Animation", "FixedString", ""),
+        "Conditions": LsxAttribute("Conditions", "LSString", ""),
+        "Consume": LsxAttribute("Consume", "bool", "True"),
+        "SpellId": LsxAttribute("SpellId", "FixedString", spell_id),
+    }
+    return _use_action(33, attributes)
+
+
 def build_templates_document(nodes: Iterable[LsxNode]) -> LsxDocument:
     """Wrap ``GameObjects`` nodes in the ``Templates`` region a RootTemplate
     file uses.  Serialize with :func:`bg3forge.parsers.lsx.write_lsx`."""

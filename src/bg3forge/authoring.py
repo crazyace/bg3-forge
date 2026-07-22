@@ -40,6 +40,7 @@ from .parsers.lsx import write_lsx
 from .parsers.meta import ModuleInfo, build_meta_document
 from .parsers.roottemplates import (
     build_consume_action,
+    build_learn_spell_action,
     build_root_template_node,
     build_templates_document,
     build_use_spell_action,
@@ -436,6 +437,7 @@ class Mod:
         name: str,
         *,
         spell: str,
+        learnable: bool = True,
         stats_using: str | None = "OBJ_Scroll",
         parent_template: str | None = None,
         display_name: str | None = None,
@@ -448,7 +450,17 @@ class Mod:
     ) -> str:
         """A spell scroll: using it casts ``spell`` (a SpellData name) and
         consumes the item — the retail cast-from-scroll action, gated by
-        ``CanUseSpellScroll``."""
+        ``CanUseSpellScroll``.
+
+        ``learnable`` (default) also emits the ActionType 33 learn action
+        retail scrolls carry, so wizards can transcribe the scroll — *if*
+        the spell is also on the wizard's learnable list (see
+        :meth:`replace_spell_list`).  Retail ships 111 learnable scrolls
+        out of 165; pass ``learnable=False`` for a cast-only scroll (the
+        pattern retail uses for spells wizards can't learn)."""
+        on_use = [build_use_spell_action(spell)]
+        if learnable:
+            on_use.append(build_learn_spell_action(spell))
         return self.new_item(
             name,
             item_type="Object",
@@ -460,7 +472,7 @@ class Mod:
             on_use_description=on_use_description,
             icon=icon,
             treasure=treasure,
-            on_use=[build_use_spell_action(spell)],
+            on_use=on_use,
             data=data,
         )
 

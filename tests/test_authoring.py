@@ -278,6 +278,7 @@ def test_new_scroll_emits_cast_action():
     entry = _entries_by_name(mod)["OBJ_Scroll_MyFireball"]
     assert entry.using == "OBJ_Scroll"
     _, actions = _template_actions(mod, "OBJ_Scroll_MyFireball")
+    assert len(actions) == 2  # cast (12) + learn (33), the retail pair
     action = actions[0]
     assert action.get("ActionType") == "12"
     attrs = action.children[0]
@@ -285,11 +286,27 @@ def test_new_scroll_emits_cast_action():
     assert attrs.get("Conditions") == 'CanUseSpellScroll("Projectile_Fireball")'
     assert attrs.get("ClassId") == SCROLL_CLASS_ID
     assert attrs.attributes["ClassId"].type == "guid"
+    learn = actions[1]
+    assert learn.get("ActionType") == "33"
+    learn_attrs = learn.children[0]
+    assert learn_attrs.get("SpellId") == "Projectile_Fireball"  # not SkillID
+    assert learn_attrs.get("Consume") == "True"
+    assert learn_attrs.get("Conditions") == ""
     # obtainable like any other item
     table = parse_treasure_tables(
         mod.files()[f"Public/ScrollMod/Stats/Generated/TreasureTable.txt"].decode("utf-8")
     )[0]
     assert table.items() == ["OBJ_Scroll_MyFireball"]
+
+
+def test_cast_only_scroll_omits_learn_action():
+    """learnable=False matches retail's cast-only scrolls (54 of 165 ship
+    no ActionType 33 — spells wizards can't transcribe)."""
+    mod = Mod("ScrollMod")
+    mod.new_scroll("OBJ_Scroll_NoLearn", spell="Target_CureWounds",
+                   learnable=False)
+    _, actions = _template_actions(mod, "OBJ_Scroll_NoLearn")
+    assert [a.get("ActionType") for a in actions] == ["12"]
 
 
 def test_new_status_defines_statusdata_with_retail_shape():
