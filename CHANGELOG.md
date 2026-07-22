@@ -126,6 +126,14 @@ The first write primitives aimed at programmatic mod creation:
   damage, auto-derived damage tooltip, and inherited range/cost/visuals —
   confirming the scroll action and `CanUseSpellScroll` accept modded
   SpellData names.
+* `new_scroll` now emits the ActionType 33 learn action (`SpellId`)
+  alongside the cast action, making scrolls wizard-transcribable by
+  default (`learnable=False` for cast-only, retail's pattern for
+  unteachable spells). Found by diffing our scroll against retail's in
+  the live engine after list membership alone produced no "Learn Spell" —
+  which also corrects the survey catalog's ActionType 33 entry ("secondary
+  cast variant" → the transcription action; its 111 occurrences are
+  retail's learnable scrolls).
 * Added teachable spells: `mod.replace_spell_list(uuid, spells, name=…)`
   ships a full spell-list replacement (`Lists/SpellLists.lsx`, backed by
   new `build_spell_list_node`/`build_spell_lists_document` writers).
