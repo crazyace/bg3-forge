@@ -35,6 +35,7 @@ import uuid
 from pathlib import Path
 
 from .parsers.localization import LocaEntry, write_loca
+from .parsers.lsf import write_lsf
 from .parsers.lsx import write_lsx
 from .parsers.meta import ModuleInfo, build_meta_document
 from .parsers.roottemplates import build_root_template_node, build_templates_document
@@ -43,6 +44,11 @@ from .pak.writer import PakWriter
 
 # Fixed namespace so a given mod name always mints the same UUIDs/handles.
 _NAMESPACE = uuid.UUID("f9e6c7a2-1b3d-5e4f-8a09-abcdef012345")
+
+# BG3 loads a module's RootTemplates from a binary LSF named exactly
+# `_merged.lsf` -- an arbitrary `.lsx` in that folder is ignored. Version 7
+# (VerBG3Patch3) matches current retail (Patch 8) output.
+_ROOTTEMPLATE_LSF_VERSION = 7
 
 
 class Mod:
@@ -182,8 +188,11 @@ class Mod:
             ] = write_stats_document(StatsDocument(entries=self._stats)).encode("utf-8")
         if self._templates:
             entries[
-                f"Public/{self.folder}/RootTemplates/{self.folder}.lsx"
-            ] = write_lsx(build_templates_document(self._templates)).encode("utf-8")
+                f"Public/{self.folder}/RootTemplates/_merged.lsf"
+            ] = write_lsf(
+                build_templates_document(self._templates),
+                version=_ROOTTEMPLATE_LSF_VERSION,
+            )
         if self._loca:
             entries[
                 f"Localization/{self.language}/{self.folder}.loca"

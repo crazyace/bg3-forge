@@ -39,6 +39,12 @@ The first write primitives aimed at programmatic mod creation:
   minted with UUID5, so rebuilds are byte-identical. It writes only to the
   chosen output path, never the game install. Verified end to end by
   building a pak and reading every cross-reference back through the parsers.
+* Fixed the capstone to emit RootTemplates as `RootTemplates/_merged.lsf`
+  (binary LSF v7), not an arbitrary `.lsx` — BG3 only loads templates from
+  that exact file. Confirmed by diffing a known-good retail item mod, whose
+  `meta.lsx`, stats layout, `.loca` keys, and `h…g…` handle format all
+  matched what the capstone already produced; the RootTemplate file was the
+  one difference.
 
 ## 0.1.0 — 2026-07-21
 
