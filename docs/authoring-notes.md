@@ -37,7 +37,11 @@ Key points:
 
 Proposed: `mod.place_in_treasure("<ExistingTableName>", "<item>")`.
 
-## 2. Weapons — `new_weapon`
+## 2. Weapons — `new_weapon` — DONE
+
+*Implemented: `mod.new_weapon(damage=, damage_type=, weapon_properties=, …)`,
+routing on-wield `boosts`/`grants_spells` to `BoostsOnEquipMainHand` and
+always-on effects to `DefaultBoosts`.*
 
 Weapons are `type "Weapon"` stats with weapon-specific fields:
 

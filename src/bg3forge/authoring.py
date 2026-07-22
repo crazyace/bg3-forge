@@ -252,6 +252,74 @@ class Mod:
             data=stats_data,
         )
 
+    def new_weapon(
+        self,
+        name: str,
+        *,
+        damage: str | None = None,
+        damage_type: str | None = None,
+        weapon_properties=(),
+        stats_using: str | None = None,
+        parent_template: str | None = None,
+        display_name: str | None = None,
+        description: str | None = None,
+        icon: str | None = None,
+        tags=(),
+        boosts=(),
+        grants_spells=(),
+        default_boosts=(),
+        passives=(),
+        statuses=(),
+        treasure: str | None = None,
+        data: dict[str, str] | None = None,
+    ) -> str:
+        """Convenience over :meth:`new_item` for ``type "Weapon"`` entries.
+
+        ``damage`` (e.g. ``"2d6"``), ``damage_type`` (e.g. ``"Slashing"``),
+        and ``weapon_properties`` (e.g. ``["Twohanded", "Heavy", "Melee"]``)
+        set the corresponding stats fields.  Unlike armor, a weapon's on-wield
+        effects live in ``BoostsOnEquipMainHand``: ``boosts`` and
+        ``grants_spells`` (weapon actions added as ``UnlockSpell(...)``) go
+        there, while ``default_boosts`` (always-on, e.g.
+        ``"WeaponProperty(Magical)"``) go in ``DefaultBoosts``.
+        """
+        stats_data = dict(data or {})
+        if damage is not None:
+            stats_data["Damage"] = damage
+        if damage_type is not None:
+            stats_data["Damage Type"] = damage_type
+        if weapon_properties:
+            stats_data["Weapon Properties"] = _merge_semicolon(
+                stats_data.get("Weapon Properties"), weapon_properties
+            )
+        mainhand = _merge_semicolon(
+            stats_data.get("BoostsOnEquipMainHand"),
+            boosts,
+            [f"UnlockSpell({s})" for s in grants_spells],
+        )
+        if mainhand:
+            stats_data["BoostsOnEquipMainHand"] = mainhand
+        if default_boosts:
+            stats_data["DefaultBoosts"] = _merge_semicolon(
+                stats_data.get("DefaultBoosts"), default_boosts
+            )
+        # passives/statuses share field names with armor; the weapon's
+        # on-wield boosts are already folded into stats_data above.
+        return self.new_item(
+            name,
+            item_type="Weapon",
+            stats_using=stats_using,
+            parent_template=parent_template,
+            display_name=display_name,
+            description=description,
+            icon=icon,
+            tags=tags,
+            passives=passives,
+            statuses=statuses,
+            treasure=treasure,
+            data=stats_data,
+        )
+
     # -- packaging -----------------------------------------------------------
 
     def files(self) -> dict[str, bytes]:

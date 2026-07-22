@@ -137,9 +137,12 @@ composing them and minting stable UUID5 identifiers/handles.
 - [x] Equip abilities: `boosts` / `grants_spells` / `passives` / `statuses`
 - [x] Obtainability: `place_in_treasure` / `treasure=` injects into an
       existing table with `CanMerge`, so items drop from a base-game
-      container instead of console-spawn only
-- [ ] Weapons (`new_weapon`) and custom passives/spells/statuses — formats
-      documented in `docs/authoring-notes.md`; build as a real mod needs them
+      container instead of console-spawn only. Retail-verified: the item
+      appeared in the tutorial chest on a fresh playthrough
+- [x] Weapons (`new_weapon`): damage/type/properties, with on-wield boosts
+      and granted actions routed to `BoostsOnEquipMainHand`
+- [ ] Custom passives/spells/statuses — formats documented in
+      `docs/authoring-notes.md`; build as a real mod needs them
 
 The item slice is complete and retail-verified. Remaining authoring work is
 consumer-driven — build what a real mod needs and verify each in game.

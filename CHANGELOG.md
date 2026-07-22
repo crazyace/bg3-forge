@@ -65,7 +65,13 @@ The first write primitives aimed at programmatic mod creation:
   existing treasure table with `CanMerge`, so it drops from a base-game
   container (e.g. `"TUT_Chest_Potions"` for the tutorial chest) instead of
   being console-spawn-only. Backed by a new treasure-table writer
-  (`write_treasure_tables`).
+  (`write_treasure_tables`). Retail-verified: the generated item appeared in
+  the tutorial chest on a fresh playthrough.
+* Added `mod.new_weapon(...)`: `damage`, `damage_type`, and
+  `weapon_properties` set the weapon stats fields, and on-wield effects
+  (`boosts`, `grants_spells`) route to `BoostsOnEquipMainHand` — not
+  `Boosts` — with always-on effects in `DefaultBoosts`, matching retail
+  weapon layout.
 
 ## 0.1.0 — 2026-07-21
 
