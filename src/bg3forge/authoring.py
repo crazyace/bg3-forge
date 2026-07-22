@@ -529,6 +529,95 @@ class Mod:
         )
         return name
 
+    def new_spell(
+        self,
+        name: str,
+        *,
+        using: str | None = None,
+        spell_type: str | None = None,
+        display_name: str | None = None,
+        description: str | None = None,
+        icon: str | None = None,
+        level: int | None = None,
+        spell_school: str | None = None,
+        spell_roll: str | None = None,
+        spell_success=(),
+        spell_properties=(),
+        tooltip_damage=(),
+        damage_type: str | None = None,
+        use_costs: str | None = None,
+        description_params=(),
+        data: dict[str, str] | None = None,
+    ) -> str:
+        """Define a *custom* spell (a ``type "SpellData"`` entry) and return
+        its name, for use in ``new_scroll(spell=...)`` or an item's
+        ``grants_spells=[...]``.
+
+        The recommended pattern is clone-and-tweak: pass ``using=`` a retail
+        base spell (e.g. ``"Projectile_FireBolt"``) to inherit its targeting,
+        animation, sounds, VFX, and flags, then override what makes the spell
+        yours.  ``spell_roll`` is the attack or save (e.g.
+        ``"Attack(AttackType.RangedSpellAttack)"``), ``spell_success`` the
+        functors run when it lands (``"DealDamage(2d10,Fire,Magical)"``),
+        ``spell_properties`` the functors run on cast for spells without a
+        roll, and ``tooltip_damage`` the ``TooltipDamageList`` shown on the
+        tooltip.  Unset fields inherit the base's values.
+
+        Without a base, ``spell_type`` (``"Projectile"``, ``"Target"``,
+        ``"Shout"``, ``"Zone"``, …) is required, and you must supply the
+        full casting surface (``use_costs`` like ``"ActionPoint:1"``,
+        animation, flags, …) via ``data`` — cloning is strongly preferred.
+        Handles carry the ``;version`` suffix SpellData uses.
+        """
+        if using is None and spell_type is None:
+            raise ValueError(
+                "new_spell needs a base spell (using=) or an explicit "
+                "spell_type= for a from-scratch definition"
+            )
+        stats_data = dict(data or {})
+        if spell_type is not None:
+            stats_data.setdefault("SpellType", spell_type)
+        if display_name:
+            handle = self.add_string(f"{name}:DisplayName", display_name)
+            stats_data["DisplayName"] = f"{handle};1"
+        if description:
+            handle = self.add_string(f"{name}:Description", description)
+            stats_data["Description"] = f"{handle};1"
+        if icon:
+            stats_data["Icon"] = icon
+        if level is not None:
+            stats_data["Level"] = str(level)
+        if spell_school:
+            stats_data["SpellSchool"] = spell_school
+        if spell_roll:
+            stats_data["SpellRoll"] = spell_roll
+        success_field = _merge_semicolon(stats_data.get("SpellSuccess"), spell_success)
+        if success_field:
+            stats_data["SpellSuccess"] = success_field
+        properties_field = _merge_semicolon(
+            stats_data.get("SpellProperties"), spell_properties
+        )
+        if properties_field:
+            stats_data["SpellProperties"] = properties_field
+        tooltip_field = _merge_semicolon(
+            stats_data.get("TooltipDamageList"), tooltip_damage
+        )
+        if tooltip_field:
+            stats_data["TooltipDamageList"] = tooltip_field
+        if damage_type:
+            stats_data["DamageType"] = damage_type
+        if use_costs:
+            stats_data["UseCosts"] = use_costs
+        if description_params:
+            # values substituted into [1], [2], ... placeholders in the text
+            stats_data["DescriptionParams"] = ";".join(
+                str(v) for v in description_params
+            )
+        self._stats.append(
+            StatsEntry(name=name, type="SpellData", using=using, data=stats_data)
+        )
+        return name
+
     def new_passive(
         self,
         name: str,

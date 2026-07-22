@@ -101,6 +101,15 @@ The first write primitives aimed at programmatic mod creation:
   attributes hold everywhere; the scroll `ClassId` proved optional (now
   `class_id=None` omits it) and `StatusDuration` documented as turns, not
   just 0/-1. The survey is a rerunnable patch-drift check.
+* Added `mod.new_spell(...)`: define a *custom* spell (`type "SpellData"`)
+  by cloning a retail base — `using="Projectile_FireBolt"` inherits the
+  targeting/animation/sound/VFX plumbing while overrides carry the identity
+  (localized name/description/icon) and effect (`spell_roll`,
+  `spell_success`, `spell_properties`, `tooltip_damage`, `damage_type`).
+  From-scratch definitions take `spell_type=` plus explicit `data`. The
+  returned name wires into `new_scroll(spell=…)` and `grants_spells=[…]`,
+  completing the fully-original consumable chain (custom spell + custom
+  status + the items that deliver them, all in one mod).
 * Added consumables: `mod.new_potion(status=…)` and `mod.new_elixir(status=…)`
   (a Consume template action applying a status — duration 0, or -1 until long
   rest) and `mod.new_scroll(spell=…)` (the retail cast-from-scroll action,

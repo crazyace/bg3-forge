@@ -1,3 +1,5 @@
+import pytest
+
 from bg3forge import Mod
 from bg3forge.pak.reader import PakReader
 from bg3forge.parsers import (
@@ -351,6 +353,85 @@ def test_custom_status_wires_into_elixir():
     attrs = actions[0].children[0]
     assert attrs.get("StatsId") == "FORGE_FIRE"      # the custom status
     assert attrs.get("StatusDuration") == "-1"       # until long rest
+
+
+def test_new_spell_clones_a_base_spell():
+    """Custom SpellData, clone-and-tweak: `using` a retail base inherits
+    targeting/animation/VFX; overrides carry the damage and identity, with
+    resolving ;version handles like passives and statuses."""
+    mod = Mod("SpellMod")
+    name = mod.new_spell(
+        "Projectile_Forge_Bolt",
+        using="Projectile_FireBolt",
+        display_name="Forge Bolt",
+        description="A bolt of molten forge-fire.",
+        icon="Spell_Evocation_FireBolt",
+        spell_success=["DealDamage(2d10,Fire,Magical)"],
+        tooltip_damage=["DealDamage(2d10,Fire)"],
+        damage_type="Fire",
+    )
+    assert name == "Projectile_Forge_Bolt"
+    entry = _entries_by_name(mod)["Projectile_Forge_Bolt"]
+    assert entry.type == "SpellData"
+    assert entry.using == "Projectile_FireBolt"
+    assert entry.get("SpellSuccess") == "DealDamage(2d10,Fire,Magical)"
+    assert entry.get("TooltipDamageList") == "DealDamage(2d10,Fire)"
+    assert entry.get("DamageType") == "Fire"
+    assert entry.get("SpellType") is None  # inherited from the base
+    display = entry.get("DisplayName")
+    assert display.startswith("h") and display.endswith(";1")
+    loca = Localization()
+    loca.load_bytes(mod.files()["Localization/English/SpellMod.loca"])
+    assert loca.resolve(display) == "Forge Bolt"
+
+
+def test_new_spell_from_scratch_requires_spell_type():
+    mod = Mod("SpellMod")
+    with pytest.raises(ValueError):
+        mod.new_spell("Projectile_Orphan")
+    mod.new_spell(
+        "Shout_Forge_Cry",
+        spell_type="Shout",
+        level=1,
+        spell_school="Evocation",
+        spell_properties=["ApplyStatus(FORGE_FIRE,100,10)"],
+        use_costs="ActionPoint:1",
+    )
+    entry = _entries_by_name(mod)["Shout_Forge_Cry"]
+    assert entry.using is None
+    assert entry.get("SpellType") == "Shout"
+    assert entry.get("Level") == "1"
+    assert entry.get("SpellProperties") == "ApplyStatus(FORGE_FIRE,100,10)"
+    assert entry.get("UseCosts") == "ActionPoint:1"
+
+
+def test_scroll_of_a_custom_spell():
+    """The fully-original scroll: the cast action's SkillID references a
+    SpellData entry this same mod defines."""
+    mod = Mod("ForgeSpells")
+    spell = mod.new_spell(
+        "Projectile_Forge_Bolt",
+        using="Projectile_FireBolt",
+        spell_success=["DealDamage(2d10,Fire,Magical)"],
+    )
+    mod.new_scroll("OBJ_Scroll_ForgeBolt", spell=spell,
+                   display_name="Scroll of Forge Bolt")
+    entries = _entries_by_name(mod)
+    assert entries["Projectile_Forge_Bolt"].type == "SpellData"
+    _, actions = _template_actions(mod, "OBJ_Scroll_ForgeBolt")
+    attrs = actions[0].children[0]
+    assert attrs.get("SkillID") == "Projectile_Forge_Bolt"
+    assert attrs.get("Conditions") == 'CanUseSpellScroll("Projectile_Forge_Bolt")'
+
+
+def test_item_grants_a_custom_spell():
+    """The other delivery path (retail-verified for base-game spells): an
+    equipped item unlocks the custom spell."""
+    mod = Mod("ForgeSpells")
+    spell = mod.new_spell("Projectile_Forge_Bolt", using="Projectile_FireBolt")
+    mod.new_armor("ARM_Caster_Vest", grants_spells=[spell])
+    entry = _entries_by_name(mod)["ARM_Caster_Vest"]
+    assert entry.get("Boosts") == "UnlockSpell(Projectile_Forge_Bolt)"
 
 
 def test_effect_description_fills_technical_description_slot():

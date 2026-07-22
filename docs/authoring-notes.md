@@ -88,11 +88,12 @@ suffix (unlike the RootTemplate handles). A `mod.new_passive(name,
 boosts=[...], display_name=..., description=...)` would mint the handles
 and register the loca, mirroring `new_item`.
 
-## 4. Custom spells and statuses — statuses DONE
+## 4. Custom spells and statuses — DONE
 
 *Statuses implemented: `mod.new_status(boosts=…, on_apply=…, …)` emits the
 retail `StatusData` BOOST shape (StackId = name, `;version` handles,
-`OnApplyFunctors` for instant effects). Custom spells remain.*
+`OnApplyFunctors` for instant effects). Spells implemented:
+`mod.new_spell(using=…, …)` — the clone-and-tweak slice.*
 
 Spells are `type "SpellData"` with a `SpellType` (`Target`, `Projectile`,
 `Shout`, `Zone`, …), typically `using` a base spell, plus
@@ -100,6 +101,17 @@ Spells are `type "SpellData"` with a `SpellType` (`Target`, `Projectile`,
 are `type "StatusData"` with a `StatusType`. Both are the richest stats
 schemas and are best modeled per-`SpellType`/`StatusType` when a consumer
 needs them — not speculatively.
+
+`new_spell`'s first slice leans on `using` inheritance: cloning a retail
+base (e.g. `Projectile_FireBolt`) carries the targeting, animation, sound,
+VFX, `UseCosts`, and `SpellFlags` plumbing, so a custom spell only
+overrides identity (`DisplayName`/`Description`/`Icon`, `;version`
+handles) and effect (`SpellRoll`/`SpellSuccess`/`SpellProperties`,
+`TooltipDamageList`, `DamageType`). From-scratch definitions require
+`spell_type=` and the full casting surface via `data=`. Delivery paths:
+`new_scroll(spell=<custom>)` (the ActionType 12 `SkillID` accepts a modded
+SpellData name) and `grants_spells=[<custom>]` on an equipped item
+(`UnlockSpell`).
 
 ## 5. Consumables — scrolls, potions, elixirs — reference-existing forms DONE
 
