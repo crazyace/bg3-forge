@@ -526,3 +526,27 @@ def test_parse_spell_lists():
     assert spell_list.comment == "Barbarian rituals"
     assert spell_list.spell_names == ["Shout_Rage", "Target_Jump"]
     assert spell_list.source == "lists.lsx"
+
+
+def test_spell_list_builder_round_trips():
+    """The writer emits the retail shape (Name FixedString, Spells LSString,
+    UUID guid in a SpellLists/root region) and re-parses to the same list."""
+    from bg3forge.parsers import (
+        build_spell_list_node,
+        build_spell_lists_document,
+        write_lsx,
+    )
+
+    node = build_spell_list_node(
+        "cccccccc-0000-0000-0000-000000000002",
+        ["Target_MistyStep", "Target_Forge_Step"],
+        name="Wizard spells",
+    )
+    assert node.attributes["UUID"].type == "guid"
+    assert node.attributes["Spells"].type == "LSString"
+    assert node.attributes["Name"].type == "FixedString"
+    parsed = parse_spell_lists(parse_lsx(write_lsx(build_spell_lists_document([node]))))
+    assert len(parsed) == 1
+    assert parsed[0].uuid == "cccccccc-0000-0000-0000-000000000002"
+    assert parsed[0].spell_names == ["Target_MistyStep", "Target_Forge_Step"]
+    assert parsed[0].display_name == "Wizard spells"

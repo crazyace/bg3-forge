@@ -103,6 +103,21 @@ def test_roundtrip_all_types(version):
     assert [c.attributes["Index"].value for c in node.children] == ["1", "2"]
 
 
+def test_guid_layout_matches_retail():
+    """Larian's LSF guid layout: ``bytes_le`` for the first three groups,
+    the last two groups as little-endian 16-bit words.  Frozen against a
+    retail-verified pair — the scroll-action ClassId bytes decode to the
+    Wizard ClassDescription UUID exactly as Larian's own LSX text writes
+    it.  The byte layout matches what earlier releases wrote; only the
+    text rendering changed."""
+    from bg3forge.parsers.lsf import _guid_from_text, _guid_to_text
+
+    raw = bytes.fromhex("5f9665a81b50e946aa9e4877c0e8094d")
+    canonical = "a865965f-501b-46e9-9eaa-7748e8c04d09"
+    assert _guid_to_text(raw) == canonical
+    assert _guid_from_text(canonical) == raw
+
+
 def test_keyed_versions_preserve_node_keys():
     original = parse_lsx(ALL_TYPES_LSX)
     # Node keys exist from v6 (VerBG3NodeKeys) on; v5 predates them.

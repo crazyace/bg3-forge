@@ -44,6 +44,7 @@ from .parsers.roottemplates import (
     build_templates_document,
     build_use_spell_action,
 )
+from .parsers.spelllists import build_spell_list_node, build_spell_lists_document
 from .parsers.stats import StatsDocument, StatsEntry, write_stats_document
 from .parsers.treasure import (
     TreasureObject,
@@ -101,6 +102,7 @@ class Mod:
         self._templates: list = []
         self._loca: list[LocaEntry] = []
         self._treasure: dict[str, TreasureTable] = {}
+        self._spell_lists: dict[str, tuple[list[str], str]] = {}
 
     # -- identifier minting --------------------------------------------------
 
@@ -675,6 +677,30 @@ class Mod:
         )
         return name
 
+    def replace_spell_list(
+        self, list_uuid: str, spells, *, name: str = ""
+    ) -> None:
+        """Ship a full replacement for a spell list (by UUID).
+
+        The game swaps lists wholesale, so *extending* a base-game list
+        means passing its complete current spell set plus your additions —
+        read it at build time so it tracks the installed patch::
+
+            wiz = "beb9389e-24f8-49b0-86a5-e8d08b6fdc2e"   # WIZARD_LEARNABLE_LIST
+            base = game.spell_lists[wiz]
+            mod.replace_spell_list(wiz, base.spell_names + [my_spell],
+                                   name=base.display_name)
+
+        That list is the Wizard ``ClassDescription``'s ``SpellList`` — the
+        pool scroll transcription draws from — so adding a custom spell to
+        it makes that spell's scroll teachable ("Learn Spell") for wizards.
+
+        Compatibility caveat: two mods replacing the *same* list conflict
+        (last in load order wins).  This is the standard technique, but
+        worth a note in your mod's description.
+        """
+        self._spell_lists[list_uuid] = (list(spells), name)
+
     # -- packaging -----------------------------------------------------------
 
     def files(self) -> dict[str, bytes]:
@@ -703,6 +729,14 @@ class Mod:
             entries[
                 f"Public/{self.folder}/Stats/Generated/TreasureTable.txt"
             ] = write_treasure_tables(list(self._treasure.values())).encode("utf-8")
+        if self._spell_lists:
+            nodes = [
+                build_spell_list_node(list_uuid, spells, name=name)
+                for list_uuid, (spells, name) in self._spell_lists.items()
+            ]
+            entries[f"Public/{self.folder}/Lists/SpellLists.lsx"] = write_lsx(
+                build_spell_lists_document(nodes)
+            ).encode("utf-8")
         return entries
 
     def build(self, output: str | Path) -> Path:

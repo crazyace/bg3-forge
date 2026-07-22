@@ -453,6 +453,31 @@ def test_new_spell_empty_use_costs_is_an_override():
     assert _entries_by_name(mod)["Target_Inherit"].get("UseCosts") is None
 
 
+def test_teachable_spell_replaces_wizard_list():
+    """Wizard scroll-learning: the ClassDescription's SpellList is the
+    transcription pool, so re-shipping that list with a custom spell
+    appended makes the spell's scroll teachable."""
+    from bg3forge.parsers import WIZARD_LEARNABLE_LIST, parse_spell_lists
+
+    mod = Mod("TeachMod")
+    s = mod.new_spell("Target_Forge_Step", using="Target_MistyStep")
+    mod.replace_spell_list(
+        WIZARD_LEARNABLE_LIST, ["Target_MistyStep", s], name="Wizard spells"
+    )
+    text = mod.files()["Public/TeachMod/Lists/SpellLists.lsx"].decode("utf-8")
+    lists = parse_spell_lists(parse_lsx(text))
+    assert len(lists) == 1
+    assert lists[0].uuid == WIZARD_LEARNABLE_LIST
+    assert lists[0].spell_names == ["Target_MistyStep", "Target_Forge_Step"]
+    assert lists[0].display_name == "Wizard spells"
+
+
+def test_no_spell_list_means_no_lists_file():
+    mod = Mod("PlainMod")
+    mod.new_item("OBJ_Thing")
+    assert not any("Lists/" in name for name in mod.files())
+
+
 def test_item_grants_a_custom_spell():
     """The other delivery path (retail-verified for base-game spells): an
     equipped item unlocks the custom spell."""
