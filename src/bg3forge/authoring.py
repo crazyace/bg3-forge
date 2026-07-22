@@ -150,6 +150,7 @@ class Mod:
         parent_template: str | None = None,
         display_name: str | None = None,
         description: str | None = None,
+        effect_description: str | None = None,
         on_use_description: str | None = None,
         icon: str | None = None,
         tags=(),
@@ -165,6 +166,14 @@ class Mod:
         """Add an item (a stats entry plus its RootTemplate) and return its
         template UUID.  ``name`` is the internal stats/template identifier;
         ``display_name`` is the localized name shown in game.
+
+        The text slots match BG3's tooltip layout: ``display_name`` is the
+        item name, ``description`` the *italic flavor* line,
+        ``effect_description`` the golden effect blurb
+        (``TechnicalDescription`` — supports ``<LSTag ...>`` hyperlinks),
+        and ``on_use_description`` the use-verb label (retail: "Drink").
+        When cloning via ``parent_template``, unset slots inherit the
+        base's text.
 
         Pass ``treasure="<TableName>"`` to make the item obtainable by
         injecting it into an existing treasure table (see
@@ -203,6 +212,11 @@ class Mod:
         description_handle = (
             self.add_string(f"{name}:Description", description) if description else None
         )
+        effect_handle = (
+            self.add_string(f"{name}:TechnicalDescription", effect_description)
+            if effect_description
+            else None
+        )
         on_use_handle = (
             self.add_string(f"{name}:OnUseDescription", on_use_description)
             if on_use_description
@@ -217,6 +231,7 @@ class Mod:
                 icon=icon,
                 display_name=display_handle,
                 description=description_handle,
+                technical_description=effect_handle,
                 on_use_description=on_use_handle,
                 parent_template_id=parent_template,
                 tags=tags,
@@ -344,6 +359,7 @@ class Mod:
         parent_template: str | None = None,
         display_name: str | None = None,
         description: str | None = None,
+        effect_description: str | None = None,
         on_use_description: str | None = None,
         icon: str | None = None,
         treasure: str | None = None,
@@ -357,10 +373,12 @@ class Mod:
         while the stats entry (``using "_Potion"`` by default) carries the
         bonus-action cost, Consumable tab, and use conditions.
 
-        Set ``on_use_description`` to the effect blurb shown on the item
-        tooltip.  When cloning a base via ``parent_template``, leaving it
-        unset inherits the *base's* blurb (e.g. the healing potion's
-        "Heals and removes Burning").
+        Set ``effect_description`` to the golden effect blurb shown on the
+        item tooltip (``TechnicalDescription``; supports ``<LSTag ...>``
+        hyperlinks).  When cloning a base via ``parent_template``, leaving
+        it unset inherits the *base's* blurb (e.g. the healing potion's
+        "Heals and removes Burning").  ``on_use_description`` is only the
+        use-verb label ("Drink").
         """
         return self.new_item(
             name,
@@ -369,6 +387,7 @@ class Mod:
             parent_template=parent_template,
             display_name=display_name,
             description=description,
+            effect_description=effect_description,
             on_use_description=on_use_description,
             icon=icon,
             treasure=treasure,
@@ -385,6 +404,7 @@ class Mod:
         parent_template: str | None = None,
         display_name: str | None = None,
         description: str | None = None,
+        effect_description: str | None = None,
         on_use_description: str | None = None,
         icon: str | None = None,
         treasure: str | None = None,
@@ -400,6 +420,7 @@ class Mod:
             parent_template=parent_template,
             display_name=display_name,
             description=description,
+            effect_description=effect_description,
             on_use_description=on_use_description,
             icon=icon,
             treasure=treasure,
@@ -415,6 +436,7 @@ class Mod:
         parent_template: str | None = None,
         display_name: str | None = None,
         description: str | None = None,
+        effect_description: str | None = None,
         on_use_description: str | None = None,
         icon: str | None = None,
         treasure: str | None = None,
@@ -430,6 +452,7 @@ class Mod:
             parent_template=parent_template,
             display_name=display_name,
             description=description,
+            effect_description=effect_description,
             on_use_description=on_use_description,
             icon=icon,
             treasure=treasure,
@@ -449,6 +472,7 @@ class Mod:
         status_type: str = "BOOST",
         stack_id: str | None = None,
         apply_effect: str | None = None,
+        description_params=(),
         property_flags=(),
         data: dict[str, str] | None = None,
     ) -> str:
@@ -488,6 +512,11 @@ class Mod:
             stats_data["Icon"] = icon
         if apply_effect:
             stats_data["ApplyEffect"] = apply_effect
+        if description_params:
+            # values substituted into [1], [2], ... placeholders in the text
+            stats_data["DescriptionParams"] = ";".join(
+                str(v) for v in description_params
+            )
         flags_field = _merge_semicolon(
             stats_data.get("StatusPropertyFlags"), property_flags
         )
