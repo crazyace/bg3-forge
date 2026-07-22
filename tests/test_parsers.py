@@ -248,6 +248,62 @@ def test_parse_lsx_rejects_garbage():
         parse_lsx("definitely not xml <")
 
 
+_CONTAINER_LSX = """\
+<?xml version="1.0" encoding="utf-8"?>
+<save>
+  <version major="4" minor="0" revision="9" build="330" />
+  <region id="Templates">
+    <node id="Templates">
+      <children>
+        <node id="GameObjects">
+          <attribute id="MapKey" type="FixedString" value="e57e3af6-ae79-4d5c-9d11-f695b359c740" />
+          <attribute id="Name" type="LSString" value="S_Chest_Potions" />
+          <attribute id="TemplateName" type="FixedString" value="813c005f-72ab-4806-ad7e-2e3135e41d27" />
+          <children>
+            <node id="InventoryList">
+              <children>
+                <node id="InventoryItem">
+                  <attribute id="Object" type="LSString" value="TUT_Chest_Potions" />
+                </node>
+              </children>
+            </node>
+          </children>
+        </node>
+      </children>
+    </node>
+  </region>
+</save>
+"""
+
+
+def test_root_template_parses_inventory_treasure_link():
+    template = parse_root_templates(parse_lsx(_CONTAINER_LSX))[0]
+    assert template.name == "S_Chest_Potions"
+    assert template.inventory == ["TUT_Chest_Potions"]
+    # a treasure-table name is not a UUID, so it surfaces as a treasure table
+    assert template.treasure_tables == ["TUT_Chest_Potions"]
+
+
+def test_by_treasure_table_finds_the_container():
+    index = RootTemplateIndex()
+    index.add_document(parse_lsx(_CONTAINER_LSX))
+    matches = index.by_treasure_table("TUT_Chest_Potions")
+    assert len(matches) == 1
+    # the placed object's MapKey is the UUID you'd spawn
+    assert matches[0].map_key == "e57e3af6-ae79-4d5c-9d11-f695b359c740"
+    assert index.by_treasure_table("NOPE") == []
+
+
+def test_direct_object_inventory_is_not_a_treasure_table():
+    """An InventoryItem Object that is a UUID is a direct item, not a table."""
+    lsx = _CONTAINER_LSX.replace(
+        "TUT_Chest_Potions", "1111aaaa-0000-0000-0000-000000000001"
+    )
+    template = parse_root_templates(parse_lsx(lsx))[0]
+    assert template.inventory == ["1111aaaa-0000-0000-0000-000000000001"]
+    assert template.treasure_tables == []  # UUID filtered out
+
+
 def test_root_template_inheritance():
     index = RootTemplateIndex()
     index.add_document(parse_lsx(ROOTTEMPLATE_LSX))

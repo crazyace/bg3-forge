@@ -14,6 +14,13 @@
 * Retail verification found 1,004 effective progression records across 144
   tables and 315 effective spell lists, with zero unresolved joins; the new
   benchmark stage takes 0.29 seconds on the reference install.
+* RootTemplates now capture their `InventoryList` object references
+  (`RootTemplate.inventory` / `.treasure_tables`), and
+  `RootTemplateIndex.by_treasure_table(name)` returns the containers that
+  fill from a treasure table. On `game.item_templates` (which includes
+  placed level objects) this answers "which container drops from
+  `TUT_Chest_Potions`, and what's its spawn UUID" — closing the loop with
+  the authoring `treasure=` feature.
 
 ### Mod authoring (experimental)
 
