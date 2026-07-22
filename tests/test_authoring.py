@@ -290,6 +290,47 @@ def test_new_scroll_emits_cast_action():
     assert table.items() == ["OBJ_Scroll_MyFireball"]
 
 
+def test_new_status_defines_statusdata_with_retail_shape():
+    """Custom StatusData: BOOST type, StackId defaulting to the name,
+    Boosts + instant OnApplyFunctors, and a resolving ;version handle."""
+    mod = Mod("StatusMod")
+    name = mod.new_status(
+        "FORGE_FIRE",
+        boosts=["Ability(Strength,2)", "Resistance(Fire,Resistant)"],
+        on_apply=["RegainHitPoints(1d4)"],
+        display_name="Forgefire",
+        description="Burning with creativity.",
+        icon="GenericIcon_Intent_Buff",
+    )
+    assert name == "FORGE_FIRE"
+    entry = _entries_by_name(mod)["FORGE_FIRE"]
+    assert entry.type == "StatusData"
+    assert entry.get("StatusType") == "BOOST"
+    assert entry.get("StackId") == "FORGE_FIRE"  # defaults to the name
+    assert entry.get("Boosts") == "Ability(Strength,2);Resistance(Fire,Resistant)"
+    assert entry.get("OnApplyFunctors") == "RegainHitPoints(1d4)"
+    display = entry.get("DisplayName")
+    assert display.startswith("h") and display.endswith(";1")
+    loca = Localization()
+    loca.load_bytes(mod.files()["Localization/English/StatusMod.loca"])
+    assert loca.resolve(display) == "Forgefire"
+
+
+def test_custom_status_wires_into_elixir():
+    """The fully-original consumable: an elixir applying a status the base
+    game has never seen."""
+    mod = Mod("BrewMod")
+    status = mod.new_status("FORGE_FIRE", boosts=["Ability(Strength,2)"])
+    mod.new_elixir("OBJ_Forgefire_Brew", status=status,
+                   display_name="Forgefire Brew", treasure="TUT_Chest_Potions")
+    entries = _entries_by_name(mod)
+    assert entries["FORGE_FIRE"].type == "StatusData"
+    _, actions = _template_actions(mod, "OBJ_Forgefire_Brew")
+    attrs = actions[0].children[0]
+    assert attrs.get("StatsId") == "FORGE_FIRE"      # the custom status
+    assert attrs.get("StatusDuration") == "-1"       # until long rest
+
+
 def test_place_in_treasure_accumulates_across_items():
     mod = Mod("Multi")
     mod.new_armor("ARM_A", treasure="TUT_Chest_Potions")
