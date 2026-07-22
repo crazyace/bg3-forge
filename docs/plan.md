@@ -3,8 +3,8 @@
 Agreed working plan as of 2026-07. The first real consumer integration
 has now exercised the item/template/icon API against retail data, so the
 next gate is the 0.1.0 release. Work after that remains consumer-driven:
-finish Pathway's leveling-data migration before opening another large
-binary-format project.
+finish the typed progression graph for build-planning and data-export
+consumers before opening another large binary-format project.
 
 ## 1. Retail verification of the completed journal layer — complete
 
@@ -54,7 +54,7 @@ ten files and identified Gustav's older Osiris 1.13 expanded-value
 layout; the pinned follow-up fix produced a clean sweep. All 943 unique
 source-goal names were present in compiled data.
 
-## 3. BG3 Pathway integration — item-data slice complete
+## 3. First downstream consumer integration — item-data slice complete
 
 *The point of the whole library. Also the best API review we can get.*
 
@@ -63,21 +63,22 @@ source-goal names were present in compiled data.
 - [x] Depend on bg3forge via git ref (pinned commit) until the release
       is cut; no vendored copies
 - [x] Replace the Script Extender/Lua item dump and Multitool icon path
-      with `Game`-API calls; Pathway contains no pak/format code for this
-      pipeline
+      with `Game`-API calls; the consumer contains no pak/format code for
+      this pipeline
 - [x] Feed consumer friction back into Forge: global and level-placed
       templates, `TemplateName` inheritance, and selected in-pak icon
       export were all added from this integration
-- [x] Validate the generated Pathway database against the existing
-      consumer data: 7,081 named items, 146/146 curated records enriched,
-      and 994/994 gear icon keys covered after two documented fallbacks
-- [ ] Add typed progression joins (classes/races → levels →
-      spells/passives) for Pathway's leveling/build data
-- [ ] Migrate any remaining game-derived Pathway inputs once the typed
+- [x] Validate the generated consumer database against its existing data:
+      7,081 named items, 146/146 curated records enriched, and 994/994 gear
+      icon keys covered after two documented fallbacks
+- [ ] Add typed progression joins (classes/races → level progressions →
+      granted spells/passives), with reverse lookups for build-planning
+      and data-export consumers
+- [ ] Migrate the remaining game-derived leveling inputs once the typed
       progression API is available
 
 The item-data exit criterion is met. The broader consumer milestone closes
-when Pathway's remaining leveling data also comes through BG3 Forge.
+when the remaining leveling-data inputs can be served through BG3 Forge.
 
 ## 4. Release 0.1.0 — current
 
@@ -103,9 +104,9 @@ when Pathway's remaining leveling data also comes through BG3 Forge.
 
 Model the existing progression parser as a relationship graph rather than
 starting a speculative format project. The target API is classes/races →
-level records → granted spells/passives, with reverse lookups where a real
-Pathway query needs them. Retail counts and joins must be added to
-`validate` and `benchmark` before the consumer migrates.
+level records → granted spells/passives, with reverse lookups driven by
+concrete build-planning and data-export queries. Retail counts and joins
+must be added to `validate` and `benchmark` before downstream migration.
 
 ## 6. Format backlog
 
@@ -122,6 +123,6 @@ is the largest project and has no current consumer requirement.
 ## Sequencing
 
 Milestones 1 and 2 are complete, and milestone 3 proved the first consumer
-slice. Finish the 0.1.0 release next, then let Pathway's progression needs
-shape milestone 5. Do not start a backlog format without a concrete
+slice. Finish the 0.1.0 release next, then let concrete consumer progression
+needs shape milestone 5. Do not start a backlog format without a concrete
 consumer or a separately agreed research goal.

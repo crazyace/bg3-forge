@@ -76,7 +76,7 @@ numbers and `docs/retail-testing.md` for how to reproduce them.
 * Shared cached pak readers: the full pipeline dropped from ~28.6 s to
   ~8.8 s on the retail baseline (ten stages had each re-parsed every
   pak file list)
-* BG3 Pathway became the first downstream consumer: its item database now
-  sources 7,081 named items plus passives, statuses, placed templates, and
-  icons through BG3 Forge; all 146 curated items enrich successfully and
-  all 994 referenced gear icon keys are covered
+* A real downstream consumer now sources 7,081 named items plus passives,
+  statuses, placed templates, and icons through BG3 Forge; all 146 curated
+  items enrich successfully and all 994 referenced gear icon keys are
+  covered
