@@ -485,13 +485,37 @@ def _fmt_scalar(value) -> str:
     return str(value)
 
 
-def _unpack_version64(value: int) -> tuple[int, int, int, int]:
+#: Bit widths of the (major, minor, build, revision) fields packed into a
+#: Larian ``Version64``.  They tile a uint64 exactly: 9 + 8 + 16 + 31 == 64.
+_VERSION64_FIELDS = (("major", 9, 55), ("minor", 8, 47), ("build", 16, 31), ("revision", 31, 0))
+
+
+def unpack_version64(value: int) -> tuple[int, int, int, int]:
+    """Split a Larian ``Version64`` integer into (major, minor, build, revision)."""
     return (
         (value >> 55) & 0x1FF,
         (value >> 47) & 0xFF,
         (value >> 31) & 0xFFFF,
         value & 0x7FFFFFFF,
     )
+
+
+def pack_version64(major: int, minor: int, build: int, revision: int) -> int:
+    """Pack (major, minor, build, revision) into a Larian ``Version64`` integer.
+
+    The exact inverse of :func:`unpack_version64`.  Each field must fit its
+    width (major<9, minor<8, build<16, revision<31 bits); a value out of
+    range raises :class:`ValueError` rather than silently wrapping.
+    """
+    for name, bits, shift in _VERSION64_FIELDS:
+        value = {"major": major, "minor": minor, "build": build, "revision": revision}[name]
+        if not 0 <= value < (1 << bits):
+            raise ValueError(f"{name} {value} does not fit in {bits} bits")
+    return (major << 55) | (minor << 47) | (build << 31) | revision
+
+
+#: Backwards-compatible internal alias.
+_unpack_version64 = unpack_version64
 
 
 def _unpack_version32(value: int) -> tuple[int, int, int, int]:

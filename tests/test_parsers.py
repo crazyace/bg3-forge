@@ -3,17 +3,23 @@ import pytest
 from bg3forge.parsers import (
     Localization,
     LocaEntry,
+    ModuleInfo,
     StatsCollection,
     StatsDocument,
     StatsEntry,
     StatsParseError,
+    build_meta_document,
+    pack_version64,
     parse_loca,
     parse_lsx,
+    parse_meta,
     parse_root_templates,
     parse_stats,
     parse_stats_document,
     parse_treasure_tables,
+    unpack_version64,
     write_loca,
+    write_lsx,
     write_stats,
     write_stats_document,
     RootTemplateIndex,
@@ -248,6 +254,45 @@ def test_root_template_inheritance():
     assert resolved["Icon"] == "Item_Generic"    # inherited from parent
     assert resolved["Name"] == "WPN_Longsword"   # own value wins
     assert parse_root_templates(parse_lsx(ROOTTEMPLATE_LSX))[0].map_key.startswith("0000base")
+
+
+# -- meta.lsx / Version64 ----------------------------------------------------
+
+def test_version64_packs_and_unpacks():
+    # The retail reference version round-trips through both directions.
+    retail = (4, 8, 700, 7143220)
+    packed = pack_version64(*retail)
+    assert unpack_version64(packed) == retail
+    # pack is the exact inverse of unpack for an arbitrary in-range integer.
+    value = 0x0420_0000_1234_5678
+    assert pack_version64(*unpack_version64(value)) == value
+
+
+def test_version64_rejects_out_of_range_field():
+    with pytest.raises(ValueError, match="minor"):
+        pack_version64(1, 256, 0, 0)  # minor is 8 bits
+
+
+def test_build_meta_document_roundtrips():
+    module = ModuleInfo(
+        name="SunforgedArmors",
+        uuid="11112222-3333-4444-5555-666677778888",
+        author="Author",
+        description="A test mod.",
+        version=(1, 2, 3, 4),
+    )
+    text = write_lsx(build_meta_document(module))
+    assert parse_meta(parse_lsx(text)) == module
+
+
+def test_build_meta_defaults_folder_to_name_and_emits_required_fields():
+    module = ModuleInfo(name="MyMod", uuid="abc")
+    assert module.folder == "MyMod"  # normalized in __post_init__
+    info = next(build_meta_document(module).find_all("ModuleInfo"))
+    for required in ("Folder", "Name", "UUID", "Version64", "Type"):
+        assert required in info.attributes
+    assert info.get("Type") == "Add-on"
+    assert info.get("Folder") == "MyMod"
 
 
 # -- treasure ----------------------------------------------------------------

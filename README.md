@@ -202,6 +202,20 @@ for native-speed decompression.
 * `bg3forge convert` converts `.lsf` ↔ `.lsx` from the command line — no
   lslib/divine required
 
+### Mod authoring (experimental)
+
+Write primitives for generating a mod programmatically — the inverse of
+the parsers above, and the beginning of first-class mod-creation support:
+
+* **Module manifest** — build a game-readable `meta.lsx` from a
+  `ModuleInfo` (name, folder, UUID, packed version) — `build_meta_document`,
+  with `parse_meta` to read one back
+* **Version64** — pack/unpack Larian's 64-bit module version, the inverse
+  pair `doctor` already relied on — `pack_version64` / `unpack_version64`
+
+This is the manifest layer; stats and RootTemplate content primitives
+follow, building toward a "create a new item" authoring API.
+
 ### Icon pipeline (`bg3forge.assets`)
 
 * Parse texture atlas definitions (`IconUVList` LSX)
@@ -343,9 +357,12 @@ src/bg3forge/
   and icon datasets generated entirely through BG3 Forge; the integration
   drove placed-template coverage and direct in-pak icon export
 * ✅ PyPI release — [0.1.0 is available](https://pypi.org/project/bg3forge/0.1.0/)
-* ⏳ Typed progression graph — classes/races → level progressions →
-  granted spells/passives, with reverse lookups for build-planning and
-  data-export consumers
+* ✅ Typed progression graph (`game.progressions`) — classes/races → level
+  records → granted `AddSpells` and selectable `SelectSpells`, resolved
+  spell lists and passives, with reverse links on `Spell`/`Passive`
+* ⏳ Mod authoring — write primitives for generating a mod: `meta.lsx`
+  manifest and `Version64` packing are done; stats and RootTemplate
+  content primitives follow
 * ⏳ Virtual texture (GTS/GTP) atlas support
 * ⏳ GR2 model metadata
 * ⏳ Full Osiris rule decompilation — metadata traversal is complete;

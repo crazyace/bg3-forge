@@ -15,12 +15,18 @@
   tables and 315 effective spell lists, with zero unresolved joins; the new
   benchmark stage takes 0.29 seconds on the reference install.
 
-### Formats
+### Mod authoring (experimental)
+
+The first write primitives aimed at programmatic mod creation:
 
 * Added a stats writer (`write_stats`, `write_stats_document`), the inverse
   of the stats parser. Re-parsing its output reproduces the same document,
-  and the canonical fixture round-trips byte-for-byte. This is the first
-  write primitive aimed at programmatic mod authoring.
+  and the canonical fixture round-trips byte-for-byte.
+* Added a `meta.lsx` module-manifest builder: `build_meta_document` turns a
+  `ModuleInfo` (name, folder, UUID, packed version) into a game-readable
+  manifest via `write_lsx`, with `parse_meta` to read one back.
+* Added `pack_version64`/`unpack_version64` (the public inverse pair for
+  Larian's 64-bit module version).
 
 ## 0.1.0 — 2026-07-21
 
