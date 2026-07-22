@@ -306,6 +306,22 @@ class Spell(GameObject):
         """Items that unlock this spell (reverse of ``Item.spells``)."""
         return self._granted_by("spells")
 
+    @cached_property
+    def progressions(self) -> list:
+        """Progressions that grant this spell via ``AddSpells``."""
+        game = getattr(self, "_game", None)
+        if game is None:
+            return []
+        return game.progressions_granting_spell(self.name)
+
+    @cached_property
+    def progression_choices(self) -> list:
+        """Progressions where this spell is an option via ``SelectSpells``."""
+        game = getattr(self, "_game", None)
+        if game is None:
+            return []
+        return game.progressions_offering_spell(self.name)
+
     @classmethod
     def from_stats(cls, name, data, display_name="", description=""):
         return cls(
@@ -340,6 +356,14 @@ class Passive(GameObject):
         if game is None:
             return []
         return game.characters_with_passive(self.name)
+
+    @cached_property
+    def progressions(self) -> list:
+        """Progressions whose ``PassivesAdded`` grants this passive."""
+        game = getattr(self, "_game", None)
+        if game is None:
+            return []
+        return game.progressions_granting_passive(self.name)
 
     @classmethod
     def from_stats(cls, name, data, display_name="", description=""):

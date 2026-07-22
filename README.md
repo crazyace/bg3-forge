@@ -180,7 +180,8 @@ for native-speed decompression.
   cares which one the game shipped
 * **RootTemplates** (`.lsx` or `.lsf`) with `ParentTemplateId`
   inheritance — `RootTemplateIndex`
-* **Progressions** (class/race level tables) — `parse_progressions`
+* **Progressions** (class/race level tables) and referenced spell lists —
+  `parse_progressions` / `parse_spell_lists`
 * **Treasure tables** — `parse_treasure_tables`
 * **Tag registry** (`Tags/*.lsx|.lsf`) — UUID/name lookup with categories
   and localized display strings — `TagRegistry`
@@ -239,6 +240,10 @@ game.spells["Projectile_Fireball"]               # lookup by stats name
 game.items.find("amulet")                        # search names + display names
 game.items.get("WPN_Maybe", default=None)        # tolerant lookup
 game.item_templates                               # RootTemplates + placed global items
+levels = game.progressions.by_table(table_uuid)   # ordered level records
+levels[0].passives                                # resolved Passive models
+levels[0].spells                                  # automatic AddSpells grants
+levels[0].selectable_spells                       # SelectSpells choices
 game.export_icons(                                # read atlases from paks, write WebP
     {item.icon for item in game.items if item.icon}, "assets/icons"
 )
@@ -253,7 +258,10 @@ Models form a relationship graph rather than isolated records. Forward
 edges resolve an object's references (`item.passives`, `item.spells`,
 `item.statuses`, `item.owner_templates`, `item.tags`); reverse edges
 answer "who references me?" (`passive.items`, `spell.items`,
-`status.items`, backed by a one-pass index built on first use). All
+`status.items`, `passive.progressions`, `spell.progressions`, backed by
+one-pass indexes built on first use). Progression spell grants and choices
+stay distinct: ``AddSpells`` feeds ``progression.spells`` while
+``SelectSpells`` feeds ``progression.selectable_spells``. All
 edges resolve lazily and are cached per instance — treat them as
 read-only snapshots. The raw resolved stats stay available via
 `obj.data` when you need a field the typed model doesn't surface.
@@ -277,7 +285,7 @@ on Windows, macOS, and Linux.
 src/bg3forge/
 ├── pak/            # LSPK reader/writer, incremental extractor, patch detection
 ├── parsers/        # stats, loca, lsx, lsf, lsj, osiris, roottemplates,
-│                   # tags, dialogs, progressions, treasure
+│                   # tags, dialogs, progressions, spell lists, treasure
 ├── assets/         # texture atlases, icon extraction
 ├── exporters/      # json, sqlite, csv, markdown, yaml
 ├── cli/            # thin argparse front-end

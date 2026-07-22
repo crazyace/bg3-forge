@@ -2,7 +2,15 @@
 
 ## 0.2.0 — unreleased
 
-_No changes yet._
+### API
+
+* Added `game.progressions`, a load-order-aware collection indexed by
+  progression UUID and grouped by `TableUUID`/level.
+* Progression passive additions/removals resolve to typed models. Referenced
+  spell lists resolve `AddSpells` automatic grants separately from
+  `SelectSpells` choices, with reverse links on `Passive` and `Spell`.
+* Added progression and spell-list coverage, unresolved-reference counts,
+  and a progression stage to `validate`/`benchmark`.
 
 ## 0.1.0 — 2026-07-21
 

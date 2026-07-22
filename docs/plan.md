@@ -112,6 +112,12 @@ level records → granted spells/passives, with reverse lookups driven by
 concrete build-planning and data-export queries. Retail counts and joins
 must be added to `validate` and `benchmark` before downstream migration.
 
+Current vertical slice: load-order-aware progression records grouped by
+table/level, typed passive joins, and spell-list resolution that keeps
+automatic grants separate from player choices. Retail validation comes next;
+class/race description records are the following join once the shipped table
+references and counts are pinned.
+
 ## 6. Format backlog
 
 In priority order unless a consumer changes it:

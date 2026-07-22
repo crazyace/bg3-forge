@@ -23,7 +23,7 @@ def test_validate_clean_fixture(data_dir):
     assert report.counts["treasure_tables"] == 1
     assert report.counts["loca_files"] == 1
     assert report.counts["loca_handles"] == 17
-    assert report.counts["lsx_resources"] == 11  # templates, placed items, atlas, tags, registry, journal
+    assert report.counts["lsx_resources"] == 13  # plus progressions and spell lists
     assert report.counts["lsf_resources"] == 2   # dialog + timeline
     assert report.counts["dialogs"] == 2   # binary + editor .lsj
     assert report.counts["dialog_nodes"] == 4
@@ -36,6 +36,19 @@ def test_validate_clean_fixture(data_dir):
     assert report.counts["quest_categories"] == 1
     assert report.counts["goals"] == 1
     assert report.counts["goal_quest_refs"] == 2
+    assert report.counts["progression_files"] == 1
+    assert report.counts["progressions"] == 2
+    assert report.counts["progression_tables"] == 1
+    assert report.counts["progression_passive_grants"] == 1
+    assert report.counts["progression_passive_removals"] == 1
+    assert report.counts["progression_passives_missing"] == 0
+    assert report.counts["progression_spell_list_grants"] == 1
+    assert report.counts["progression_spell_list_choices"] == 1
+    assert report.counts["progression_spell_lists_missing"] == 0
+    assert report.counts["spell_list_files"] == 1
+    assert report.counts["spell_lists"] == 2
+    assert report.counts["spell_list_spells"] == 2
+    assert report.counts["spell_list_spells_missing"] == 0
     assert report.counts["compiled_stories"] == 1
     assert report.counts["story_functions"] == 2
     assert report.counts["story_databases"] == 1
@@ -95,6 +108,37 @@ def test_validate_reports_corrupt_compiled_story(data_dir):
     issue = next(issue for issue in report.issues if issue.stage == "story")
     assert issue.file == "Mods/Bad/Story/story.div.osi"
     assert "invalid header marker" in issue.error
+
+
+def test_validate_counts_unresolved_progression_references(data_dir):
+    progression = b"""\
+<save><region id="Progressions"><node id="root"><children>
+  <node id="Progression">
+    <attribute id="UUID" type="guid" value="eeeeeeee-0000-0000-0000-000000000001" />
+    <attribute id="TableUUID" type="guid" value="eeeeeeee-0000-0000-0000-000000000002" />
+    <attribute id="PassivesAdded" type="LSString" value="MissingPassive" />
+    <attribute id="Selectors" type="LSString" value="AddSpells(eeeeeeee-0000-0000-0000-000000000003)" />
+  </node>
+</children></node></region></save>
+"""
+    spell_lists = b"""\
+<save><region id="SpellLists"><node id="root"><children>
+  <node id="SpellList">
+    <attribute id="UUID" type="guid" value="eeeeeeee-0000-0000-0000-000000000004" />
+    <attribute id="Spells" type="LSString" value="MissingSpell" />
+  </node>
+</children></node></region></save>
+"""
+    writer = PakWriter(priority=10)
+    writer.add("Public/Test/Progressions/Missing.lsx", progression)
+    writer.add("Public/Test/Lists/MissingSpellLists.lsx", spell_lists)
+    writer.write(data_dir / "MissingProgressionRefs.pak")
+
+    report = validate_data(data_dir)
+    assert report.ok  # inventory signal, not a format failure
+    assert report.counts["progression_passives_missing"] == 1
+    assert report.counts["progression_spell_lists_missing"] == 1
+    assert report.counts["spell_list_spells_missing"] == 1
 
 
 def test_validate_cross_checks_source_goals(tmp_path):
@@ -202,6 +246,7 @@ def test_run_benchmark(data_dir, tmp_path):
         "Parse quests",
         "Index goals",
         "Parse compiled stories",
+        "Parse progressions",
         "Build models",
         "Resolve relationships",
         "Export JSON",
@@ -209,7 +254,7 @@ def test_run_benchmark(data_dir, tmp_path):
     assert all(seconds >= 0 for _, seconds in report.stages)
     assert report.counts["items"] == 3
     assert report.counts["spells"] == 1
-    assert report.counts["pak entries"] == 25
+    assert report.counts["pak entries"] == 27
     assert report.counts["tags"] == 2
     assert report.counts["dialogs indexed"] == 1
     assert report.counts["timelines indexed"] == 1
@@ -221,6 +266,12 @@ def test_run_benchmark(data_dir, tmp_path):
     assert report.counts["story goals"] == 1
     assert report.counts["story databases"] == 1
     assert report.counts["story rules"] == 1
+    assert report.counts["progressions"] == 2
+    assert report.counts["progression tables"] == 1
+    assert report.counts["spell lists"] == 2
+    assert report.counts["progression passive grants"] == 1
+    assert report.counts["progression spell grants"] == 1
+    assert report.counts["progression spell choices"] == 1
     assert report.counts["characters"] == 2
     assert report.counts["equipment sets"] == 1
     assert (tmp_path / "export" / "items.json").exists()

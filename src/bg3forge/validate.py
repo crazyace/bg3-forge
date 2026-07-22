@@ -29,13 +29,16 @@ from .game import (
     _is_category_file,
     _is_marker_file,
     _is_objective_file,
+    _is_progression_file,
     _is_quest_file,
     _is_roottemplate_file,
+    _is_spell_list_file,
     _is_stats_file,
     _is_story_file,
     _is_timeline_file,
     _is_treasure_file,
 )
+from .models import PASSIVE_TYPE, SPELL_TYPE
 from .parsers.equipment import parse_equipment_sets
 from .parsers.goals import parse_goal
 from .parsers.journal import (
@@ -50,9 +53,11 @@ from .parsers.lsf import is_lsf
 from .parsers.lsj import is_lsj
 from .parsers.localization import parse_loca
 from .parsers.osiris import parse_osiris
+from .parsers.progressions import Progression, parse_progressions
 from .parsers.resource import parse_resource
 from .parsers.roottemplates import parse_root_templates
 from .parsers.stats import StatsCollection, parse_stats_document
+from .parsers.spelllists import SpellList, parse_spell_lists
 from .parsers.treasure import parse_treasure_tables
 
 
@@ -93,6 +98,12 @@ def validate_data(
         "atlases", "dialogs", "dialog_nodes", "timelines", "quests",
         "quest_steps", "quest_markers", "objectives", "quest_categories",
         "goals", "goal_quest_refs",
+        "progression_files", "progressions", "progression_tables",
+        "progression_passive_grants", "progression_passive_removals",
+        "progression_passives_missing", "progression_spell_list_grants",
+        "progression_spell_list_choices", "progression_spell_lists_missing",
+        "spell_list_files", "spell_lists", "spell_list_spells",
+        "spell_list_spells_missing",
         "compiled_stories", "story_functions", "story_databases",
         "story_goals", "story_rules", "source_goals_compiled",
         "source_goals_missing",
@@ -104,6 +115,8 @@ def validate_data(
     stats = StatsCollection()
     source_goal_names: set[str] = set()
     compiled_goal_names: set[str] = set()
+    progressions: dict[str, Progression] = {}
+    spell_lists: dict[str, SpellList] = {}
     pak_paths = sorted(Path(data_dir).rglob("*.pak"))
     for index, pak_path in enumerate(pak_paths, start=1):
         try:
@@ -124,6 +137,8 @@ def validate_data(
                     stats,
                     source_goal_names,
                     compiled_goal_names,
+                    progressions,
+                    spell_lists,
                 )
                 if progress and position % 5000 == 0:
                     progress(
@@ -162,6 +177,42 @@ def validate_data(
                     error=f"{len(missing)} source goal(s) absent: {preview}",
                 )
             )
+
+    passive_names = {entry.name for entry in stats.by_type(PASSIVE_TYPE)}
+    spell_names = {entry.name for entry in stats.by_type(SPELL_TYPE)}
+    counts["progression_tables"] = len(
+        {record.table_uuid for record in progressions.values() if record.table_uuid}
+    )
+    counts["progression_passive_grants"] = sum(
+        len(record.passives_added) for record in progressions.values()
+    )
+    counts["progression_passive_removals"] = sum(
+        len(record.passives_removed) for record in progressions.values()
+    )
+    counts["progression_passives_missing"] = sum(
+        name not in passive_names
+        for record in progressions.values()
+        for name in (*record.passives_added, *record.passives_removed)
+    )
+    counts["progression_spell_list_grants"] = sum(
+        len(record.added_spell_list_ids) for record in progressions.values()
+    )
+    counts["progression_spell_list_choices"] = sum(
+        len(record.selectable_spell_list_ids) for record in progressions.values()
+    )
+    counts["progression_spell_lists_missing"] = sum(
+        uuid not in spell_lists
+        for record in progressions.values()
+        for uuid in (*record.added_spell_list_ids, *record.selectable_spell_list_ids)
+    )
+    counts["spell_list_spells"] = sum(
+        len(spell_list.spell_names) for spell_list in spell_lists.values()
+    )
+    counts["spell_list_spells_missing"] = sum(
+        name not in spell_names
+        for spell_list in spell_lists.values()
+        for name in spell_list.spell_names
+    )
     return report
 
 
@@ -172,6 +223,8 @@ def _validate_entry(
     stats: StatsCollection,
     source_goal_names: set[str],
     compiled_goal_names: set[str],
+    progressions: dict[str, Progression],
+    spell_lists: dict[str, SpellList],
 ) -> None:
     name = entry.name
     lowered = name.lower()
@@ -264,10 +317,24 @@ def _validate_entry(
                 counts["quest_categories"] += len(
                     parse_quest_categories(document, source=name)
                 )
+            elif _is_progression_file(name):
+                records = parse_progressions(document, source=name)
+                counts["progressions"] += len(records)
+                for record in records:
+                    progressions[record.uuid] = record
+            elif _is_spell_list_file(name):
+                records = parse_spell_lists(document, source=name)
+                counts["spell_lists"] += len(records)
+                for record in records:
+                    spell_lists[record.uuid] = record
             elif _is_timeline_file(name):
                 counts["timelines"] += 1
         if check("resource", parse):
             counts[kind] += 1
+            if _is_progression_file(name):
+                counts["progression_files"] += 1
+            elif _is_spell_list_file(name):
+                counts["spell_list_files"] += 1
     else:
         counts["files_skipped"] += 1
 

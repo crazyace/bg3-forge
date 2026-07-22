@@ -37,7 +37,8 @@ from .journal import (
 )
 from .goals import Goal, parse_goal
 from .equipment import EquipmentSet, parse_equipment_sets
-from .progressions import Progression, parse_progressions
+from .progressions import Progression, ProgressionCollection, parse_progressions
+from .spelllists import SpellList, parse_spell_lists
 from .treasure import TreasureTable, parse_treasure_tables
 from .osiris import (
     CompiledStory,
@@ -105,7 +106,10 @@ __all__ = [
     "EquipmentSet",
     "parse_equipment_sets",
     "Progression",
+    "ProgressionCollection",
     "parse_progressions",
+    "SpellList",
+    "parse_spell_lists",
     "TreasureTable",
     "parse_treasure_tables",
     "CompiledStory",
