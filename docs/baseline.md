@@ -320,3 +320,24 @@ load → equip → **find in the world** — is retail-verified.
   `OnUsePeaceActions` cast-from-scroll action and typed LSF attributes.
 - `new_elixir` differs from the potion only by `StatusDuration = -1`, the
   exact field observed on the retail elixir template.
+
+### Custom statuses and retail-parity tooltips — verified 2026-07-22
+
+The fully-original consumable: an elixir applying a status invented by the
+library ("Forgefire", `Ability(Strength,2)` + fire resistance) was drunk in
+game — the condition appeared with its localized name and description,
+`+2 from Forgefire` on the Strength sheet, halved fire damage in the
+resistances panel, and an until-long-rest duration.
+
+Dissecting retail's Elixir of Bloodlust then mapped BG3's four item text
+slots (`DisplayName` = name, `Description` = italic flavor,
+`TechnicalDescription` = the golden effect blurb, `OnUseDescription` = the
+use-verb "Drink") and the `<LSTag>` hyperlink markup carried inside
+localized strings. The rebuilt brew rendered at full retail parity: its
+blurb in the right slot, "Forgefire" as a working hyperlink popping the
+custom status card, and elixir-base visuals with no inherited text.
+
+Operational rules learned: template text changes need *fresh item
+instances* (existing items in a save render stale tooltips), and the
+line under the blurb is [status icon] + duration — the status identity
+there is its `Icon`.
