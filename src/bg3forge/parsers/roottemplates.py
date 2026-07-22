@@ -12,9 +12,9 @@ loaded.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Iterator
+from typing import Iterable, Iterator
 
-from .lsx import LsxDocument, LsxNode
+from .lsx import LsxAttribute, LsxDocument, LsxNode
 
 _FIELDS = (
     "Name",
@@ -29,6 +29,23 @@ _FIELDS = (
     "Equipment",
     "Archetype",
 )
+
+# Serialization type for each scalar field.  Anything not listed here (and
+# not a TranslatedString handle) defaults to FixedString, matching retail.
+_FIELD_TYPES = {
+    "Name": "LSString",
+    "MapKey": "FixedString",
+    "Stats": "FixedString",
+    "Icon": "FixedString",
+    "Type": "FixedString",
+    "ParentTemplateId": "FixedString",
+    "TemplateName": "FixedString",
+    "LevelName": "FixedString",
+    "Equipment": "FixedString",
+    "Archetype": "FixedString",
+}
+# Fields carried as TranslatedString handles rather than plain values.
+_HANDLE_FIELDS = ("DisplayName", "Description")
 
 
 @dataclass
@@ -94,6 +111,79 @@ def parse_root_templates(document: LsxDocument) -> list[RootTemplate]:
         if template is not None:
             templates.append(template)
     return templates
+
+
+def build_root_template_node(
+    map_key: str,
+    name: str,
+    *,
+    template_type: str = "item",
+    stats: str | None = None,
+    icon: str | None = None,
+    display_name: str | None = None,
+    description: str | None = None,
+    parent_template_id: str | None = None,
+    tags: Iterable[str] = (),
+    handle_version: int = 1,
+    fields: dict[str, str] | None = None,
+) -> LsxNode:
+    """Build one ``GameObjects`` RootTemplate node, the inverse of
+    :meth:`RootTemplate.from_node`.
+
+    ``display_name`` and ``description`` are TranslatedString *handles*
+    (``h...``); ``parent_template_id`` is the base template this object
+    inherits from — the usual way to reuse an existing item's visuals.
+    ``fields`` passes through any additional scalar attributes (``Equipment``,
+    ``Archetype``, …).  Serialize the node inside a document from
+    :func:`build_templates_document`.
+    """
+    attributes: dict[str, LsxAttribute] = {}
+
+    def put(field_id: str, value: str | None) -> None:
+        if value is not None:
+            attributes[field_id] = LsxAttribute(
+                id=field_id,
+                type=_FIELD_TYPES.get(field_id, "FixedString"),
+                value=value,
+            )
+
+    put("MapKey", map_key)
+    put("Name", name)
+    put("Type", template_type)
+    put("Stats", stats)
+    put("Icon", icon)
+    put("ParentTemplateId", parent_template_id)
+    for field_id, handle in (("DisplayName", display_name), ("Description", description)):
+        if handle is not None:
+            attributes[field_id] = LsxAttribute(
+                id=field_id,
+                type="TranslatedString",
+                value=None,
+                handle=handle,
+                version=handle_version,
+            )
+    for field_id, value in (fields or {}).items():
+        put(field_id, value)
+
+    children: list[LsxNode] = []
+    tag_nodes = [
+        LsxNode(
+            id="Tag",
+            attributes={"Object": LsxAttribute(id="Object", type="guid", value=tag)},
+        )
+        for tag in tags
+    ]
+    if tag_nodes:
+        children.append(LsxNode(id="Tags", children=tag_nodes))
+
+    return LsxNode(id="GameObjects", attributes=attributes, children=children)
+
+
+def build_templates_document(nodes: Iterable[LsxNode]) -> LsxDocument:
+    """Wrap ``GameObjects`` nodes in the ``Templates`` region a RootTemplate
+    file uses.  Serialize with :func:`bg3forge.parsers.lsx.write_lsx`."""
+    root = LsxNode(id="Templates", children=list(nodes))
+    return LsxDocument(regions={"Templates": root})
 
 
 class RootTemplateIndex:

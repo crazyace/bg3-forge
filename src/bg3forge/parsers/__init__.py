@@ -32,7 +32,13 @@ from .lsf import (
 from .lsj import LsjError, is_lsj, parse_lsj
 from .meta import ModuleInfo, build_meta_document, parse_meta
 from .resource import load_resource, parse_resource
-from .roottemplates import RootTemplate, RootTemplateIndex, parse_root_templates
+from .roottemplates import (
+    RootTemplate,
+    RootTemplateIndex,
+    build_root_template_node,
+    build_templates_document,
+    parse_root_templates,
+)
 from .tags import Tag, TagRegistry, parse_tags
 from .dialogs import Dialog, DialogError, DialogNode, Speaker, parse_dialog
 from .journal import (
@@ -101,6 +107,8 @@ __all__ = [
     "parse_resource",
     "RootTemplate",
     "RootTemplateIndex",
+    "build_root_template_node",
+    "build_templates_document",
     "parse_root_templates",
     "Tag",
     "TagRegistry",

@@ -9,6 +9,8 @@ from bg3forge.parsers import (
     StatsEntry,
     StatsParseError,
     build_meta_document,
+    build_root_template_node,
+    build_templates_document,
     pack_version64,
     parse_loca,
     parse_lsx,
@@ -293,6 +295,62 @@ def test_build_meta_defaults_folder_to_name_and_emits_required_fields():
         assert required in info.attributes
     assert info.get("Type") == "Add-on"
     assert info.get("Folder") == "MyMod"
+
+
+# -- root template builder ---------------------------------------------------
+
+def test_build_root_template_roundtrips_through_parser():
+    node = build_root_template_node(
+        "abcd1234-0000-0000-0000-000000000001",
+        "ARM_Sunforged_Plate",
+        stats="ARM_Sunforged_Plate",
+        icon="Item_ARM_Sunforged",
+        display_name="h11110000-0000-0000-0000-000000000001",
+        description="h22220000-0000-0000-0000-000000000002",
+        parent_template_id="0000base-0000-0000-0000-00000000000f",
+        tags=["bbbb2222-0000-0000-0000-000000000002"],
+    )
+    templates = parse_root_templates(build_templates_document([node]))
+    assert len(templates) == 1
+    template = templates[0]
+    assert template.map_key == "abcd1234-0000-0000-0000-000000000001"
+    assert template.name == "ARM_Sunforged_Plate"
+    assert template.stats_name == "ARM_Sunforged_Plate"
+    assert template.icon == "Item_ARM_Sunforged"
+    assert template.parent_id == "0000base-0000-0000-0000-00000000000f"
+    # DisplayName is serialized as a TranslatedString handle and read back as one
+    assert template.display_name_handle == "h11110000-0000-0000-0000-000000000001"
+    assert template.tags == ["bbbb2222-0000-0000-0000-000000000002"]
+    assert template.fields["Type"] == "item"
+
+
+def test_built_template_inherits_visuals_from_base():
+    """A built item pointing at a base template resolves the base's fields
+    (Icon here stands in for the reused visuals/mesh references)."""
+    base = build_root_template_node(
+        "0000base-0000-0000-0000-00000000000f",
+        "BASE_Plate",
+        icon="Item_Plate_Shared",
+    )
+    item = build_root_template_node(
+        "abcd1234-0000-0000-0000-000000000001",
+        "ARM_Sunforged_Plate",
+        stats="ARM_Sunforged_Plate",
+        parent_template_id="0000base-0000-0000-0000-00000000000f",
+    )
+    index = RootTemplateIndex()
+    index.add_document(build_templates_document([base, item]))
+    resolved = index.resolved("abcd1234-0000-0000-0000-000000000001")
+    assert resolved["Icon"] == "Item_Plate_Shared"       # inherited from base
+    assert resolved["Stats"] == "ARM_Sunforged_Plate"    # own value
+    assert index.by_stats("ARM_Sunforged_Plate")[0].map_key.startswith("abcd1234")
+
+
+def test_build_templates_document_uses_templates_region():
+    node = build_root_template_node("uuid", "X")
+    text = write_lsx(build_templates_document([node]))
+    assert '<region id="Templates">' in text
+    assert '<node id="GameObjects">' in text
 
 
 # -- treasure ----------------------------------------------------------------
