@@ -220,7 +220,8 @@ an install can fail.
   cares which one the game shipped
 * **RootTemplates** (`.lsx` or `.lsf`) with `ParentTemplateId`
   inheritance — `RootTemplateIndex` (see *Mod authoring* for building new
-  ones)
+  ones); `game.item_templates.by_treasure_table("TUT_Chest_Potions")` finds
+  the containers that fill from a treasure table (and their spawn UUIDs)
 * **Progressions** (class/race level tables) and referenced spell lists —
   `parse_progressions` / `parse_spell_lists`
 * **Treasure tables** — `parse_treasure_tables`

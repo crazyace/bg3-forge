@@ -11,10 +11,20 @@ loaded.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Iterable, Iterator
 
 from .lsx import LsxAttribute, LsxDocument, LsxNode
+
+_UUID_RE = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+    r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
+
+
+def _looks_like_uuid(value: str) -> bool:
+    return bool(_UUID_RE.match(value))
 
 _FIELDS = (
     "Name",
@@ -53,6 +63,7 @@ class RootTemplate:
     map_key: str
     fields: dict[str, str] = field(default_factory=dict)
     tags: list[str] = field(default_factory=list)  # tag UUIDs
+    inventory: list[str] = field(default_factory=list)  # InventoryList Object refs
 
     @property
     def name(self) -> str | None:
@@ -83,6 +94,13 @@ class RootTemplate:
         """Referenced RootTemplate for a placed global object, if any."""
         return self.fields.get("TemplateName")
 
+    @property
+    def treasure_tables(self) -> list[str]:
+        """Inventory references that name a treasure table (e.g. a container
+        that fills from ``"TUT_Chest_Potions"``).  A subset of
+        :attr:`inventory` — direct-object inventory entries are UUIDs."""
+        return [obj for obj in self.inventory if not _looks_like_uuid(obj)]
+
     @classmethod
     def from_node(cls, node: LsxNode) -> "RootTemplate | None":
         map_key = node.get("MapKey")
@@ -94,14 +112,19 @@ class RootTemplate:
             if value is not None:
                 fields[key] = value
         tags = []
-        for tags_node in node.children:
-            if tags_node.id != "Tags":
-                continue
-            for tag_node in tags_node.find_all("Tag"):
-                tag = tag_node.get("Object")
-                if tag:
-                    tags.append(tag)
-        return cls(map_key=map_key, fields=fields, tags=tags)
+        inventory = []
+        for child in node.children:
+            if child.id == "Tags":
+                for tag_node in child.find_all("Tag"):
+                    tag = tag_node.get("Object")
+                    if tag:
+                        tags.append(tag)
+            elif child.id == "InventoryList":
+                for item_node in child.find_all("InventoryItem"):
+                    obj = item_node.get("Object")
+                    if obj:
+                        inventory.append(obj)
+        return cls(map_key=map_key, fields=fields, tags=tags, inventory=inventory)
 
 
 def parse_root_templates(document: LsxDocument) -> list[RootTemplate]:
@@ -192,6 +215,7 @@ class RootTemplateIndex:
     def __init__(self):
         self._templates: dict[str, RootTemplate] = {}
         self._stats_index: dict[str, list[RootTemplate]] | None = None
+        self._treasure_index: dict[str, list[RootTemplate]] | None = None
 
     def __len__(self) -> int:
         return len(self._templates)
@@ -208,7 +232,8 @@ class RootTemplateIndex:
     def add_document(self, document: LsxDocument) -> None:
         for template in parse_root_templates(document):
             self._templates[template.map_key] = template
-        self._stats_index = None  # invalidate the reverse index
+        self._stats_index = None  # invalidate the reverse indexes
+        self._treasure_index = None
 
     def resolved(self, map_key: str) -> dict[str, str]:
         """Effective fields for a template with ancestors merged in."""
@@ -239,6 +264,23 @@ class RootTemplateIndex:
                     index.setdefault(stats, []).append(template)
             self._stats_index = index
         return list(self._stats_index.get(stats_name, ()))
+
+    def by_treasure_table(self, table_name: str) -> list[RootTemplate]:
+        """Templates (usually placed containers) whose inventory fills from
+        the named treasure table — e.g. ``"TUT_Chest_Potions"`` returns the
+        tutorial chest, whose ``map_key`` is the object to spawn.
+
+        Only meaningful on an index that includes placed objects
+        (``game.item_templates``); ``game.templates`` holds RootTemplates
+        only, where the treasure link isn't present.
+        """
+        if self._treasure_index is None:
+            index: dict[str, list[RootTemplate]] = {}
+            for template in self._templates.values():
+                for table in template.treasure_tables:
+                    index.setdefault(table, []).append(template)
+            self._treasure_index = index
+        return list(self._treasure_index.get(table_name, ()))
 
     def _chain(self, map_key: str) -> list[RootTemplate]:
         """Template plus its ancestors, nearest first; cycles are cut."""
