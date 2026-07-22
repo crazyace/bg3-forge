@@ -56,6 +56,7 @@ from .parsers.stats import StatsCollection
 from .parsers.tags import TagRegistry
 from .parsers.treasure import TreasureTable, parse_treasure_tables
 from .assets.atlases import TextureAtlas, parse_atlas
+from .assets.icons import IconError, IconExportResult, IconExtractor
 
 
 class GameNotFoundError(RuntimeError):
@@ -423,6 +424,82 @@ class Game:
             if atlas.icons:
                 atlases.append(atlas)
         return atlases
+
+    def export_icons(
+        self,
+        names,
+        output_dir: str | Path,
+        format: str = "webp",
+        overwrite: bool = False,
+    ) -> IconExportResult:
+        """Export selected atlas icons directly from installed game data.
+
+        Atlas definitions and their DDS textures are both read from the pak
+        set; no prior extraction step is required. Existing files are skipped
+        unless ``overwrite`` is true. Names absent from every atlas, textures
+        that cannot be located, and decode failures are reported in the
+        returned :class:`IconExportResult` instead of aborting the batch.
+        """
+        wanted = list(dict.fromkeys(name for name in names if name))
+        wanted_set = set(wanted)
+        result = IconExportResult()
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        suffix = "." + format.lower()
+
+        groups: list[tuple[TextureAtlas, list[str]]] = []
+        matched: set[str] = set()
+        for atlas in self.atlases:
+            group = [name for name in atlas.icons if name in wanted_set and name not in matched]
+            if group:
+                groups.append((atlas, group))
+                matched.update(group)
+        result.missing.extend(name for name in wanted if name not in matched)
+
+        texture_sources = self._locate_entries(
+            lambda name: name.lower().endswith((".dds", ".png", ".webp"))
+        )
+        normalized_sources = [
+            (name.replace("\\", "/").lower(), name, source)
+            for name, source in texture_sources.items()
+        ]
+
+        for atlas, group in groups:
+            pending = []
+            for name in group:
+                target = output_dir / f"{name}{suffix}"
+                if target.exists() and not overwrite:
+                    result.skipped.append(name)
+                else:
+                    pending.append(name)
+            if not pending:
+                continue
+
+            texture_path = (atlas.texture_path or "").replace("\\", "/").lstrip("/")
+            needle = texture_path.lower()
+            candidates = [
+                (name, source)
+                for normalized, name, source in normalized_sources
+                if needle and (normalized == needle or normalized.endswith("/" + needle))
+            ]
+            if not candidates:
+                result.missing.extend(pending)
+                result.errors[texture_path or "<missing atlas path>"] = "texture not found"
+                continue
+
+            archived_name, source = candidates[-1]
+            try:
+                extractor = IconExtractor(atlas, self._read_entry(archived_name, source))
+                exported = extractor.export_all(output_dir, format=format, names=pending)
+            except IconError as exc:
+                result.missing.extend(pending)
+                result.errors[texture_path] = str(exc)
+                continue
+            result.written.extend(exported.written)
+            result.missing.extend(exported.missing)
+
+        result.missing = list(dict.fromkeys(result.missing))
+        return result
 
     @cached_property
     def tags(self) -> TagRegistry:

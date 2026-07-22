@@ -1,9 +1,11 @@
 import pytest
 
+from bg3forge import Game
 from bg3forge.assets import IconError, IconExtractor, match_icons, parse_atlas
+from bg3forge.pak import PakWriter
 from bg3forge.parsers.lsx import parse_lsx
 
-from conftest import ATLAS_LSX
+from conftest import ATLAS_LSX, fixture_files
 
 
 @pytest.fixture
@@ -51,6 +53,32 @@ def test_icon_extraction(tmp_path, atlas):
 
     webp = extractor.export("Item_WPN_Longsword", tmp_path / "icons", format="webp")
     assert webp.suffix == ".webp" and webp.exists()
+
+
+def test_game_exports_selected_icons_directly_from_pak(tmp_path):
+    Image = pytest.importorskip("PIL.Image", reason="Pillow not installed")
+    texture_path = tmp_path / "atlas.png"
+    Image.new("RGBA", (128, 128), (12, 34, 56, 255)).save(texture_path)
+
+    writer = PakWriter()
+    for name, data in fixture_files().items():
+        writer.add(name, data)
+    writer.add(
+        "Public/Shared/Assets/Textures/Icons/Icons_Items.dds",
+        texture_path.read_bytes(),
+    )
+    writer.write(tmp_path / "Shared.pak")
+
+    with Game(data_dir=tmp_path) as game:
+        result = game.export_icons(
+            ["Item_WPN_Longsword", "Spell_Evocation_Fireball", "Unknown_Icon"],
+            tmp_path / "icons",
+        )
+
+    assert sorted(result.written) == ["Item_WPN_Longsword", "Spell_Evocation_Fireball"]
+    assert result.missing == ["Unknown_Icon"]
+    assert result.errors == {}
+    assert (tmp_path / "icons" / "Item_WPN_Longsword.webp").exists()
 
 
 def test_icon_extraction_requires_pillow_or_errors(atlas, tmp_path):

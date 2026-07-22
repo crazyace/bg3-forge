@@ -239,6 +239,9 @@ game.spells["Projectile_Fireball"]               # lookup by stats name
 game.items.find("amulet")                        # search names + display names
 game.items.get("WPN_Maybe", default=None)        # tolerant lookup
 game.item_templates                               # RootTemplates + placed global items
+game.export_icons(                                # read atlases from paks, write WebP
+    {item.icon for item in game.items if item.icon}, "assets/icons"
+)
 ```
 
 `game.item_templates` mirrors the runtime's item-template view. It includes

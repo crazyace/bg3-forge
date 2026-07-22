@@ -7,6 +7,7 @@ DXT/BC-compressed DDS atlases the game ships.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from io import BytesIO
 from pathlib import Path
 from typing import Iterable
 
@@ -32,6 +33,8 @@ def _load_pillow():
 class IconExportResult:
     written: list[str] = field(default_factory=list)
     missing: list[str] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=list)
+    errors: dict[str, str] = field(default_factory=dict)
 
 
 class IconExtractor:
@@ -43,18 +46,25 @@ class IconExtractor:
         extractor.export_all("out/icons", format="png")
     """
 
-    def __init__(self, atlas: TextureAtlas, texture_path: str | Path):
+    def __init__(self, atlas: TextureAtlas, texture_path: str | Path | bytes):
         self.atlas = atlas
-        self.texture_path = Path(texture_path)
+        self._texture_bytes = texture_path if isinstance(texture_path, bytes) else None
+        self.texture_path = None if self._texture_bytes is not None else Path(texture_path)
         self._image = None
 
     def _image_handle(self):
         if self._image is None:
             Image = _load_pillow()
             try:
-                self._image = Image.open(self.texture_path).convert("RGBA")
+                source = (
+                    BytesIO(self._texture_bytes)
+                    if self._texture_bytes is not None
+                    else self.texture_path
+                )
+                self._image = Image.open(source).convert("RGBA")
             except OSError as exc:
-                raise IconError(f"cannot decode atlas texture {self.texture_path}: {exc}")
+                label = self.texture_path or "<in-memory texture>"
+                raise IconError(f"cannot decode atlas texture {label}: {exc}")
         return self._image
 
     def extract(self, icon_name: str):
