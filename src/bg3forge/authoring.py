@@ -150,6 +150,7 @@ class Mod:
         parent_template: str | None = None,
         display_name: str | None = None,
         description: str | None = None,
+        on_use_description: str | None = None,
         icon: str | None = None,
         tags=(),
         boosts=(),
@@ -202,6 +203,11 @@ class Mod:
         description_handle = (
             self.add_string(f"{name}:Description", description) if description else None
         )
+        on_use_handle = (
+            self.add_string(f"{name}:OnUseDescription", on_use_description)
+            if on_use_description
+            else None
+        )
         self._templates.append(
             build_root_template_node(
                 template_uuid,
@@ -211,6 +217,7 @@ class Mod:
                 icon=icon,
                 display_name=display_handle,
                 description=description_handle,
+                on_use_description=on_use_handle,
                 parent_template_id=parent_template,
                 tags=tags,
                 on_use=on_use,
@@ -337,6 +344,7 @@ class Mod:
         parent_template: str | None = None,
         display_name: str | None = None,
         description: str | None = None,
+        on_use_description: str | None = None,
         icon: str | None = None,
         treasure: str | None = None,
         data: dict[str, str] | None = None,
@@ -348,6 +356,11 @@ class Mod:
         Consume action on the template with ``StatsId``/``StatusDuration``,
         while the stats entry (``using "_Potion"`` by default) carries the
         bonus-action cost, Consumable tab, and use conditions.
+
+        Set ``on_use_description`` to the effect blurb shown on the item
+        tooltip.  When cloning a base via ``parent_template``, leaving it
+        unset inherits the *base's* blurb (e.g. the healing potion's
+        "Heals and removes Burning").
         """
         return self.new_item(
             name,
@@ -356,6 +369,7 @@ class Mod:
             parent_template=parent_template,
             display_name=display_name,
             description=description,
+            on_use_description=on_use_description,
             icon=icon,
             treasure=treasure,
             on_use=[build_consume_action(status, duration)],
@@ -371,6 +385,7 @@ class Mod:
         parent_template: str | None = None,
         display_name: str | None = None,
         description: str | None = None,
+        on_use_description: str | None = None,
         icon: str | None = None,
         treasure: str | None = None,
         data: dict[str, str] | None = None,
@@ -385,6 +400,7 @@ class Mod:
             parent_template=parent_template,
             display_name=display_name,
             description=description,
+            on_use_description=on_use_description,
             icon=icon,
             treasure=treasure,
             data=data,
@@ -399,6 +415,7 @@ class Mod:
         parent_template: str | None = None,
         display_name: str | None = None,
         description: str | None = None,
+        on_use_description: str | None = None,
         icon: str | None = None,
         treasure: str | None = None,
         data: dict[str, str] | None = None,
@@ -413,6 +430,7 @@ class Mod:
             parent_template=parent_template,
             display_name=display_name,
             description=description,
+            on_use_description=on_use_description,
             icon=icon,
             treasure=treasure,
             on_use=[build_use_spell_action(spell)],

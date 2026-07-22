@@ -83,6 +83,10 @@ The first write primitives aimed at programmatic mod creation:
   `on_apply` functors, a localized name/description, and `StackId`
   defaulting to the name — enabling fully-original consumables
   (`new_elixir(status=<your status>)`).
+* Added `on_use_description=` to `new_item` and the consumables — the
+  item-tooltip effect blurb (`OnUseDescription` TranslatedString on the
+  template). Without it, a consumable cloned via `parent_template` inherits
+  the base's blurb (e.g. the healing potion's "Heals and removes Burning").
 * Added consumables: `mod.new_potion(status=…)` and `mod.new_elixir(status=…)`
   (a Consume template action applying a status — duration 0, or -1 until long
   rest) and `mod.new_scroll(spell=…)` (the retail cast-from-scroll action,
