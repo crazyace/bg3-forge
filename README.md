@@ -331,11 +331,16 @@ src/bg3forge/
 * ✅ Characters (`game.characters`) — NPC stat blocks joined to
   templates: abilities, passives, tags, and equipment resolved to items
 * ✅ Equipment sets (`game.equipment`)
+* ✅ First real consumer — BG3 Pathway now builds its item, passive,
+  status, template, and icon datasets through BG3 Forge; the integration
+  drove placed-template coverage and direct in-pak icon export
+* ⏳ PyPI release
+* ⏳ Typed progression graph — classes/races → levels → spells/passives,
+  driven by the remaining BG3 Pathway leveling-data migration
+* ⏳ Virtual texture (GTS/GTP) atlas support
+* ⏳ GR2 model metadata
 * ⏳ Full Osiris rule decompilation — metadata traversal is complete;
   reconstructing executable rule semantics remains intentionally separate
-* ⏳ GR2 model metadata
-* ⏳ Virtual texture (GTS/GTP) atlas support
-* ⏳ PyPI release
 
 ## Development
 
