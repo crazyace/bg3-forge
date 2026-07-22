@@ -164,15 +164,32 @@ pip install "bg3forge[all]"     # native LZ4, zstd, icon pipeline, YAML
 ```
 
 The core library has **no required dependencies** — it includes a
-pure-Python LZ4 block codec. For full-game unpacks install the `lz4` extra
-for native-speed decompression.
+pure-Python LZ4 block codec, so it installs and runs anywhere Python does.
+Every extra is either a *speedup* or *feature-specific*; none is required
+for correctness, so you only add what you use.
 
 | Extra   | Enables                                        |
 | ------- | ---------------------------------------------- |
-| `lz4`   | native-speed LZ4 (strongly recommended)        |
-| `zstd`  | zstd-compressed pak entries                    |
-| `icons` | DDS atlas decoding, PNG/WebP export (Pillow)   |
-| `yaml`  | YAML exporter (PyYAML)                         |
+| `lz4`   | native-speed LZ4 (pure-Python fallback works, just slower) |
+| `zstd`  | reading zstd-compressed pak entries            |
+| `icons` | DDS atlas decoding, PNG/WebP icon export (Pillow) |
+| `yaml`  | YAML exporter (PyYAML)                          |
+
+**Which should I install?**
+
+* **Embedding bg3forge in your own project** → bare `bg3forge`, then add
+  only the extras your code path needs. The zero-dependency core keeps you
+  from forcing native packages (Pillow, lz4, …) onto *your* users, and it
+  installs in minimal or locked-down environments where compiled wheels
+  aren't available.
+* **CLI, unpacking the full game** → `bg3forge[lz4]` at minimum; native
+  LZ4 is a large speedup over ~150 GB of archives.
+* **Working with icons** → add `[icons]` (Pillow).
+* **Want everything in one command** → `[all]`.
+
+The extras (`lz4`, `zstd`, `icons`) are native/compiled packages, so a
+smaller install also means less to build, less to audit, and fewer places
+an install can fail.
 
 ## Features
 
