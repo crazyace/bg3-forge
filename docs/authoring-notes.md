@@ -136,3 +136,29 @@ fully-original consumables. Consumables (5) — scrolls, potions, elixirs —
 are the next content family; the forms that reference existing spells and
 statuses can land before (4). As on the read side, build each against a real
 example and verify in game.
+
+## ActionType catalog (corpus survey, Patch 8)
+
+From `scripts/wiring_survey.py` over all 25,564 retail templates — the
+`OnUsePeaceActions` action types and their attributes. Implemented by the
+authoring layer: **7** (Consume) and **12** (cast from scroll).
+
+| ActionType | Count | Meaning / key attributes |
+| --- | --- | --- |
+| 8 | 1,200 | plain use (Animation/Conditions only) |
+| 11 | 1,071 | read book — `BookId` |
+| **7** | 298 | **consume — `StatsId`, `StatusDuration`, `IsHiddenStatus`** |
+| **12** | 165 | **cast from scroll — `SkillID`, `ClassId` (optional: 31 omit it), `Consume`** |
+| 33 | 111 | secondary cast variant — `SpellId` |
+| 15 / 14 | 78 / 16 | heal actions — `Heal` |
+| 3 | 39 | teleport/event — `EventID`, `Source`, `Target` |
+| 23 / 16 | 28 / 10 | combine/insert — `CombineSlots`, `InsertSlots` |
+| 30 | 20 | learn recipe — `RecipeID` |
+| 24 | 45 | ladder (note Larian's shipped typos: `BotomHorizontalOffset`, `NodeLadderOffest`) |
+| others | ≤10 each | doors (9), surfaces (4, 10), sound (26), misc (1, 2, 18, 19, 20, 31, 32, 35) |
+
+Survey-verified invariants: `OnUseDescription` is always a short use-verb
+(21 distinct texts, none over 25 chars); every action attribute has one
+consistent LSF type across the corpus; `StatusDuration` uses 0, -1, or a
+positive turn count; retail itself ships exactly one dangling consume
+`StatsId` (`LOW_MEPHISTOSVAULT_CRYSTALFORM`).

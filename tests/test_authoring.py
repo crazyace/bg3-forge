@@ -415,3 +415,14 @@ def test_place_in_treasure_accumulates_across_items():
         mod.files()["Public/Multi/Stats/Generated/TreasureTable.txt"].decode("utf-8")
     )[0]
     assert sorted(table.items()) == ["ARM_A", "WPN_B"]
+
+
+def test_scroll_class_id_is_optional():
+    """31 retail scrolls omit ClassId entirely (wiring survey), so None
+    must leave the attribute out rather than writing a null GUID."""
+    from bg3forge.parsers import build_use_spell_action
+
+    action = build_use_spell_action("Projectile_Fireball", class_id=None)
+    attrs = action.children[0]
+    assert "ClassId" not in attrs.attributes
+    assert attrs.get("SkillID") == "Projectile_Fireball"

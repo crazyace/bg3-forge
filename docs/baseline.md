@@ -341,3 +341,16 @@ Operational rules learned: template text changes need *fresh item
 instances* (existing items in a save render stale tooltips), and the
 line under the blurb is [status icon] + duration — the status identity
 there is its `Icon`.
+
+### Wiring survey — corpus-verified 2026-07-22
+
+`scripts/wiring_survey.py` swept all 25,564 retail templates and turned
+the authoring layer's single-example assumptions into corpus-verified
+invariants: the text-slot map holds (`OnUseDescription` is always a short
+use-verb — 21 distinct texts, none over 25 chars), every action attribute
+has one consistent LSF type, and the Consume/scroll attribute sets match
+what we emit. It also refined two assumptions — the scroll `ClassId` is
+optional (31 retail scrolls omit it) and `StatusDuration` includes turn
+counts, not just 0/-1 — and caught retail's own single dangling consume
+status (`LOW_MEPHISTOSVAULT_CRYSTALFORM`). The survey doubles as a
+patch-drift check to rerun after each game update.

@@ -254,24 +254,27 @@ def build_consume_action(
 
 
 def build_use_spell_action(
-    spell_id: str, class_id: str = SCROLL_CLASS_ID
+    spell_id: str, class_id: str | None = SCROLL_CLASS_ID
 ) -> LsxNode:
     """An ``OnUsePeaceActions`` cast-from-item action (ActionType 12): using
     the item casts ``spell_id`` and consumes it — the spell-scroll pattern,
     gated by the same ``CanUseSpellScroll`` condition retail scrolls use.
+
+    ``class_id`` defaults to the constant most retail scrolls share, but the
+    corpus survey found it optional (31 retail scrolls omit it); pass ``None``
+    to leave it out.
     """
-    return _use_action(
-        12,
-        {
-            "Animation": LsxAttribute("Animation", "FixedString", ""),
-            "ClassId": LsxAttribute("ClassId", "guid", class_id),
-            "Conditions": LsxAttribute(
-                "Conditions", "LSString", f'CanUseSpellScroll("{spell_id}")'
-            ),
-            "Consume": LsxAttribute("Consume", "bool", "True"),
-            "SkillID": LsxAttribute("SkillID", "FixedString", spell_id),
-        },
-    )
+    attributes = {
+        "Animation": LsxAttribute("Animation", "FixedString", ""),
+        "Conditions": LsxAttribute(
+            "Conditions", "LSString", f'CanUseSpellScroll("{spell_id}")'
+        ),
+        "Consume": LsxAttribute("Consume", "bool", "True"),
+        "SkillID": LsxAttribute("SkillID", "FixedString", spell_id),
+    }
+    if class_id is not None:
+        attributes["ClassId"] = LsxAttribute("ClassId", "guid", class_id)
+    return _use_action(12, attributes)
 
 
 def build_templates_document(nodes: Iterable[LsxNode]) -> LsxDocument:

@@ -96,6 +96,11 @@ The first write primitives aimed at programmatic mod creation:
   inherit the `parent_template`'s text. Also added `description_params=` to
   `new_status` (`DescriptionParams` — values substituted into `[1]`, `[2]`
   placeholders).
+* Corpus-verified the authoring wiring with `scripts/wiring_survey.py`
+  (all 25,564 retail templates): the text-slot map and typed action
+  attributes hold everywhere; the scroll `ClassId` proved optional (now
+  `class_id=None` omits it) and `StatusDuration` documented as turns, not
+  just 0/-1. The survey is a rerunnable patch-drift check.
 * Added consumables: `mod.new_potion(status=…)` and `mod.new_elixir(status=…)`
   (a Consume template action applying a status — duration 0, or -1 until long
   rest) and `mod.new_scroll(spell=…)` (the retail cast-from-scroll action,
