@@ -7,6 +7,7 @@ from bg3forge.parsers import (
     parse_resource,
     parse_root_templates,
     parse_stats,
+    parse_treasure_tables,
 )
 
 
@@ -124,3 +125,33 @@ def test_no_ability_params_leaves_fields_absent():
     entry = _stats_entry(mod)
     assert entry.get("Boosts") is None
     assert entry.get("PassivesOnEquip") is None
+
+
+def test_treasure_param_makes_item_obtainable():
+    """`treasure=` injects the item into an existing table with CanMerge so it
+    drops from a base-game container (e.g. the tutorial chest)."""
+    mod = Mod("TreasureMod")
+    mod.new_armor("ARM_Test", armor_class=18, treasure="TUT_Chest_Potions")
+    text = mod.files()[
+        "Public/TreasureMod/Stats/Generated/TreasureTable.txt"
+    ].decode("utf-8")
+    table = parse_treasure_tables(text)[0]
+    assert table.name == "TUT_Chest_Potions"
+    assert table.can_merge
+    assert table.items() == ["ARM_Test"]  # I_ prefix stripped
+
+
+def test_no_treasure_means_no_treasure_file():
+    mod = Mod("NoDrop")
+    mod.new_armor("ARM_Test", armor_class=18)
+    assert not any("TreasureTable" in name for name in mod.files())
+
+
+def test_place_in_treasure_accumulates_across_items():
+    mod = Mod("Multi")
+    mod.new_armor("ARM_A", treasure="TUT_Chest_Potions")
+    mod.new_item("WPN_B", treasure="TUT_Chest_Potions")
+    table = parse_treasure_tables(
+        mod.files()["Public/Multi/Stats/Generated/TreasureTable.txt"].decode("utf-8")
+    )[0]
+    assert sorted(table.items()) == ["ARM_A", "WPN_B"]

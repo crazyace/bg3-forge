@@ -52,6 +52,36 @@ class TreasureTable:
         return result
 
 
+#: The rarity/type header base-game treasure files declare up top.
+DEFAULT_ITEM_TYPES = (
+    "Common", "Uncommon", "Rare", "Epic", "Legendary", "Divine", "Unique",
+)
+
+
+def write_treasure_tables(
+    tables: list[TreasureTable], item_types=DEFAULT_ITEM_TYPES
+) -> str:
+    """Serialize treasure tables back to ``TreasureTable.txt`` form.
+
+    The inverse of :func:`parse_treasure_tables`.  A mod reuses an existing
+    table name with ``can_merge`` set to *inject* drops into a base-game
+    container rather than replace it; each object's name carries the ``I_``
+    prefix for a direct item drop.
+    """
+    lines = ["treasure itemtypes " + ",".join(f'"{t}"' for t in item_types)]
+    for table in tables:
+        lines.append(f'new treasuretable "{table.name}"')
+        if table.can_merge:
+            lines.append("CanMerge 1")
+        for subtable in table.subtables:
+            lines.append(f'new subtable "{subtable.drop_counts}"')
+            for obj in subtable.objects:
+                lines.append(
+                    f'object category "{obj.name}",{obj.frequency},0,0,0,0,0,0,0'
+                )
+    return "\n".join(lines) + "\n"
+
+
 def parse_treasure_tables(text: str) -> list[TreasureTable]:
     tables: list[TreasureTable] = []
     table: TreasureTable | None = None

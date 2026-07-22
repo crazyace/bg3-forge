@@ -355,6 +355,32 @@ def test_build_templates_document_uses_templates_region():
 
 # -- treasure ----------------------------------------------------------------
 
+def test_write_treasure_tables_roundtrips():
+    from bg3forge.parsers import write_treasure_tables
+
+    tables = parse_treasure_tables(TREASURE_TXT)
+    assert parse_treasure_tables(write_treasure_tables(tables)) == tables
+
+
+def test_write_treasure_tables_injects_with_canmerge():
+    from bg3forge.parsers import (
+        TreasureObject,
+        TreasureSubtable,
+        TreasureTable,
+        write_treasure_tables,
+    )
+
+    table = TreasureTable(
+        name="TUT_Chest_Potions",
+        can_merge=True,
+        subtables=[TreasureSubtable("-1", [TreasureObject("I_ARM_Test", 1)])],
+    )
+    text = write_treasure_tables([table])
+    assert 'new treasuretable "TUT_Chest_Potions"' in text
+    assert "CanMerge 1" in text
+    assert 'object category "I_ARM_Test",1,0,0,0,0,0,0,0' in text
+
+
 def test_parse_treasure_tables():
     tables = parse_treasure_tables(TREASURE_TXT)
     assert len(tables) == 1

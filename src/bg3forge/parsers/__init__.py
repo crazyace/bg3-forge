@@ -56,7 +56,13 @@ from .goals import Goal, parse_goal
 from .equipment import EquipmentSet, parse_equipment_sets
 from .progressions import Progression, ProgressionCollection, parse_progressions
 from .spelllists import SpellList, parse_spell_lists
-from .treasure import TreasureTable, parse_treasure_tables
+from .treasure import (
+    TreasureObject,
+    TreasureSubtable,
+    TreasureTable,
+    parse_treasure_tables,
+    write_treasure_tables,
+)
 from .osiris import (
     CompiledStory,
     FunctionType,
@@ -136,8 +142,11 @@ __all__ = [
     "parse_progressions",
     "SpellList",
     "parse_spell_lists",
+    "TreasureObject",
+    "TreasureSubtable",
     "TreasureTable",
     "parse_treasure_tables",
+    "write_treasure_tables",
     "CompiledStory",
     "FunctionType",
     "OsirisDatabase",
