@@ -20,8 +20,17 @@ from .lsx import (
     parse_lsx,
     write_lsx,
 )
-from .lsf import LsfError, is_lsf, load_lsf, parse_lsf, write_lsf
+from .lsf import (
+    LsfError,
+    is_lsf,
+    load_lsf,
+    pack_version64,
+    parse_lsf,
+    unpack_version64,
+    write_lsf,
+)
 from .lsj import LsjError, is_lsj, parse_lsj
+from .meta import ModuleInfo, build_meta_document, parse_meta
 from .resource import load_resource, parse_resource
 from .roottemplates import RootTemplate, RootTemplateIndex, parse_root_templates
 from .tags import Tag, TagRegistry, parse_tags
@@ -78,11 +87,16 @@ __all__ = [
     "LsfError",
     "is_lsf",
     "load_lsf",
+    "pack_version64",
     "parse_lsf",
+    "unpack_version64",
     "write_lsf",
     "LsjError",
     "is_lsj",
     "parse_lsj",
+    "ModuleInfo",
+    "build_meta_document",
+    "parse_meta",
     "load_resource",
     "parse_resource",
     "RootTemplate",
