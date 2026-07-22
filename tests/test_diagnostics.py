@@ -23,7 +23,7 @@ def test_validate_clean_fixture(data_dir):
     assert report.counts["treasure_tables"] == 1
     assert report.counts["loca_files"] == 1
     assert report.counts["loca_handles"] == 17
-    assert report.counts["lsx_resources"] == 10  # templates, globals, atlas, tags, registry, journal
+    assert report.counts["lsx_resources"] == 11  # templates, placed items, atlas, tags, registry, journal
     assert report.counts["lsf_resources"] == 2   # dialog + timeline
     assert report.counts["dialogs"] == 2   # binary + editor .lsj
     assert report.counts["dialog_nodes"] == 4
@@ -209,7 +209,7 @@ def test_run_benchmark(data_dir, tmp_path):
     assert all(seconds >= 0 for _, seconds in report.stages)
     assert report.counts["items"] == 3
     assert report.counts["spells"] == 1
-    assert report.counts["pak entries"] == 24
+    assert report.counts["pak entries"] == 25
     assert report.counts["tags"] == 2
     assert report.counts["dialogs indexed"] == 1
     assert report.counts["timelines indexed"] == 1

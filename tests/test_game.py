@@ -83,6 +83,14 @@ def test_item_templates_include_global_items_and_resolve_template_name(game):
         "Type": "item",
     }
 
+    level_id = "4444dddd-0000-0000-0000-000000000004"
+    assert level_id not in game.templates
+    assert level_id in game.item_templates
+    assert game.item_templates.resolved(level_id)["Stats"] == "WPN_Longsword"
+    assert game.item_templates.resolved(level_id)["DisplayName"] == (
+        "h11111111-1111-1111-1111-111111111111"
+    )
+
 
 def test_spells(game):
     spells = game.spells
