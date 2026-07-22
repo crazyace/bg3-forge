@@ -133,7 +133,8 @@ remove that redundancy. This is design principle #5 working as
 intended — the optimization exists because the benchmark measured the
 need.
 
-**Post-fix run (same install):** total **~8.8 s** / 827 MB — the
+**Post-fix run (same install, before compiled-story parsing):** total
+**~8.8 s** / 827 MB — the
 per-stage toll collapsed to real work::
 
     Read pak indexes ........   1.83 s
@@ -150,7 +151,55 @@ per-stage toll collapsed to real work::
     Resolve relationships ...   0.01 s
     Export JSON .............   0.28 s
 
-This is the current reference for optimization PRs.
+**Final 0.1.0 release gate (same install):** total **~25.1 s** / 827 MB.
+The completed compiled-story stage accounts for 16.05 s; all other stages
+remain at the post-fix baseline::
+
+    Read pak indexes .........   1.82 s
+    Parse stats ..............   2.23 s
+    Parse localization .......   0.47 s
+    Parse root templates .....   2.48 s
+    Parse tags ...............   0.19 s
+    Parse atlases ............   0.48 s
+    Index dialogs ............   0.10 s
+    Index timelines ..........   0.09 s
+    Parse quests .............   0.57 s
+    Index goals ..............   0.10 s
+    Parse compiled stories ...  16.05 s
+    Build models .............   0.17 s
+    Resolve relationships ....   0.02 s
+    Export JSON ..............   0.28 s
+
+    pak entries .............. 1,041,877
+    stats entries ............   16,132
+    loca handles .............  232,876
+    root templates ...........   25,560
+    tags .....................    1,103
+    atlases ..................       11
+    dialogs indexed ..........    9,386
+    timelines indexed ........   32,427
+    quests ...................      167
+    objectives ...............    1,335
+    quest categories .........       14
+    goals indexed ............      946
+    compiled stories .........        6
+    story goals ..............    4,273
+    story databases ..........   73,340
+    story rules ..............  226,858
+    items ....................    3,139
+    spells ...................    4,687
+    passives .................    1,827
+    statuses .................    4,631
+    characters ...............    1,550
+    equipment sets ...........      738
+
+`validate` intentionally reports 11 physical compiled-story files across
+all pak variants. The consumer-facing `Game.story` index applies game
+load-order overrides by archived path, so the benchmark parses the six
+effective logical stories. Both numbers are correct for their respective
+purposes.
+
+This release-gate run is the current reference for optimization PRs.
 
 Per the roadmap, no further optimization is planned until a real
 consumer needs one; any proposal should beat these numbers on
