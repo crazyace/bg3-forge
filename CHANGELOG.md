@@ -33,6 +33,12 @@ The first write primitives aimed at programmatic mod creation:
   tags), and `build_templates_document` wraps them in the `Templates` region
   a RootTemplate file uses. Built templates round-trip through
   `parse_root_templates` and resolve inheritance via `RootTemplateIndex`.
+* Added the `Mod` capstone (`bg3forge.authoring`): `mod.new_armor(...)` /
+  `mod.new_item(...)` assemble stats, RootTemplate, `meta.lsx`, and
+  localization, and `mod.build(path)` packs a `.pak`. UUIDs and handles are
+  minted with UUID5, so rebuilds are byte-identical. It writes only to the
+  chosen output path, never the game install. Verified end to end by
+  building a pak and reading every cross-reference back through the parsers.
 
 ## 0.1.0 — 2026-07-21
 
