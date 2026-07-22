@@ -7,6 +7,8 @@ from .stats import (
     StatsParseError,
     parse_stats,
     parse_stats_document,
+    write_stats,
+    write_stats_document,
 )
 from .localization import Localization, LocaEntry, LocaError, parse_loca, write_loca
 from .lsx import (
@@ -59,6 +61,8 @@ __all__ = [
     "StatsParseError",
     "parse_stats",
     "parse_stats_document",
+    "write_stats",
+    "write_stats_document",
     "Localization",
     "LocaEntry",
     "LocaError",

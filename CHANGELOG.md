@@ -15,6 +15,13 @@
   tables and 315 effective spell lists, with zero unresolved joins; the new
   benchmark stage takes 0.29 seconds on the reference install.
 
+### Formats
+
+* Added a stats writer (`write_stats`, `write_stats_document`), the inverse
+  of the stats parser. Re-parsing its output reproduces the same document,
+  and the canonical fixture round-trips byte-for-byte. This is the first
+  write primitive aimed at programmatic mod authoring.
+
 ## 0.1.0 — 2026-07-21
 
 First release. Everything below is validated against a full retail

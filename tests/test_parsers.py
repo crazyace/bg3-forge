@@ -4,13 +4,18 @@ from bg3forge.parsers import (
     Localization,
     LocaEntry,
     StatsCollection,
+    StatsDocument,
+    StatsEntry,
     StatsParseError,
     parse_loca,
     parse_lsx,
     parse_root_templates,
     parse_stats,
+    parse_stats_document,
     parse_treasure_tables,
     write_loca,
+    write_stats,
+    write_stats_document,
     RootTemplateIndex,
 )
 from bg3forge.parsers.progressions import parse_progressions
@@ -39,6 +44,53 @@ def test_stats_comments_and_blank_lines():
 def test_stats_data_outside_block_raises():
     with pytest.raises(StatsParseError, match="outside any"):
         parse_stats('data "Damage" "1d4"')
+
+
+def test_write_stats_roundtrips_document():
+    """parse -> write -> parse is an identity at the data-model level."""
+    document = parse_stats_document(WEAPON_TXT)
+    assert parse_stats_document(write_stats_document(document)) == document
+
+
+def test_write_stats_pins_retail_layout():
+    """The canonical fixture round-trips byte-for-byte, pinning the
+    `new entry` / `type` / `using` / `data` line shape and blank-line
+    separation the game reads back."""
+    assert write_stats_document(parse_stats_document(WEAPON_TXT)) == WEAPON_TXT
+
+
+def test_write_stats_omits_absent_type_and_using():
+    text = write_stats([StatsEntry(name="ARM_Plain", type="Armor")])
+    assert 'new entry "ARM_Plain"' in text
+    assert 'type "Armor"' in text
+    assert "using" not in text  # using is None -> no line invented
+
+
+def test_write_stats_emits_key_globals():
+    """Globals serialize as consecutive `key "Name","Value"` lines and
+    survive a round trip (the Data.txt / XPData.txt shape)."""
+    document = StatsDocument(
+        entries=[StatsEntry(name="A", type="Weapon")],
+        globals={"ProficiencyBonusBase": "2"},
+    )
+    text = write_stats_document(document)
+    assert 'key "ProficiencyBonusBase","2"' in text
+    assert parse_stats_document(text) == document
+
+
+def test_write_stats_authors_a_new_entry_from_scratch():
+    """The mod-authoring path: build an entry in memory, serialize it, and
+    confirm the game-readable text parses back to the same definition."""
+    entry = StatsEntry(
+        name="ARM_Sunforged_Plate",
+        type="Armor",
+        using="ARM_Plate_Body",
+        data={"ArmorClass": "21", "RootTemplate": "abc"},
+    )
+    reparsed = parse_stats(write_stats([entry]))
+    assert len(reparsed) == 1
+    assert reparsed[0].using == "ARM_Plate_Body"
+    assert reparsed[0].get("ArmorClass") == "21"
 
 
 def test_stats_key_globals():
