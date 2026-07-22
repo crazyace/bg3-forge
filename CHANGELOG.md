@@ -109,7 +109,11 @@ The first write primitives aimed at programmatic mod creation:
   From-scratch definitions take `spell_type=` plus explicit `data`. The
   returned name wires into `new_scroll(spell=…)` and `grants_spells=[…]`,
   completing the fully-original consumable chain (custom spell + custom
-  status + the items that deliver them, all in one mod).
+  status + the items that deliver them, all in one mod). Retail-verified:
+  a scroll of a cloned Fire Bolt cast in game with the overridden 3d10
+  damage, auto-derived damage tooltip, and inherited range/cost/visuals —
+  confirming the scroll action and `CanUseSpellScroll` accept modded
+  SpellData names.
 * Added consumables: `mod.new_potion(status=…)` and `mod.new_elixir(status=…)`
   (a Consume template action applying a status — duration 0, or -1 until long
   rest) and `mod.new_scroll(spell=…)` (the retail cast-from-scroll action,

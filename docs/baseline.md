@@ -342,6 +342,21 @@ instances* (existing items in a save render stale tooltips), and the
 line under the blurb is [status icon] + duration — the status identity
 there is its `Icon`.
 
+### Custom spells — verified 2026-07-22
+
+The last authoring frontier: `new_spell` cloned `Projectile_FireBolt`
+("Forge Bolt", `DealDamage(3d10,Fire,Magical)`) and a `new_scroll` of it
+was cast in game. The scroll tooltip auto-derived "3~30 Damage" and the
+3d10 Fire line from `TooltipDamageList`, inherited the 18m range, action
+cost, and Single Use from the base spell, and rendered both text slots;
+the cast used Fire Bolt's projectile visuals with the overridden damage.
+
+This settles the open wiring question: the cast-from-scroll action
+(`SkillID`) and its `CanUseSpellScroll` condition both accept a modded
+SpellData name. With custom spells, statuses, passives, and the item
+pipeline all retail-verified, a mod can now ship fully-original content
+end to end — every piece invented by the library.
+
 ### Wiring survey — corpus-verified 2026-07-22
 
 `scripts/wiring_survey.py` swept all 25,564 retail templates and turned
