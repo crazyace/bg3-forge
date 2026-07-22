@@ -190,6 +190,43 @@ def test_new_weapon_binds_template_and_can_be_placed_in_treasure():
     assert table.items() == ["WPN_Test"]
 
 
+def _entries_by_name(mod):
+    txt = mod.files()[
+        f"Public/{mod.folder}/Stats/Generated/Data/{mod.folder}.txt"
+    ].decode("utf-8")
+    return {e.name: e for e in parse_stats(txt)}
+
+
+def test_new_passive_defines_passivedata_with_resolving_name():
+    mod = Mod("PassiveMod")
+    name = mod.new_passive(
+        "MY_Warding",
+        display_name="Warding",
+        description="Take less damage.",
+        boosts=["DamageReduction(All, Flat, 3)"],
+    )
+    assert name == "MY_Warding"
+    entry = _entries_by_name(mod)["MY_Warding"]
+    assert entry.type == "PassiveData"
+    assert entry.get("Boosts") == "DamageReduction(All, Flat, 3)"
+    assert entry.get("Properties") == "Highlighted"  # shows on the sheet by default
+    # DisplayName is a handle carrying a ;version suffix, and it resolves
+    display = entry.get("DisplayName")
+    assert display.startswith("h") and display.endswith(";1")
+    loca = Localization()
+    loca.load_bytes(mod.files()["Localization/English/PassiveMod.loca"])
+    assert loca.resolve(display) == "Warding"
+
+
+def test_item_can_grant_a_custom_passive():
+    mod = Mod("GrantMod")
+    passive = mod.new_passive("MY_Warding", boosts=["AC(1)"])
+    mod.new_armor("ARM_Warded", armor_class=15, passives=[passive])
+    entries = _entries_by_name(mod)
+    assert entries["MY_Warding"].type == "PassiveData"
+    assert entries["ARM_Warded"].get("PassivesOnEquip") == "MY_Warding"
+
+
 def test_place_in_treasure_accumulates_across_items():
     mod = Mod("Multi")
     mod.new_armor("ARM_A", treasure="TUT_Chest_Potions")
