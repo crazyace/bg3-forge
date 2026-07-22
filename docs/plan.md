@@ -60,8 +60,8 @@ source-goal names were present in compiled data.
 
 - [x] Inventory the first integration slice: items, passives, statuses,
       placed templates, and icons
-- [x] Depend on bg3forge via git ref (pinned commit) until the release
-      is cut; no vendored copies
+- [x] Move the first downstream consumer from its temporary git pin to
+      `bg3forge[icons]>=0.1.0,<0.2.0` from PyPI; no vendored copies
 - [x] Replace the Script Extender/Lua item dump and Multitool icon path
       with `Game`-API calls; the consumer contains no pak/format code for
       this pipeline
