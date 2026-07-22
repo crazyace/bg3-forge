@@ -172,6 +172,14 @@ How "Learn Spell" on a scroll works, traced through retail data:
   ``mod.replace_spell_list(uuid, spells)`` must ship the full set — read
   the current list via ``game.spell_lists[uuid]`` at build time.  Two
   mods replacing the same list conflict (last in load order wins).
+- ``add_class_spell(game, mod, class_name, spell, level=…)`` packages the
+  whole recipe for any class: progression ``SelectSpells`` lists +
+  ``ClassDescription`` pool, extended only where the list already holds
+  spells of that level (cantrip lists stay clean).  Selection casters get
+  it in the level-up picker, prepared casters in their prepare list, and
+  the wizard in transcription.  Give the spell its own ``icon=`` — a
+  clone otherwise shows its base's art in the picker, indistinguishable
+  on sight.
 
 Related discovery: the scroll action's ``ClassId`` *is* the Wizard
 ClassDescription UUID (the class marked ``IsDefaultForUseSpellAction``).

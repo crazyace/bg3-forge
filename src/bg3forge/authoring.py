@@ -757,3 +757,57 @@ class Mod:
         for name, data in self.files().items():
             writer.add(name, data)
         return writer.write(output)
+
+
+def add_class_spell(
+    game, mod: Mod, class_name: str, spell: str, *, level: int
+) -> list[str]:
+    """Make ``spell`` a class spell of ``class_name``: extend every spell
+    list the class selects from (or prepares/learns from) that already
+    carries spells of ``level``, and return the extended list UUIDs.
+
+    Bridges the read and write sides: ``game`` supplies the class's
+    current lists (so the mod tracks the installed patch), ``mod`` ships
+    the replacements.  Covers both acquisition styles — the level-up
+    ``SelectSpells`` lists from the class's progressions, and the
+    ``ClassDescription`` pool used by prepared casters and wizard
+    transcription.  Lists holding no spell of ``level`` (e.g. cantrip
+    lists) are left untouched, so a leveled spell is never offered as a
+    cantrip.  Idempotent: lists already containing ``spell`` are skipped.
+
+    ::
+
+        spell = mod.new_spell("Target_ForgeStep", using="Target_MistyStep",
+                              display_name="Forge Step", ...)
+        add_class_spell(game, mod, "Bard", spell, level=2)
+
+    Compatibility note: each extended list is shipped as a wholesale
+    replacement — two mods replacing the same list conflict (last in
+    load order wins).
+    """
+    cls = game.classes[class_name]
+    list_ids: list[str] = []
+    for progression in cls.progressions:
+        for list_id in progression.selectable_spell_list_ids:
+            if list_id not in list_ids:
+                list_ids.append(list_id)
+    if cls.spell_list_uuid and cls.spell_list_uuid not in list_ids:
+        list_ids.append(cls.spell_list_uuid)
+
+    extended: list[str] = []
+    for list_id in list_ids:
+        spell_list = game.spell_lists.get(list_id)
+        if spell_list is None or spell in spell_list.spell_names:
+            continue
+        if not any(
+            (known := game.spells.get(name)) is not None and known.level == level
+            for name in spell_list.spell_names
+        ):
+            continue  # wrong-level list (e.g. cantrips)
+        mod.replace_spell_list(
+            list_id,
+            list(spell_list.spell_names) + [spell],
+            name=spell_list.display_name,
+        )
+        extended.append(list_id)
+    return extended

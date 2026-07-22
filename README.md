@@ -275,9 +275,24 @@ spell = mod.new_spell("Projectile_Sunbolt",  # a custom spell cloned from
     using="Projectile_FireBolt",             # a retail base (visuals/sounds
     display_name="Sunbolt",                  # inherit; effects override)
     spell_success=["DealDamage(2d10,Fire,Magical)"])
-mod.new_scroll("OBJ_Scroll_Sunbolt",      # ...cast from a scroll
-    spell=spell)
+mod.new_scroll("OBJ_Scroll_Sunbolt",      # ...cast from a scroll (and, by
+    spell=spell)                          # default, wizard-transcribable)
 mod.build("SunforgedArmors.pak")          # stats + template + meta + loca + treasure → pak
+```
+
+To make a custom spell a real *class spell* — offered in the level-up
+picker, prepared lists, and wizard transcription — bridge the read and
+write sides with `add_class_spell` (it extends the class's current spell
+lists from your installed game, skipping wrong-level lists):
+
+```python
+from bg3forge import Game, Mod, add_class_spell
+
+game, mod = Game(), Mod("SunboltForBards")
+spell = mod.new_spell("Target_Sunstep", using="Target_MistyStep",
+    display_name="Sunstep", icon="Spell_Conjuration_DimensionDoor")
+add_class_spell(game, mod, "Bard", spell, level=2)
+mod.build("SunboltForBards.pak")
 ```
 
 Rebuilding the same mod reproduces byte-identical identifiers (UUID5 from
@@ -291,11 +306,13 @@ the mod name). Under the hood it composes the write primitives:
 * **Version64** — `pack_version64` / `unpack_version64`
 * plus the existing `.loca` writer and `PakWriter`
 
-**Retail-verified:** a capstone-built mod loads in a Patch 8 game — the
-item spawns, its stats and localized name/description resolve, the icon
-inherits, and equip boosts apply to the character. See
+**Retail-verified in a Patch 8 game:** items drop from base-game chests
+with resolved stats, text, and icons; equip boosts, custom passives, and
+custom statuses apply; potions and scrolls consume and cast; a custom
+spell cast from its scroll; and a wizard *learned* a custom spell from
+its scroll (transcribe dialog, gold cost, spellbook cast). See
 [`docs/mod-authoring.md`](docs/mod-authoring.md) for the load-test steps
-and [`docs/baseline.md`](docs/baseline.md) for the verified result.
+and [`docs/baseline.md`](docs/baseline.md) for the verified results.
 
 ### Icon pipeline (`bg3forge.assets`)
 

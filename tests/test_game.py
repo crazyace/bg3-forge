@@ -205,6 +205,35 @@ def test_class_descriptions_join_the_spell_machinery(game):
     assert game.spell_lists_containing("Target_Nonexistent") == []
 
 
+def test_add_class_spell_extends_matching_lists(game):
+    """add_class_spell bridges read and write: it extends the class's
+    selectable lists and ClassDescription pool that already hold spells of
+    the given level, and skips wrong-level lists."""
+    from bg3forge import Mod, add_class_spell
+    from bg3forge.parsers import parse_lsx, parse_spell_lists
+
+    mod = Mod("ClassSpellMod")
+    # Fixture Fireball is level 3: both wizard lists carry it.
+    extended = add_class_spell(game, mod, "Wizard", "Projectile_MyBolt", level=3)
+    assert set(extended) == {
+        "cccccccc-0000-0000-0000-000000000002",  # SelectSpells list
+        "cccccccc-0000-0000-0000-000000000001",  # ClassDescription pool
+    }
+    text = mod.files()["Public/ClassSpellMod/Lists/SpellLists.lsx"].decode("utf-8")
+    lists = {l.uuid: l for l in parse_spell_lists(parse_lsx(text))}
+    for uuid in extended:
+        assert lists[uuid].spell_names == ["Projectile_Fireball", "Projectile_MyBolt"]
+
+    # No level-2 spells anywhere in the fixture: nothing to extend.
+    mod2 = Mod("ClassSpellMod2")
+    assert add_class_spell(game, mod2, "Wizard", "Target_MyStep", level=2) == []
+    assert not any("Lists/" in name for name in mod2.files())
+
+    # Idempotent: a spell already on the lists is not re-added.
+    mod3 = Mod("ClassSpellMod3")
+    assert add_class_spell(game, mod3, "Wizard", "Projectile_Fireball", level=3) == []
+
+
 def test_progression_uuid_follows_pak_load_order(data_dir):
     from conftest import PROGRESSION_LSX
     from bg3forge.pak import PakWriter
