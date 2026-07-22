@@ -276,3 +276,21 @@ named exactly `_merged.lsf`, not an arbitrary `.lsx`. A known-good retail
 item mod confirmed the rest of the output (meta.lsx, stats layout, `.loca`
 keys, and `h…g…` handle format) already matched byte-for-byte. See the git
 history around the `_merged.lsf` fix.
+
+### Obtainability — verified in a fresh playthrough
+
+The item was then made obtainable with `treasure="TUT_Chest_Potions"`
+(injecting into an existing table with `CanMerge`). On a new game, the
+generated armor appeared **in the tutorial chest** during normal play —
+no console, the strongest possible confirmation.
+
+The container→treasure lookup added to close this loop was also confirmed
+against the same install:
+
+    >>> game.item_templates.by_treasure_table("TUT_Chest_Potions")
+    S_Chest_Potions  e57e3af6-ae79-4d5c-9d11-f695b359c740
+
+That is the level-placed chest object (its `InventoryList` references the
+table), and its `map_key` is the object UUID — matching, from data alone,
+the chest the item was found in. The full write path — author → pack →
+load → equip → **find in the world** — is retail-verified.
