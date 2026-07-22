@@ -88,10 +88,14 @@ The first write primitives aimed at programmatic mod creation:
   (`StatusPropertyFlags`). By default no flags are emitted, so custom
   statuses announce themselves via overhead text, combat log, and portrait
   indicator — the channels retail's `POTION_OF_HEALING` explicitly disables.
-* Added `on_use_description=` to `new_item` and the consumables — the
-  item-tooltip effect blurb (`OnUseDescription` TranslatedString on the
-  template). Without it, a consumable cloned via `parent_template` inherits
-  the base's blurb (e.g. the healing potion's "Heals and removes Burning").
+* Mapped BG3's four item text slots by dissecting retail's Elixir of
+  Bloodlust: `display_name` (item name), `description` (italic flavor),
+  `effect_description` (the golden effect blurb — `TechnicalDescription`,
+  which supports `<LSTag ...>` hyperlink markup passed through verbatim),
+  and `on_use_description` (just the use-verb label, "Drink"). Unset slots
+  inherit the `parent_template`'s text. Also added `description_params=` to
+  `new_status` (`DescriptionParams` — values substituted into `[1]`, `[2]`
+  placeholders).
 * Added consumables: `mod.new_potion(status=…)` and `mod.new_elixir(status=…)`
   (a Consume template action applying a status — duration 0, or -1 until long
   rest) and `mod.new_scroll(spell=…)` (the retail cast-from-scroll action,

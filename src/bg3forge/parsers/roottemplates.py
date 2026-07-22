@@ -30,6 +30,7 @@ _FIELDS = (
     "Name",
     "DisplayName",
     "Description",
+    "TechnicalDescription",
     "OnUseDescription",
     "Stats",
     "Icon",
@@ -146,6 +147,7 @@ def build_root_template_node(
     icon: str | None = None,
     display_name: str | None = None,
     description: str | None = None,
+    technical_description: str | None = None,
     on_use_description: str | None = None,
     parent_template_id: str | None = None,
     tags: Iterable[str] = (),
@@ -185,6 +187,7 @@ def build_root_template_node(
     for field_id, handle in (
         ("DisplayName", display_name),
         ("Description", description),
+        ("TechnicalDescription", technical_description),
         ("OnUseDescription", on_use_description),
     ):
         if handle is not None:

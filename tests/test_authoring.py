@@ -353,6 +353,35 @@ def test_custom_status_wires_into_elixir():
     assert attrs.get("StatusDuration") == "-1"       # until long rest
 
 
+def test_effect_description_fills_technical_description_slot():
+    """BG3's golden effect blurb is TechnicalDescription (retail: Bloodlust's
+    'Drink to enter a bloodlust...'); OnUseDescription is just the use-verb
+    label ('Drink'). LSTag hyperlink markup passes through verbatim."""
+    mod = Mod("SlotMod")
+    mod.new_elixir(
+        "OBJ_Slot_Brew",
+        status="FORGE_FIRE",
+        effect_description=(
+            'Drink to ignite <LSTag Type="Status" Tooltip="FORGE_FIRE">'
+            "Forgefire</LSTag>: +2 Strength until long rest."
+        ),
+        on_use_description="Drink",
+    )
+    node, _ = _template_actions(mod, "OBJ_Slot_Brew")
+    tech = node.attributes["TechnicalDescription"]
+    verb = node.attributes["OnUseDescription"]
+    loca = Localization()
+    loca.load_bytes(mod.files()["Localization/English/SlotMod.loca"])
+    assert '<LSTag Type="Status" Tooltip="FORGE_FIRE">' in loca.resolve(tech.handle)
+    assert loca.resolve(verb.handle) == "Drink"
+
+
+def test_status_description_params():
+    mod = Mod("ParamMod")
+    mod.new_status("P", boosts=["AC(1)"], description_params=[5, 10])
+    assert _entries_by_name(mod)["P"].get("DescriptionParams") == "5;10"
+
+
 def test_on_use_description_is_authored_and_resolves():
     """The item-tooltip effect blurb: without it, a cloned consumable shows
     the base's blurb (the healing potion's 'Heals and removes Burning')."""
