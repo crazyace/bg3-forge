@@ -144,8 +144,11 @@ composing them and minting stable UUID5 identifiers/handles.
       in the tutorial chest (correct damage, inherited traits, weapon action)
 - [x] Custom passives (`new_passive`): `type "PassiveData"` with its own
       boosts and localized name, granted through an item's `passives=[...]`
-- [ ] Custom spells/statuses (`type "SpellData"`/`"StatusData"`) — the
-      richest schemas; build against a real example when a mod needs them
+- [x] Custom statuses (`new_status`): `StatusData` BOOST with boosts,
+      instant `OnApplyFunctors`, and localized name — enables fully-original
+      consumables
+- [ ] Custom spells (`type "SpellData"`) — the richest schema; build against
+      a real example when a mod needs it
 - [x] Consumables (reference-existing forms): `new_potion`/`new_elixir`
       (Consume action applying a status) and `new_scroll` (cast-from-scroll
       action). Fully-original consumables await custom spells/statuses

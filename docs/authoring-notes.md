@@ -88,7 +88,11 @@ suffix (unlike the RootTemplate handles). A `mod.new_passive(name,
 boosts=[...], display_name=..., description=...)` would mint the handles
 and register the loca, mirroring `new_item`.
 
-## 4. Custom spells and statuses
+## 4. Custom spells and statuses — statuses DONE
+
+*Statuses implemented: `mod.new_status(boosts=…, on_apply=…, …)` emits the
+retail `StatusData` BOOST shape (StackId = name, `;version` handles,
+`OnApplyFunctors` for instant effects). Custom spells remain.*
 
 Spells are `type "SpellData"` with a `SpellType` (`Target`, `Projectile`,
 `Shout`, `Zone`, …), typically `using` a base spell, plus

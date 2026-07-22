@@ -78,6 +78,11 @@ The first write primitives aimed at programmatic mod creation:
   returning the name for use in an item's `passives=[...]`. Handles carry the
   `;version` suffix BG3 uses for PassiveData, and `Properties` defaults to
   `Highlighted` so the passive shows on the character sheet.
+* Added `mod.new_status(...)`: define a *custom* status (`type "StatusData"`,
+  `BOOST` by default) with `boosts` active while it lasts, instant
+  `on_apply` functors, a localized name/description, and `StackId`
+  defaulting to the name — enabling fully-original consumables
+  (`new_elixir(status=<your status>)`).
 * Added consumables: `mod.new_potion(status=…)` and `mod.new_elixir(status=…)`
   (a Consume template action applying a status — duration 0, or -1 until long
   rest) and `mod.new_scroll(spell=…)` (the retail cast-from-scroll action,

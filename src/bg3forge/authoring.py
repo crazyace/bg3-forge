@@ -419,6 +419,51 @@ class Mod:
             data=data,
         )
 
+    def new_status(
+        self,
+        name: str,
+        *,
+        boosts=(),
+        on_apply=(),
+        display_name: str | None = None,
+        description: str | None = None,
+        icon: str | None = None,
+        status_type: str = "BOOST",
+        stack_id: str | None = None,
+        data: dict[str, str] | None = None,
+    ) -> str:
+        """Define a *custom* status (a ``type "StatusData"`` entry) and return
+        its name, for use in ``new_potion(status=...)`` / ``new_elixir`` or an
+        item's ``statuses=[...]``.
+
+        ``boosts`` are effects active while the status lasts (e.g.
+        ``"Ability(Strength,2)"``); ``on_apply`` are instant
+        ``OnApplyFunctors`` (e.g. ``"RegainHitPoints(2d4+2)"``).  ``StackId``
+        defaults to the status name, matching retail statuses.  Handles carry
+        the ``;version`` suffix StatusData uses.
+        """
+        stats_data = dict(data or {})
+        stats_data.setdefault("StatusType", status_type)
+        stats_data.setdefault("StackId", stack_id or name)
+        if display_name:
+            handle = self.add_string(f"{name}:DisplayName", display_name)
+            stats_data["DisplayName"] = f"{handle};1"
+        if description:
+            handle = self.add_string(f"{name}:Description", description)
+            stats_data["Description"] = f"{handle};1"
+        boost_field = _merge_semicolon(stats_data.get("Boosts"), boosts)
+        if boost_field:
+            stats_data["Boosts"] = boost_field
+        apply_field = _merge_semicolon(stats_data.get("OnApplyFunctors"), on_apply)
+        if apply_field:
+            stats_data["OnApplyFunctors"] = apply_field
+        if icon:
+            stats_data["Icon"] = icon
+        self._stats.append(
+            StatsEntry(name=name, type="StatusData", using=None, data=stats_data)
+        )
+        return name
+
     def new_passive(
         self,
         name: str,
