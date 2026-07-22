@@ -310,3 +310,13 @@ load → equip → **find in the world** — is retail-verified.
 - Operational note learned along the way: container loot is rolled at
   new-game generation and stored in the save, so treasure-table tests
   need a fresh game (or spawn the item by its deterministic UUID).
+
+### Consumables — verified 2026-07-22
+
+- `new_potion`: a generated potion (cloning the healing potion's visuals,
+  applying `POTION_OF_HEALING`) healed on drink and was consumed.
+- `new_scroll`: a generated scroll cast `Shout_FeatherFall` on use (with
+  its normal party-wide shout radius) and was consumed — confirming the
+  `OnUsePeaceActions` cast-from-scroll action and typed LSF attributes.
+- `new_elixir` differs from the potion only by `StatusDuration = -1`, the
+  exact field observed on the retail elixir template.
