@@ -25,6 +25,7 @@ from .game import (
     _is_dialog_file,
     _is_editor_dialog_file,
     _is_equipment_file,
+    _is_class_description_file,
     _is_goal_file,
     _is_category_file,
     _is_marker_file,
@@ -53,6 +54,7 @@ from .parsers.lsf import is_lsf
 from .parsers.lsj import is_lsj
 from .parsers.localization import parse_loca
 from .parsers.osiris import parse_osiris
+from .parsers.classdescriptions import parse_class_descriptions
 from .parsers.progressions import Progression, parse_progressions
 from .parsers.resource import parse_resource
 from .parsers.roottemplates import parse_root_templates
@@ -103,7 +105,7 @@ def validate_data(
         "progression_passives_missing", "progression_spell_list_grants",
         "progression_spell_list_choices", "progression_spell_lists_missing",
         "spell_list_files", "spell_lists", "spell_list_spells",
-        "spell_list_spells_missing",
+        "spell_list_spells_missing", "class_descriptions",
         "compiled_stories", "story_functions", "story_databases",
         "story_goals", "story_rules", "source_goals_compiled",
         "source_goals_missing",
@@ -327,6 +329,10 @@ def _validate_entry(
                 counts["spell_lists"] += len(records)
                 for record in records:
                     spell_lists[record.uuid] = record
+            elif _is_class_description_file(name):
+                counts["class_descriptions"] += len(
+                    parse_class_descriptions(document, source=name)
+                )
             elif _is_timeline_file(name):
                 counts["timelines"] += 1
         if check("resource", parse):

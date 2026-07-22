@@ -116,9 +116,14 @@ must be added to `validate` and `benchmark` before downstream migration.
 First vertical slice retail-validated 2026-07-21: 1,004 effective progression
 records across 144 tables, 315 effective spell lists, and zero missing passive,
 spell-list, or spell joins. Automatic grants remain distinct from player
-choices, load-order overrides are applied, and the stage costs 0.29 s. Class
-and race description records are the next join now that the shipped table
-references and counts are pinned.
+choices, load-order overrides are applied, and the stage costs 0.29 s.
+
+Class description join landed 2026-07-22, driven by the teachable-spells
+authoring work: `game.classes` ties each class/subclass to its learnable
+spell list (`SpellList`/`CanLearnSpells` — the wizard transcription pool),
+its progression table, and parent/subclass links, with
+`game.spell_lists_containing(spell)` as the class-spell authoring query.
+Race descriptions remain open for when a consumer needs them.
 
 ## 6. Mod authoring — item pipeline complete, retail-verified — current
 
@@ -157,8 +162,9 @@ composing them and minting stable UUID5 identifiers/handles.
       status) and `new_scroll` (cast-from-scroll action) — with custom
       statuses and spells, fully-original consumables end to end
 - [x] Teachable spells: `replace_spell_list` re-ships a class's learnable
-      list with a custom spell appended, so wizards can transcribe its
-      scroll (pending retail verification)
+      list with a custom spell appended, and `new_scroll` emits the
+      ActionType 33 learn action. Retail-verified: Forge Step transcribed
+      from its scroll into the wizard spellbook and cast
 
 **Milestone complete and retail-verified end to end** — items, weapons,
 obtainability, and custom passives, statuses, and spells: a mod can ship

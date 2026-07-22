@@ -357,6 +357,31 @@ SpellData name. With custom spells, statuses, passives, and the item
 pipeline all retail-verified, a mod can now ship fully-original content
 end to end — every piece invented by the library.
 
+### Teachable spells — wizard transcription verified 2026-07-22
+
+The full learn pipeline for a custom spell, retail-verified: a Scroll of
+Forge Step appeared in the wizard's "Transcribe Scroll to Spellbook"
+dialog (Level II, 100 gp, correct tooltip and school), was transcribed,
+and the spell cast from the spellbook.
+
+The investigation took three in-game rounds and found both halves of the
+mechanism:
+
+1. **List membership** — the wizard's transcription pool is the
+   ``ClassDescription``'s ``SpellList`` (``CanLearnSpells``), not the
+   progression selectors (wizard ``SelectSpells`` exists only at level 1,
+   verified across every file). ``replace_spell_list`` re-ships the list
+   with the custom spell appended; SE's live static data confirmed the
+   replacement loaded (113 spells).
+2. **The learn action** — list membership alone produced no "Learn Spell".
+   Diffing our scroll against retail's in the live engine showed retail
+   learnable scrolls carry an ActionType 33 learn action (``SpellId``)
+   alongside the ActionType 12 cast — now emitted by ``new_scroll``.
+
+Tracing the chain also revealed the scroll ``ClassId`` is the Wizard
+ClassDescription UUID and exposed the LSF guid text-rendering defect
+(fixed; byte layout frozen by a regression test).
+
 ### Wiring survey — corpus-verified 2026-07-22
 
 `scripts/wiring_survey.py` swept all 25,564 retail templates and turned
