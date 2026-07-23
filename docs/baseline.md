@@ -395,14 +395,23 @@ spell are now retail-verified: **item-granted** (equip → hotbar, per-rest
 cooldowns), **scroll** (cast by anyone; transcribed by wizards), and
 **class-learned** (level-up selection).
 
+Cantrips verified the same day: ``add_class_spell(level=0)`` put "Forge
+Zap" (a Fire Bolt clone with its own icon and 1d10 tooltip) into the
+Sorcerer's cantrip picker — correct "Evocation Cantrip" header,
+auto-derived damage line, slotless Action cost.  The class-spell recipe
+holds at every spell level.
+
 Operational lessons: every "mod not working" dead end in this cycle was
 the same root cause — the pak absent from the game's *exported* load
 order (BG3 Mod Manager needs the explicit Export Order to Game step, and
 one build was never copied into the Mods folder).  `Ext.Mod.IsModLoaded`
 with the mod's deterministic UUID is the definitive two-second check and
-should be step one of any future load-test triage.  Also: give custom
-spells their own ``Icon`` — a clone wears its base's art in the picker,
-indistinguishable without hovering.
+should be step one of any future load-test triage.  Give custom spells
+their own ``Icon`` — a clone wears its base's art in the picker,
+indistinguishable without hovering.  And ship all of a mod's spells in
+*one* mod: class pools are mixed lists (cantrips + leveled), so two
+list-mods can silently fight over them even when their picker lists are
+disjoint (last in load order wins).
 
 ### Wiring survey — corpus-verified 2026-07-22
 
