@@ -493,8 +493,34 @@ src/bg3forge/
   game** for every delivery path
 * ⏳ Virtual texture (GTS/GTP) atlas support
 * ⏳ GR2 model metadata
-* ⏳ Full Osiris rule decompilation — metadata traversal is complete;
-  reconstructing executable rule semantics remains intentionally separate
+* ⏳ Full Osiris rule decompilation — compiled-story *metadata* (goals,
+  databases, function signatures, rule counts) is exposed; reconstructing
+  executable rule *logic* back to readable source is a separate, much
+  larger project with no current consumer — read the shipped `.txt`
+  goals (`game.goals`) for logic today
+
+### Where this is going — community direction
+
+The library and the parsers are mature; the focus now is on getting
+BG3 Forge's *output* to the people who need it, most of whom don't write
+Python:
+
+* 🔜 **Data exports per patch** — the resolved item/spell/passive/status/
+  character datasets published as downloadable SQLite + CSV bundles on
+  each release, so wiki editors, planner sites, and spreadsheet
+  theorycrafters can consume Forge's data without running anything.
+  Generated locally from a real install (see
+  [docs/data-release.md](docs/data-release.md)) and attached to the
+  GitHub release; the tool is what regenerates them each patch.
+* 🔜 **`bg3forge lint`** — point it at *your own* mod `.pak` and get its
+  internal consistency checked: does it parse, do `using` references
+  resolve, do `DisplayName` handles have `.loca` entries, are UUIDs
+  well-formed. Catches the mistakes that ship broken mods, before upload.
+* 🔮 **Cross-patch data diff** — record-level "what changed between Patch
+  N and N+1" (stats added/removed/changed, renamed boosts), the thing
+  that silently breaks mods.
+* 🔮 **`bg3forge lookup <name>`** — resolve a name ↔ display name ↔ UUID
+  ↔ handle ↔ what grants it, the lookup modders do constantly.
 
 ## Development
 
