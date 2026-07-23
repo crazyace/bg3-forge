@@ -5,6 +5,7 @@ from __future__ import annotations
 import fnmatch
 import hashlib
 import json
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
@@ -80,10 +81,19 @@ class Extractor:
                 result.extracted.append(entry.name)
                 if progress:
                     progress(entry.name, True)
-            self._save_manifest()
         finally:
             if owns_reader:
                 reader.close()
+            # Persist progress even when the loop aborts mid-pak (disk
+            # full, a truncated entry, KeyboardInterrupt): the manifest
+            # records only files already written, so a re-run resumes
+            # instead of re-extracting everything.  Best-effort so a save
+            # failure never masks the original error.
+            try:
+                self._save_manifest()
+            except OSError:
+                if sys.exc_info()[0] is None:
+                    raise
         return result
 
     # -- manifest ------------------------------------------------------------

@@ -4,6 +4,10 @@
 
 ### API
 
+* Added `game.find_files(pattern)` — archived paths matching a glob or
+  substring, mapped to their source pak (or extracted file), reading no
+  content. `bg3forge search` is now glue around it, so other tools no
+  longer need the private `_locate_entries`.
 * Added `game.progressions`, a load-order-aware collection indexed by
   progression UUID and grouped by `TableUUID`/level.
 * Progression passive additions/removals resolve to typed models. Referenced
@@ -39,6 +43,12 @@
 
 ### Security
 
+* Archive extraction now rejects two Windows-specific hazards that
+  survived the traversal checks: a path component containing a colon (an
+  NTFS alternate data stream, e.g. `file.txt:evil`) and a reserved
+  device name (`CON`, `NUL`, `COM1`…`LPT9`, with or without an
+  extension). Legitimate BG3 paths — including ones that merely start
+  with a device name, like `CONtent/` — are unaffected.
 * Decompression of third-party paks and mod files is now bounded so a
   crafted archive can't drive an unbounded allocation. A per-entry /
   per-section uncompressed size that is implausible for its compressed
@@ -133,6 +143,17 @@
   Jump.
 
 ### Fixed
+
+* `Extractor` now persists its incremental manifest even when a pak
+  fails partway through (disk full, a truncated entry, KeyboardInterrupt).
+  The manifest is saved in a `finally` block, so files already written
+  are recorded and a re-run resumes instead of re-extracting the whole
+  archive; a save failure during error unwinding never masks the
+  original error.
+* `Mod.add_string` no longer lets a status, spell, passive, and item
+  that share a name collide onto one localization handle — the string
+  keys are now qualified by content kind, so each gets its own handle
+  and text.
 
 * `write_lsx` now refuses C0 control characters (other than
   tab/newline/carriage return) in node ids, keys, and attribute
