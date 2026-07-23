@@ -110,6 +110,17 @@ class Localization:
     def load_file(self, path: str | Path) -> None:
         self.load_bytes(Path(path).read_bytes())
 
+    def merge_missing(self, fallback: "Localization") -> None:
+        """Fill in handles absent from this table (language fallback).
+
+        Existing entries always win — only handles this table has no
+        text for at all are copied from ``fallback``.
+        """
+        for key, text in fallback._texts.items():
+            if key not in self._texts:
+                self._texts[key] = text
+                self._versions[key] = fallback._versions.get(key, 0)
+
     def resolve(self, handle: str | None, default: str = "") -> str:
         """Resolve a handle like ``h0abc...;1`` to its display text."""
         if not handle:

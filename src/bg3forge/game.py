@@ -407,8 +407,18 @@ class Game:
 
     @cached_property
     def localization(self) -> Localization:
+        loca = self._load_language(self.language)
+        if self.language.lower() != "english":
+            # Not every handle is translated in every language; the game
+            # falls back to English rather than showing nothing, and so
+            # do we.  Only handles missing from the chosen language are
+            # filled in, so translations always win.
+            loca.merge_missing(self._load_language("English"))
+        return loca
+
+    def _load_language(self, language: str) -> Localization:
         loca = Localization()
-        needle = f"/{self.language.lower()}/"
+        needle = f"/{language.lower()}/"
         for name, data in self._iter_files(
             lambda n: n.lower().endswith(".loca") and needle in f"/{n.lower()}"
         ):
@@ -560,14 +570,16 @@ class Game:
         """Items whose template chain carries the tag (UUID or name)."""
         tag = self.tags.get(tag_key)
         uuid = tag.uuid if tag is not None else tag_key
-        return list(self._tag_index.get(uuid, ()))
+        # Lowercased on both sides: template attributes and tag files
+        # disagree on UUID casing in retail data.
+        return list(self._tag_index.get(uuid.lower(), ()))
 
     @cached_property
     def _tag_index(self) -> dict[str, list[Item]]:
         index: dict[str, list[Item]] = {}
         for item in self.items:
             for uuid in item.tag_ids:
-                index.setdefault(uuid, []).append(item)
+                index.setdefault(uuid.lower(), []).append(item)
         return index
 
     @cached_property
@@ -857,20 +869,25 @@ class Game:
                 continue
             map_key = data.get("RootTemplate")
             display = description = ""
+            template_icon = None
             if map_key:
                 fields = templates_by_key.resolved(map_key)
                 display = self.localization.resolve(fields.get("DisplayName"))
                 description = self.localization.resolve(fields.get("Description"))
-            items.append(
-                Item.from_stats(
-                    entry.name,
-                    entry.type,
-                    data,
-                    display_name=display,
-                    description=description,
-                    map_key=map_key,
-                )
+                template_icon = fields.get("Icon")
+            item = Item.from_stats(
+                entry.name,
+                entry.type,
+                data,
+                display_name=display,
+                description=description,
+                map_key=map_key,
             )
+            if not item.icon and template_icon:
+                # Stats entries without their own Icon inherit the root
+                # template's, exactly like DisplayName/Description.
+                item.icon = template_icon
+            items.append(item)
         return self._collect(items)
 
     @cached_property
