@@ -208,6 +208,16 @@ def test_loca_roundtrip():
     ]
 
 
+def test_loca_truncated_entry_table():
+    """num_entries is an untrusted u32: a table that doesn't fit the data
+    must raise LocaError up front, not struct.error mid-loop."""
+    from bg3forge.parsers import LocaError
+
+    header = b"LOCA" + (1000).to_bytes(4, "little") + (12).to_bytes(4, "little")
+    with pytest.raises(LocaError, match="truncated entry table"):
+        parse_loca(header)
+
+
 def test_loca_bad_signature():
     from bg3forge.parsers import LocaError
 

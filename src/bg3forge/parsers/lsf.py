@@ -115,6 +115,7 @@ _SCALAR_FORMATS = {
     1: "<B", 2: "<h", 3: "<H", 4: "<i", 5: "<I", 6: "<f", 7: "<d",
     24: "<Q", 26: "<q", 27: "<b", 32: "<q",
 }
+_SCALAR_STRUCTS = {tid: struct.Struct(fmt) for tid, fmt in _SCALAR_FORMATS.items()}
 _VECTOR_SHAPES = {  # type id → (element format char, count)
     8: ("i", 2), 9: ("i", 3), 10: ("i", 4),
     11: ("f", 2), 12: ("f", 3), 13: ("f", 4),
@@ -177,6 +178,29 @@ class _AttrInfo:
 
 
 def parse_lsf(data: bytes) -> LsxDocument:
+    """Parse an LSF resource.
+
+    Raises :class:`LsfError` (a ``ValueError``) for *any* malformed input:
+    the guards below catch the specific failure shapes, and this wrapper
+    guarantees the contract for anything they miss — ``Game``'s loaders
+    rely on it to record a bad file in ``load_issues`` instead of
+    aborting the whole collection.
+    """
+    try:
+        return _parse_lsf(data)
+    except LsfError:
+        raise
+    except (
+        struct.error,
+        IndexError,
+        OverflowError,
+        zlib.error,
+        lz4compat.LZ4Error,
+    ) as exc:
+        raise LsfError(f"malformed LSF resource: {exc}") from exc
+
+
+def _parse_lsf(data: bytes) -> LsxDocument:
     if len(data) < _MAGIC_STRUCT.size:
         raise LsfError("file too small to be an LSF resource")
     magic, version = _MAGIC_STRUCT.unpack_from(data)
@@ -279,9 +303,12 @@ def _read_section(
             import zstandard
         except ImportError:
             raise LsfError("zstd-compressed LSF; install bg3forge[zstd]") from None
-        blob = zstandard.ZstdDecompressor().decompress(
-            raw, max_output_size=uncompressed_size
-        )
+        try:
+            blob = zstandard.ZstdDecompressor().decompress(
+                raw, max_output_size=uncompressed_size
+            )
+        except zstandard.ZstdError as exc:
+            raise LsfError(f"corrupt zstd section: {exc}") from exc
     else:  # pragma: no cover - CompressionMethod is exhaustive
         raise LsfError(f"unsupported compression {method}")
     if len(blob) != uncompressed_size:
@@ -294,10 +321,10 @@ def _read_section(
 def _parse_names(blob: bytes) -> list[list[str]]:
     if not blob:
         return []
-    (num_buckets,) = struct.unpack_from("<I", blob, 0)
     pos = 4
     buckets: list[list[str]] = []
     try:
+        (num_buckets,) = struct.unpack_from("<I", blob, 0)
         for _ in range(num_buckets):
             (count,) = struct.unpack_from("<H", blob, pos)
             pos += 2
@@ -396,7 +423,19 @@ def _build_document(
         node = LsxNode(id=_resolve_name(names, info.name_ref), key=info.key)
         if has_adjacency:
             attr_index = info.first_attr
+            steps = 0
             while attr_index != -1:
+                # first_attr/next_attr come straight from the file: reject
+                # out-of-range indices (negative values would silently wrap
+                # as Python indexing) and chains longer than the table
+                # itself, which can only mean a cycle.
+                if not 0 <= attr_index < len(attr_infos):
+                    raise LsfError(
+                        f"node {index} references invalid attribute {attr_index}"
+                    )
+                steps += 1
+                if steps > len(attr_infos):
+                    raise LsfError(f"attribute chain of node {index} loops")
                 attr_info = attr_infos[attr_index]
                 attr = _decode_attribute(names, attr_info, values, bg3_translated)
                 node.attributes[attr.id] = attr
@@ -428,24 +467,44 @@ def _decode_attribute(
 
     if type_id in _STRING_TYPE_IDS:
         return LsxAttribute(id=name, type=type_name, value=_cut_string(buf))
-    if type_id == _TRANSLATED_STRING:
-        handle, version = _decode_translated(buf, bg3_translated)
+    if type_id in (_TRANSLATED_STRING, _TRANSLATED_FS_STRING):
+        try:
+            if type_id == _TRANSLATED_STRING:
+                handle, version = _decode_translated(buf, bg3_translated)
+            else:
+                handle, version, _ = _decode_translated_fs(buf, 0, bg3_translated)
+        except struct.error as exc:
+            raise LsfError(f"attribute {name!r} has a malformed {type_name}") from exc
         return LsxAttribute(id=name, type=type_name, value=None, handle=handle, version=version)
-    if type_id == _TRANSLATED_FS_STRING:
-        handle, version, _ = _decode_translated_fs(buf, 0, bg3_translated)
-        return LsxAttribute(id=name, type=type_name, value=None, handle=handle, version=version)
-    if type_id in _SCALAR_FORMATS:
-        (value,) = struct.unpack(_SCALAR_FORMATS[type_id], buf)
+    # The stored length is file-controlled and independent of the type id;
+    # a mismatch must fail as LsfError, not leak struct.error/IndexError.
+    if type_id in _SCALAR_STRUCTS:
+        layout = _SCALAR_STRUCTS[type_id]
+        if len(buf) != layout.size:
+            raise LsfError(
+                f"attribute {name!r} has {len(buf)} bytes, "
+                f"{type_name} needs {layout.size}"
+            )
+        (value,) = layout.unpack(buf)
         return LsxAttribute(id=name, type=type_name, value=_fmt_scalar(value))
     if type_id in _VECTOR_SHAPES:
         elem, count = _VECTOR_SHAPES[type_id]
+        if len(buf) != count * 4:
+            raise LsfError(
+                f"attribute {name!r} has {len(buf)} bytes, "
+                f"{type_name} needs {count * 4}"
+            )
         parts = struct.unpack(f"<{count}{elem}", buf)
         return LsxAttribute(
             id=name, type=type_name, value=" ".join(_fmt_scalar(p) for p in parts)
         )
     if type_id == _BOOL:
+        if not buf:
+            raise LsfError(f"attribute {name!r} has an empty bool value")
         return LsxAttribute(id=name, type=type_name, value="True" if buf[0] else "False")
     if type_id == _GUID:
+        if len(buf) != 16:
+            raise LsfError(f"attribute {name!r} has {len(buf)} bytes, guid needs 16")
         return LsxAttribute(id=name, type=type_name, value=_guid_to_text(buf))
     if type_id == _SCRATCH_BUFFER:
         return LsxAttribute(
@@ -461,6 +520,14 @@ def _cut_string(buf: bytes) -> str:
     return buf.rstrip(b"\x00").decode("utf-8", errors="replace")
 
 
+def _check_length(value: int, what: str) -> int:
+    """Reject negative length fields: they move ``pos`` backwards, silently
+    re-reading earlier bytes as new data (or stalling forever)."""
+    if value < 0:
+        raise LsfError(f"negative {what} {value} in translated string")
+    return value
+
+
 def _decode_translated(buf: bytes, bg3: bool) -> tuple[str, int]:
     pos = 0
     version = 0
@@ -469,33 +536,46 @@ def _decode_translated(buf: bytes, bg3: bool) -> tuple[str, int]:
         pos += 2
     else:
         (value_length,) = struct.unpack_from("<i", buf, pos)
-        pos += 4 + value_length  # legacy inline value; the handle is authoritative
+        # legacy inline value; the handle is authoritative
+        pos += 4 + _check_length(value_length, "value length")
     (handle_length,) = struct.unpack_from("<i", buf, pos)
     pos += 4
-    handle = _cut_string(buf[pos : pos + handle_length])
+    handle = _cut_string(buf[pos : pos + _check_length(handle_length, "handle length")])
     return handle, version
 
 
-def _decode_translated_fs(buf: bytes, pos: int, bg3: bool) -> tuple[str, int, int]:
+#: Argument lists nest one level per argument; retail data nests once or
+#: twice.  Anything deeper is a corrupt or crafted file, not real data.
+_MAX_TRANSLATED_DEPTH = 32
+
+
+def _decode_translated_fs(
+    buf: bytes, pos: int, bg3: bool, depth: int = 0
+) -> tuple[str, int, int]:
+    if depth > _MAX_TRANSLATED_DEPTH:
+        raise LsfError("TranslatedFSString arguments nest too deeply")
     version = 0
     if bg3:
         (version,) = struct.unpack_from("<H", buf, pos)
         pos += 2
     else:
         (value_length,) = struct.unpack_from("<i", buf, pos)
-        pos += 4 + value_length
+        pos += 4 + _check_length(value_length, "value length")
     (handle_length,) = struct.unpack_from("<i", buf, pos)
     pos += 4
+    _check_length(handle_length, "handle length")
     handle = _cut_string(buf[pos : pos + handle_length])
     pos += handle_length
     (num_arguments,) = struct.unpack_from("<i", buf, pos)
     pos += 4
+    if not 0 <= num_arguments <= len(buf):
+        raise LsfError(f"implausible argument count {num_arguments} in translated string")
     for _ in range(num_arguments):
         (key_length,) = struct.unpack_from("<i", buf, pos)
-        pos += 4 + key_length
-        _, _, pos = _decode_translated_fs(buf, pos, bg3)
+        pos += 4 + _check_length(key_length, "key length")
+        _, _, pos = _decode_translated_fs(buf, pos, bg3, depth + 1)
         (value_length,) = struct.unpack_from("<i", buf, pos)
-        pos += 4 + value_length
+        pos += 4 + _check_length(value_length, "value length")
     return handle, version, pos
 
 

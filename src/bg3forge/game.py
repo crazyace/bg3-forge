@@ -35,6 +35,7 @@ from .models import (
     Status,
 )
 from .parsers.equipment import EquipmentSet, parse_equipment_sets
+from .pak.format import SIGNATURE as _LSPK_SIGNATURE
 from .pak.reader import PakReader
 from .parsers.localization import Localization
 from .parsers.osiris import CompiledStory, parse_osiris
@@ -1080,13 +1081,33 @@ class Game:
             for pak_path in sorted(self.data_dir.rglob("*.pak")):
                 try:
                     readers.append(PakReader(pak_path))
-                except ValueError:
-                    continue  # secondary archive part or foreign file
+                except ValueError as exc:
+                    # Secondary archive parts (Textures_1.pak) and foreign
+                    # files don't start with LSPK — skipping those is
+                    # routine.  A file that *does* carry the signature is a
+                    # real archive that failed to open (truncated download,
+                    # interrupted patch): record it so `bg3forge validate`
+                    # and doctor can surface it instead of silently
+                    # loading without its data.
+                    if self._reads_as_lspk(pak_path):
+                        self.load_issues.append(
+                            LoadIssue(file=pak_path.name, error=str(exc))
+                        )
+                    continue
             readers.sort(key=lambda r: (r.header.priority, r.path.name))
             self._reader_list = readers
             for reader in readers:
                 self._pak_readers[reader.path] = reader
         return self._reader_list
+
+    @staticmethod
+    def _reads_as_lspk(path: Path) -> bool:
+        """True when the file starts with the LSPK signature."""
+        try:
+            with path.open("rb") as fh:
+                return fh.read(4) == _LSPK_SIGNATURE
+        except OSError:
+            return False
 
     def _locate_entries(self, predicate) -> dict[str, Path]:
         """Map matching archived names to their source (pak or file) WITHOUT

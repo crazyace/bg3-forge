@@ -102,14 +102,23 @@ class PakReader:
 
     def _read_file_list(self) -> list[PakEntry]:
         self._fh.seek(self.header.file_list_offset)
-        num_files, compressed_size = FILE_LIST_HEADER_STRUCT.unpack(
-            self._fh.read(FILE_LIST_HEADER_STRUCT.size)
-        )
+        raw_header = self._fh.read(FILE_LIST_HEADER_STRUCT.size)
+        if len(raw_header) != FILE_LIST_HEADER_STRUCT.size:
+            raise PakError("truncated file list header")
+        num_files, compressed_size = FILE_LIST_HEADER_STRUCT.unpack(raw_header)
         table_size = num_files * ENTRY_SIZE
+        # An LZ4 block expands at most ~255x, so a table_size far beyond
+        # that bound means num_files is corrupt.  Reject it here, before
+        # the decompressor pre-allocates a buffer of that size.
+        if table_size > compressed_size * 256 + 4096:
+            raise PakError(f"implausible file count {num_files} in file list")
         compressed = self._fh.read(compressed_size)
         if len(compressed) != compressed_size:
             raise PakError("truncated file list")
-        table = lz4compat.decompress(compressed, table_size)
+        try:
+            table = lz4compat.decompress(compressed, table_size)
+        except lz4compat.LZ4Error as exc:
+            raise PakError(f"corrupt file list: {exc}") from exc
         return [PakEntry.parse(table, i * ENTRY_SIZE) for i in range(num_files)]
 
     def _part_handle(self, part: int):
@@ -132,9 +141,15 @@ def _decompress(
     if method is CompressionMethod.NONE:
         return raw
     if method is CompressionMethod.ZLIB:
-        return zlib.decompress(raw)
+        try:
+            return zlib.decompress(raw)
+        except zlib.error as exc:
+            raise PakError(f"corrupt zlib data for {name!r}: {exc}") from exc
     if method is CompressionMethod.LZ4:
-        return lz4compat.decompress(raw, uncompressed_size)
+        try:
+            return lz4compat.decompress(raw, uncompressed_size)
+        except lz4compat.LZ4Error as exc:
+            raise PakError(f"corrupt LZ4 data for {name!r}: {exc}") from exc
     if method is CompressionMethod.ZSTD:
         try:
             import zstandard
@@ -142,5 +157,10 @@ def _decompress(
             raise PakError(
                 f"{name!r} is zstd-compressed; install bg3forge[zstd]"
             ) from None
-        return zstandard.ZstdDecompressor().decompress(raw, max_output_size=uncompressed_size)
+        try:
+            return zstandard.ZstdDecompressor().decompress(
+                raw, max_output_size=uncompressed_size
+            )
+        except zstandard.ZstdError as exc:
+            raise PakError(f"corrupt zstd data for {name!r}: {exc}") from exc
     raise PakError(f"unknown compression method {method} for {name!r}")

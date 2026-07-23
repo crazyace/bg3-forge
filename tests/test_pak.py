@@ -53,6 +53,69 @@ def test_not_a_pak(tmp_path):
         PakReader(bogus)
 
 
+def test_truncated_pak_raises_pakerror(tmp_path, sample_pak):
+    """Truncation anywhere — mid-header, mid-file-list — must raise a
+    ValueError subclass, never a raw struct.error (a truncated download
+    used to crash Game(), validate_data(), and run_doctor())."""
+    blob = sample_pak.read_bytes()
+    for cut in (20, 45, len(blob) - 5):
+        truncated = tmp_path / f"cut{cut}.pak"
+        truncated.write_bytes(blob[:cut])
+        with pytest.raises(ValueError):
+            PakReader(truncated)
+
+
+def _file_list_offset(blob: bytes) -> int:
+    from bg3forge.pak.format import HEADER_STRUCT
+
+    return HEADER_STRUCT.unpack_from(blob)[2]
+
+
+def test_implausible_file_count(tmp_path, sample_pak):
+    """A corrupt num_files must be rejected before it drives a giant
+    allocation in the decompressor."""
+    blob = bytearray(sample_pak.read_bytes())
+    offset = _file_list_offset(blob)
+    blob[offset : offset + 4] = (0x7FFFFFFF).to_bytes(4, "little")
+    bad = tmp_path / "huge.pak"
+    bad.write_bytes(bytes(blob))
+    with pytest.raises(PakError, match="implausible file count"):
+        PakReader(bad)
+
+
+def test_corrupt_file_list(tmp_path, sample_pak):
+    blob = bytearray(sample_pak.read_bytes())
+    offset = _file_list_offset(blob)
+    # Replace the whole compressed table with an endless literal run —
+    # invalid for both the native and the pure-Python decoder.
+    blob[offset + 8 :] = b"\xff" * (len(blob) - offset - 8)
+    bad = tmp_path / "corrupt.pak"
+    bad.write_bytes(bytes(blob))
+    with pytest.raises(PakError, match="file list"):
+        PakReader(bad)
+
+
+def test_lz4_errors_are_valueerrors():
+    """Both LZ4 backends must fail with LZ4Error (a ValueError) — the
+    native package's own exceptions don't subclass ValueError and used
+    to escape every `except ValueError` in the pipeline."""
+    with pytest.raises(lz4compat.LZ4Error) as excinfo:
+        lz4compat.decompress(b"\xff" + b"\x00" * 5, 10)
+    assert isinstance(excinfo.value, ValueError)
+
+    with pytest.raises(lz4compat.LZ4Error):
+        lz4compat.decompress_frame(b"garbage12345")
+
+
+def test_lz4_size_mismatch_rejected():
+    """Native lz4 returns short output when the expected size is larger
+    than the real content; both backends must reject the mismatch."""
+    compressed = lz4compat.compress(b"exact payload")
+    assert lz4compat.decompress(compressed, 13) == b"exact payload"
+    with pytest.raises(lz4compat.LZ4Error, match="mismatch|corrupt"):
+        lz4compat.decompress(compressed, 100)
+
+
 def test_pure_python_lz4_roundtrip():
     data = b"abcabcabcabc" * 50 + b"tail"
     compressed = lz4compat._py_compress_literals(data)
