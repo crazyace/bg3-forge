@@ -270,6 +270,25 @@ def test_localization_merge_missing():
     assert primary.resolve("h0bbb") == "extra"      # missing filled in
 
 
+def test_golden_loca_bytes():
+    """Pin the .loca layout against drift: exact writer output for a
+    known input, and the parse of those bytes back."""
+    from bg3forge.parsers.localization import LocaEntry, parse_loca, write_loca
+
+    blob = write_loca([LocaEntry("h0abc;2", 2, "Hi")])
+    assert blob.hex() == (
+        "4c4f4341"      # LOCA
+        "01000000"      # num_entries
+        "52000000"      # texts_offset: 12 + 70 = 82
+        + "68306162633b32".ljust(128, "0")  # "h0abc;2" in 64 NUL-padded bytes
+        + "0200"        # version u16
+        + "03000000"    # length u32 ("Hi\0")
+        + "486900"      # text block
+    )
+    [entry] = parse_loca(blob)
+    assert (entry.key, entry.version, entry.text) == ("h0abc;2", 2, "Hi")
+
+
 def test_loca_truncated_entry_table():
     """num_entries is an untrusted u32: a table that doesn't fit the data
     must raise LocaError up front, not struct.error mid-loop."""
