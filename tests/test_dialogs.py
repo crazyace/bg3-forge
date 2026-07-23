@@ -47,6 +47,43 @@ def test_walk_cuts_cycles():
     assert [n.uuid for n in dialog.walk()] == ["n0000001", "n0000002"]
 
 
+def test_walk_follows_jump_targets():
+    """A Jump node carries a `jumptarget` instead of children; walk()
+    must follow it, or traversal dead-ends at every Jump."""
+    lsx = """\
+<save><region id="dialog">
+  <node id="dialog">
+    <attribute id="UUID" type="FixedString" value="d1" />
+    <children>
+      <node id="nodes"><children>
+        <node id="node">
+          <attribute id="UUID" type="FixedString" value="start" />
+          <attribute id="constructor" type="FixedString" value="TagGreeting" />
+          <attribute id="Root" type="bool" value="True" />
+          <children><node id="children"><children>
+            <node id="child"><attribute id="UUID" type="FixedString" value="jump" /></node>
+          </children></node></children>
+        </node>
+        <node id="node">
+          <attribute id="UUID" type="FixedString" value="jump" />
+          <attribute id="constructor" type="FixedString" value="Jump" />
+          <attribute id="jumptarget" type="FixedString" value="landing" />
+        </node>
+        <node id="node">
+          <attribute id="UUID" type="FixedString" value="landing" />
+          <attribute id="constructor" type="FixedString" value="TagAnswer" />
+          <attribute id="endnode" type="bool" value="True" />
+        </node>
+      </children></node>
+    </children>
+  </node>
+</region></save>
+"""
+    dialog = parse_dialog(parse_lsx(lsx))
+    assert dialog.node("jump").jump_target == "landing"
+    assert [n.uuid for n in dialog.walk()] == ["start", "jump", "landing"]
+
+
 # -- DialogIndex --------------------------------------------------------------
 
 def test_registry_files_excluded_from_index(data_dir):

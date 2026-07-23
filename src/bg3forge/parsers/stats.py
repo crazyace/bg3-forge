@@ -34,6 +34,21 @@ from typing import Iterable, Iterator
 _LINE_RE = re.compile(r'^(?P<keyword>[a-z ]+?)\s+"(?P<args>.*)"\s*$')
 # Argument separators: `"a" "b"` (data lines) and `"a","b"` (key lines).
 _ARG_SPLIT_RE = re.compile(r'"\s*,\s*"|"\s+"')
+# Line shapes we model.  A line starting with one of these that then
+# fails to parse is *malformed*, not merely unmodeled — silently
+# dropping it would silently drop data.
+_STRUCTURAL_RE = re.compile(r"^(?:new entry|data|type|using|key)\b")
+
+
+def _strip_trailing_comment(line: str) -> str:
+    """Drop a trailing ``// comment`` that sits outside any quotes."""
+    in_quote = False
+    for i, ch in enumerate(line):
+        if ch == '"':
+            in_quote = not in_quote
+        elif ch == "/" and not in_quote and line.startswith("//", i):
+            return line[:i].rstrip()
+    return line
 
 
 @dataclass
@@ -88,8 +103,20 @@ def parse_stats_document(text: str, source: str | None = None) -> StatsDocument:
         line = raw_line.strip()
         if not line or line.startswith("//"):
             continue
+        if "//" in line:
+            line = _strip_trailing_comment(line)
         match = _LINE_RE.match(line)
         if not match:
+            # Unmodeled directives are fine; a *structural* line that
+            # doesn't parse (stray trailing token, missing close quote)
+            # used to be silently dropped — losing that data with no
+            # trace anywhere.
+            if _STRUCTURAL_RE.match(line):
+                raise StatsParseError(
+                    f"malformed {line.split(None, 1)[0]!r} line: {line!r}",
+                    source,
+                    lineno,
+                )
             continue  # tolerate lines we don't model
         keyword = match.group("keyword")
         args = _ARG_SPLIT_RE.split(match.group("args"))

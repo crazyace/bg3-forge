@@ -338,16 +338,18 @@ class RootTemplateIndex:
         return fields
 
     def resolved_tags(self, map_key: str) -> list[str]:
-        """Tag UUIDs for a template, merged across the ancestor chain.
+        """Tag UUIDs for a template: nearest definition in the chain wins.
 
-        Ancestor tags come first; duplicates are dropped.
+        Engine template inheritance is per-property — a template that
+        defines its own ``Tags`` list *replaces* its ancestor's list, it
+        does not merge with it (unioning them invented tags the engine
+        never applies).  Templates without a ``Tags`` list inherit the
+        nearest ancestor's.
         """
-        tags: list[str] = []
-        for template in reversed(self._chain(map_key)):
-            for tag in template.tags:
-                if tag not in tags:
-                    tags.append(tag)
-        return tags
+        for template in self._chain(map_key):
+            if template.tags:
+                return list(template.tags)
+        return []
 
     def by_stats(self, stats_name: str) -> list[RootTemplate]:
         """Templates whose ``Stats`` field references the given stats entry."""

@@ -58,6 +58,7 @@ class DialogNode:
     is_end: bool = False
     text_handles: list[tuple[str, int]] = field(default_factory=list)  # (handle, version)
     child_uuids: list[str] = field(default_factory=list)
+    jump_target: str | None = None  # Jump nodes: the node jumped to
 
 
 @dataclass
@@ -88,7 +89,11 @@ class Dialog:
         return handles
 
     def walk(self, start: DialogNode | None = None):
-        """Yield nodes depth-first along child edges (cycles are cut)."""
+        """Yield nodes depth-first along flow edges (cycles are cut).
+
+        Flow edges are child links plus Jump nodes' ``jumptarget`` —
+        without the latter, traversal dead-ends at every Jump.
+        """
         stack = [start] if start else list(reversed(self.roots))
         seen: set[str] = set()
         while stack:
@@ -97,8 +102,11 @@ class Dialog:
                 continue
             seen.add(node.uuid)
             yield node
-            for child_uuid in reversed(node.child_uuids):
-                stack.append(self._by_uuid.get(child_uuid))
+            targets = list(node.child_uuids)
+            if node.jump_target:
+                targets.append(node.jump_target)
+            for target_uuid in reversed(targets):
+                stack.append(self._by_uuid.get(target_uuid))
 
 
 def parse_dialog(document: LsxDocument, source: str | None = None) -> Dialog:
@@ -181,6 +189,7 @@ def _parse_node(node_el: LsxNode) -> DialogNode | None:
         is_end=_truthy(node_el.get("endnode")),
         text_handles=text_handles,
         child_uuids=child_uuids,
+        jump_target=node_el.get("jumptarget"),
     )
 
 
