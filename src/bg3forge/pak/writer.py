@@ -38,6 +38,11 @@ class PakWriter:
         compression: CompressionMethod = CompressionMethod.LZ4,
         priority: int = 0,
     ):
+        if version != DEFAULT_VERSION:
+            # v15/v16 use a different entry (and for v15, header) layout;
+            # stamping their version onto v18 structures would produce an
+            # archive no reader can open.
+            raise ValueError(f"PakWriter writes v{DEFAULT_VERSION} archives only")
         self.version = version
         self.compression = compression
         self.priority = priority

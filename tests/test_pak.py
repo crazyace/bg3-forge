@@ -95,6 +95,64 @@ def test_corrupt_file_list(tmp_path, sample_pak):
         PakReader(bad)
 
 
+def _write_legacy_pak(path, version):
+    """Hand-build a v15/v16 archive in LSLib's FileEntry15 layout: the
+    entry table is 296 bytes per entry with u64 offset/size fields, and
+    the v15 header carries no num_parts."""
+    from bg3forge.pak.format import (
+        ENTRY15_STRUCT,
+        FILE_LIST_HEADER_STRUCT,
+        HEADER15_STRUCT,
+        HEADER_STRUCT,
+        SIGNATURE,
+    )
+
+    content = b"hello from a legacy archive"
+    header_size = HEADER15_STRUCT.size if version == 15 else HEADER_STRUCT.size
+    name = b"Public/Legacy/file.txt".ljust(256, b"\x00")
+    # offset, size_on_disk, uncompressed (0: stored), part, flags, crc, unknown2
+    table = ENTRY15_STRUCT.pack(name, header_size, len(content), 0, 0, 0, 0, 0)
+    compressed = lz4compat.compress(table)
+    file_list = FILE_LIST_HEADER_STRUCT.pack(1, len(compressed)) + compressed
+    file_list_offset = header_size + len(content)
+    if version == 15:
+        header = HEADER15_STRUCT.pack(
+            SIGNATURE, version, file_list_offset, len(file_list), 0, 0, b"\x00" * 16
+        )
+    else:
+        header = HEADER_STRUCT.pack(
+            SIGNATURE, version, file_list_offset, len(file_list), 0, 0, b"\x00" * 16, 1
+        )
+    path.write_bytes(header + content + file_list)
+    return content
+
+
+@pytest.mark.parametrize("version", [15, 16])
+def test_reads_legacy_entry_layout(tmp_path, version):
+    """v15/v16 entries are 296 bytes (FileEntry15), not the 272-byte v18
+    layout — parsing them with the v18 struct used to fail on every
+    genuine legacy archive."""
+    pak_path = tmp_path / f"legacy{version}.pak"
+    content = _write_legacy_pak(pak_path, version)
+    with PakReader(pak_path) as pak:
+        assert pak.names() == ["Public/Legacy/file.txt"]
+        assert pak.header.version == version
+        assert pak.read("Public/Legacy/file.txt") == content
+
+
+def test_legacy_struct_sizes_pinned():
+    from bg3forge.pak.format import ENTRY15_SIZE, HEADER15_STRUCT, HEADER_STRUCT
+
+    assert ENTRY15_SIZE == 296
+    assert HEADER15_STRUCT.size == 38  # no num_parts
+    assert HEADER_STRUCT.size == 40
+
+
+def test_writer_rejects_legacy_versions(tmp_path):
+    with pytest.raises(ValueError, match="v18"):
+        PakWriter(version=16)
+
+
 def test_lz4_errors_are_valueerrors():
     """Both LZ4 backends must fail with LZ4Error (a ValueError) — the
     native package's own exceptions don't subclass ValueError and used

@@ -39,6 +39,15 @@
 
 ### Fixed
 
+* LSPK v15/v16 archives (DOS2 DE, BG3 Early Access) are now actually
+  readable. Both advertised versions were parsed with the v18 272-byte
+  entry layout, but real v15/v16 entries are 296 bytes (LSLib's
+  `FileEntry15`, with u64 offset/size fields), and the v15 header carries
+  no `num_parts` — so opening any genuine legacy archive failed with an
+  uncaught size-mismatch error. `PakReader` now selects the header and
+  entry layout by version, and `PakWriter` rejects legacy versions
+  instead of stamping them onto v18 structures.
+
 * Malformed binary files can no longer crash whole collection loads.
   `Game` documents that a bad file is recorded in `load_issues` and
   skipped, but the binary parsers leaked `struct.error`, `zlib.error`,

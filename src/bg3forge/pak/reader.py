@@ -9,7 +9,6 @@ from typing import Iterator
 from . import lz4compat
 from .format import (
     FILE_LIST_HEADER_STRUCT,
-    ENTRY_SIZE,
     CompressionMethod,
     PakEntry,
     PakHeader,
@@ -106,7 +105,10 @@ class PakReader:
         if len(raw_header) != FILE_LIST_HEADER_STRUCT.size:
             raise PakError("truncated file list header")
         num_files, compressed_size = FILE_LIST_HEADER_STRUCT.unpack(raw_header)
-        table_size = num_files * ENTRY_SIZE
+        # v15/v16 use the 296-byte FileEntry15 layout, v18 the 272-byte one.
+        entry_size = self.header.entry_size
+        parse_entry = PakEntry.parse15 if self.header.version < 18 else PakEntry.parse
+        table_size = num_files * entry_size
         # An LZ4 block expands at most ~255x, so a table_size far beyond
         # that bound means num_files is corrupt.  Reject it here, before
         # the decompressor pre-allocates a buffer of that size.
@@ -119,7 +121,7 @@ class PakReader:
             table = lz4compat.decompress(compressed, table_size)
         except lz4compat.LZ4Error as exc:
             raise PakError(f"corrupt file list: {exc}") from exc
-        return [PakEntry.parse(table, i * ENTRY_SIZE) for i in range(num_files)]
+        return [parse_entry(table, i * entry_size) for i in range(num_files)]
 
     def _part_handle(self, part: int):
         if part not in self._part_handles:
