@@ -16,9 +16,9 @@ def test_validate_clean_fixture(data_dir):
     assert report.ok
     assert report.counts["paks"] == 1
     assert report.counts["stats_files"] == 6
-    assert report.counts["stats_entries"] == 8
+    assert report.counts["stats_entries"] == 9
     assert report.counts["stats_globals"] == 2
-    assert report.counts["stats_resolved"] == 8  # inheritance checked cross-file
+    assert report.counts["stats_resolved"] == 9  # inheritance checked cross-file
     assert report.counts["treasure_files"] == 1
     assert report.counts["treasure_tables"] == 1
     assert report.counts["loca_files"] == 1
@@ -43,11 +43,11 @@ def test_validate_clean_fixture(data_dir):
     assert report.counts["progression_passive_removals"] == 1
     assert report.counts["progression_passives_missing"] == 0
     assert report.counts["progression_spell_list_grants"] == 1
-    assert report.counts["progression_spell_list_choices"] == 1
+    assert report.counts["progression_spell_list_choices"] == 2
     assert report.counts["progression_spell_lists_missing"] == 0
     assert report.counts["spell_list_files"] == 1
-    assert report.counts["spell_lists"] == 2
-    assert report.counts["spell_list_spells"] == 2
+    assert report.counts["spell_lists"] == 3
+    assert report.counts["spell_list_spells"] == 3
     assert report.counts["spell_list_spells_missing"] == 0
     assert report.counts["class_descriptions"] == 2
     assert report.counts["compiled_stories"] == 1
@@ -254,7 +254,7 @@ def test_run_benchmark(data_dir, tmp_path):
     ]
     assert all(seconds >= 0 for _, seconds in report.stages)
     assert report.counts["items"] == 3
-    assert report.counts["spells"] == 1
+    assert report.counts["spells"] == 2
     assert report.counts["pak entries"] == 28
     assert report.counts["tags"] == 2
     assert report.counts["dialogs indexed"] == 1
@@ -269,10 +269,10 @@ def test_run_benchmark(data_dir, tmp_path):
     assert report.counts["story rules"] == 1
     assert report.counts["progressions"] == 2
     assert report.counts["progression tables"] == 1
-    assert report.counts["spell lists"] == 2
+    assert report.counts["spell lists"] == 3
     assert report.counts["progression passive grants"] == 1
     assert report.counts["progression spell grants"] == 1
-    assert report.counts["progression spell choices"] == 1
+    assert report.counts["progression spell choices"] == 2
     assert report.counts["characters"] == 2
     assert report.counts["equipment sets"] == 1
     assert (tmp_path / "export" / "items.json").exists()

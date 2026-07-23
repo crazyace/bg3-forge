@@ -78,6 +78,12 @@ data "DisplayName" "h11111111-1111-1111-1111-111111111111;1"
 data "Description" "h22222222-2222-2222-2222-222222222222;1"
 data "Icon" "Spell_Evocation_Fireball"
 data "UseCosts" "ActionPoint:1;SpellSlotsGroup:1:1:3"
+
+new entry "Projectile_FireBolt"
+type "SpellData"
+data "SpellType" "Projectile"
+data "Level" "0"
+data "UseCosts" "ActionPoint:1"
 """
 
 PASSIVE_TXT = """\
@@ -124,7 +130,7 @@ PROGRESSION_LSX = """\
           <attribute id="Level" type="uint8" value="1" />
           <attribute id="ProgressionType" type="uint8" value="0" />
           <attribute id="PassivesAdded" type="LSString" value="SavageAttacks" />
-          <attribute id="Selectors" type="LSString" value="AddSpells(cccccccc-0000-0000-0000-000000000001,,,,AlwaysPrepared);SelectSpells(cccccccc-0000-0000-0000-000000000002,1,0)" />
+          <attribute id="Selectors" type="LSString" value="AddSpells(cccccccc-0000-0000-0000-000000000001,,,,AlwaysPrepared);SelectSpells(cccccccc-0000-0000-0000-000000000002,1,0);SelectSpells(cccccccc-0000-0000-0000-000000000003,3,0,,,,AlwaysPrepared)" />
           <children>
             <node id="SubClasses">
               <children>
@@ -163,6 +169,11 @@ SPELL_LISTS_LSX = """\
           <attribute id="UUID" type="guid" value="cccccccc-0000-0000-0000-000000000002" />
           <attribute id="Comment" type="LSString" value="Wizard choices" />
           <attribute id="Spells" type="LSString" value="Projectile_Fireball" />
+        </node>
+        <node id="SpellList">
+          <attribute id="UUID" type="guid" value="cccccccc-0000-0000-0000-000000000003" />
+          <attribute id="Name" type="FixedString" value="Wizard cantrips" />
+          <attribute id="Spells" type="LSString" value="Projectile_FireBolt" />
         </node>
       </children>
     </node>
