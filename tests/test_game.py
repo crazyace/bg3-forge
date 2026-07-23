@@ -46,6 +46,52 @@ def test_bad_file_is_recorded_not_fatal(tmp_path):
     assert "outside any" in issue.error
 
 
+def test_overridden_file_replaces_not_duplicates(tmp_path):
+    """A patch pak re-shipping an archived path overrides it wholesale —
+    the engine only ever sees the highest-priority copy.  Collections
+    used to extend() per yielded file, so every record in an overridden
+    journal/stats file appeared twice: once stale, once patched."""
+    from bg3forge.pak import PakWriter
+    from conftest import fixture_files
+
+    files = fixture_files()
+    writer = PakWriter()
+    for name, data in files.items():
+        writer.add(name, data)
+    writer.write(tmp_path / "Shared.pak")
+
+    baseline = Game(data_dir=tmp_path)
+    quest_count = len(list(baseline.quests))
+    objective_count = len(baseline.objectives_for_quest("PLA_ZhentShipment"))
+    marker_count = len(baseline.quest_markers)
+    assert quest_count and objective_count and marker_count
+
+    # The patch re-ships the journal files unchanged and buffs the
+    # longsword's damage in the stats file.
+    quest_path = "Mods/Shared/Story/Journal/quest_prototypes.lsx"
+    weapon_path = "Public/Shared/Stats/Generated/Data/Weapon.txt"
+    patch = PakWriter(priority=10)
+    patch.add(quest_path, files[quest_path])
+    patch.add(
+        "Mods/Shared/Story/Journal/objective_prototypes.lsx",
+        files["Mods/Shared/Story/Journal/objective_prototypes.lsx"],
+    )
+    patch.add(weapon_path, files[weapon_path].replace(b'"1d8"', b'"2d6"'))
+    patch.write(tmp_path / "Patch.pak")
+
+    game = Game(data_dir=tmp_path)
+    # No duplicates in the collections or the indexes built from them...
+    assert len(list(game.quests)) == quest_count
+    assert len(game.objectives_for_quest("PLA_ZhentShipment")) == objective_count
+    assert len(game.quest_markers) == marker_count
+    # ...and the patched copy is the one that loaded.
+    assert game.stats.resolved("WPN_Longsword")["Damage"] == "2d6"
+    # Layering across *distinct* paths is untouched: the magic variant
+    # still inherits through `using` from the patched base.
+    assert game.stats.resolved("WPN_Longsword_Magic")["Damage"] == "2d6"
+    assert game.stats.resolved("WPN_Longsword_Magic")["Rarity"] == "Rare"
+
+
 def test_corrupt_pak_recorded_not_silent(tmp_path):
     """A file with the LSPK signature that fails to open is a damaged
     archive (truncated download, interrupted patch) — it must land in
