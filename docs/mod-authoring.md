@@ -14,7 +14,7 @@ This checklist is that gate. Run it once against a real install to turn
 from bg3forge import Mod
 
 mod = Mod("ForgeSmokeTest", author="you", description="Forge authoring smoke test.")
-mod.new_armor(
+template_uuid = mod.new_armor(
     "ARM_Forge_TestPlate",
     armor_class=21,
     stats_using="_Armor",                 # a real base stats entry
@@ -23,7 +23,8 @@ mod.new_armor(
     description="If you can read this in game, authoring works.",
     icon="Item_Plate_Body",               # an existing atlas icon
 )
-print("template UUID:", mod.build("ForgeSmokeTest.pak"))
+print("template UUID:", template_uuid)    # spawn code for the in-game test
+print("built:", mod.build("ForgeSmokeTest.pak"))  # build returns the pak path
 ```
 
 To find a real `parent_template` UUID and a base stats entry to inherit

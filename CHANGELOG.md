@@ -37,6 +37,25 @@
   `TUT_Chest_Potions`, and what's its spawn UUID" — closing the loop with
   the authoring `treasure=` feature.
 
+### Docs & CI
+
+* The README execution guard is now strict about `NameError`: blocks
+  share one namespace (the README is a progressive narrative), a
+  `NameError` is tolerated only for documented placeholders or names
+  whose defining statement was skipped for data reasons, and total
+  skips are capped. Previously a blanket `NameError` tolerance silently
+  skipped 24 of 75 statements — including the entire high-level API
+  block; coverage is now 59/75 with every skip accounted for.
+* README notes that the released 0.1.0 predates the authoring layer and
+  the progressions/classes/races graph (this README documents `main`).
+* docs/mod-authoring.md no longer labels `Mod.build()`'s return value
+  as the template UUID — `build` returns the pak path; the UUID is
+  returned by `new_armor`/`new_item` (the doc's spawn step depends on
+  it).
+* Publishing now verifies the built version matches the release tag —
+  a release cut today would have shipped `0.2.0.dev0` to PyPI.
+* CI tests Python 3.13 (suite verified); classifiers updated.
+
 ### Fixed (game graph)
 
 * Tag UUID joins are now case-insensitive, like every other UUID join in
