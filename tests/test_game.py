@@ -369,16 +369,19 @@ def test_owner_templates_and_requirements(game):
     assert magic.owner_templates == []
 
 
-def test_tag_ids_merge_template_chain(game):
+def test_tag_ids_follow_template_override(game):
     sword = game.items["WPN_Longsword"]
-    assert sword.tag_ids == [
-        "aaaa1111-0000-0000-0000-000000000001",  # from BASE_Weapon parent
-        "bbbb2222-0000-0000-0000-000000000002",  # own tag
-    ]
+    # The template defines its own Tags list, which *replaces* the
+    # parent's — engine inheritance is per-property, not a union.
+    assert sword.tag_ids == ["bbbb2222-0000-0000-0000-000000000002"]
     # magic variant shares the RootTemplate, hence the tags
     assert game.items["WPN_Longsword_Magic"].tag_ids == sword.tag_ids
     # no template → no tags
     assert game.items["_BaseWeapon"].tag_ids == []
+    # a template without its own Tags inherits the nearest ancestor's
+    assert game.templates.resolved_tags("0000base-0000-0000-0000-00000000000f") == [
+        "aaaa1111-0000-0000-0000-000000000001"
+    ]
 
 
 def test_tag_registry(game):
@@ -394,8 +397,7 @@ def test_tag_registry(game):
 
 def test_item_tags_resolve_to_tag_objects(game):
     sword = game.items["WPN_Longsword"]
-    assert [tag.name for tag in sword.tags] == ["WEAPON", "LONGSWORD"]
-    assert sword.tags[0].display_name == "Weapon"
+    assert [tag.name for tag in sword.tags] == ["LONGSWORD"]
 
 
 def test_tag_uuid_joins_case_insensitive(game):

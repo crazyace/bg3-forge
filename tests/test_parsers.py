@@ -49,6 +49,34 @@ def test_stats_comments_and_blank_lines():
     assert len(entries) == 1
 
 
+def test_stats_trailing_comment_and_malformed_lines():
+    """A trailing // comment outside quotes parses cleanly; a structural
+    line that fails to parse raises instead of silently dropping data."""
+    from bg3forge.parsers import StatsParseError
+
+    entries = parse_stats(
+        'new entry "A"  // introduced in patch 3\n'
+        'type "Weapon"\n'
+        'data "Damage" "1d8" // base damage\n'
+        'data "Notes" "uses // safely inside quotes"\n'
+    )
+    assert entries[0].data["Damage"] == "1d8"
+    assert entries[0].data["Notes"] == "uses // safely inside quotes"
+
+    for bad in (
+        'new entry "A"\ndata "Damage" "1d8" trailing-junk\n',
+        'new entry "A"\ndata "Damage" "1d8\n',      # missing close quote
+        'new entry "A"\ntype "Weapon" 12\n',
+        'key "Global","1" extra\n',
+    ):
+        with pytest.raises(StatsParseError, match="malformed"):
+            parse_stats(bad)
+
+    # unmodeled directives are still tolerated, malformed or not
+    entries = parse_stats('new itemcolor whatever\nnew entry "B"\ntype "Armor"\n')
+    assert entries[0].name == "B"
+
+
 def test_stats_data_outside_block_raises():
     with pytest.raises(StatsParseError, match="outside any"):
         parse_stats('data "Damage" "1d4"')
