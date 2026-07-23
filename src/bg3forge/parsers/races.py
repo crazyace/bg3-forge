@@ -84,12 +84,14 @@ def parse_races(document: LsxDocument, source: str | None = None) -> list[Race]:
             for attr in node.attributes.values()
             if attr.text is not None
         }
+        # Race collections use repeated single-entry children: each `Tags`
+        # child node carries one `Object` guid directly (a race with three
+        # tags has three `Tags` children) — unlike item templates' nested
+        # Tags → Tag shape. Verified against retail.
         tag_ids = [
             obj
             for child in node.children
-            if child.id == "Tags"
-            for tag in child.children
-            if (obj := tag.get("Object"))
+            if child.id == "Tags" and (obj := child.get("Object"))
         ]
         display = node.attributes.get("DisplayName")
         description = node.attributes.get("Description")

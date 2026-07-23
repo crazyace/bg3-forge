@@ -199,11 +199,7 @@ RACES_LSX = """\
           <attribute id="RaceEquipment" type="FixedString" value="EQP_Race_Human" />
           <children>
             <node id="Tags">
-              <children>
-                <node id="Tag">
-                  <attribute id="Object" type="guid" value="aaaa1111-0000-0000-0000-000000000001" />
-                </node>
-              </children>
+              <attribute id="Object" type="guid" value="aaaa1111-0000-0000-0000-000000000001" />
             </node>
           </children>
         </node>
