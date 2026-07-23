@@ -46,6 +46,7 @@ from .parsers.progressions import (
 from .parsers.resource import parse_resource
 from .parsers.roottemplates import RootTemplateIndex
 from .parsers.classdescriptions import ClassDescription, parse_class_descriptions
+from .parsers.races import Race, parse_races
 from .parsers.spelllists import SpellList, parse_spell_lists
 from .parsers.dialogs import Dialog, parse_dialog
 from .parsers.goals import Goal, parse_goal
@@ -258,6 +259,13 @@ def _is_progression_file(name: str) -> bool:
 def _is_class_description_file(name: str) -> bool:
     lowered = name.lower()
     return "/classdescriptions/" in lowered and lowered.endswith((".lsx", ".lsf"))
+
+
+def _is_race_file(name: str) -> bool:
+    lowered = name.lower()
+    return ("/races/" in lowered or "racedescription" in lowered) and lowered.endswith(
+        (".lsx", ".lsf")
+    )
 
 
 def _is_spell_list_file(name: str) -> bool:
@@ -741,6 +749,36 @@ class Game:
             if record.display_name_handle:
                 record.display_name = self.localization.resolve(
                     record.display_name_handle
+                )
+        return self._collect(records)
+
+    @cached_property
+    def races(self) -> NamedCollection[Race]:
+        """Race and subrace records, joined like :attr:`classes`.
+
+        ``game.races["Human"]`` resolves ``.parent``/``.subraces`` (the
+        ``ParentGuid`` tree rooted at ``Humanoid``), ``.progressions`` via
+        the race's table, and ``.tags``.  Later records with the same UUID
+        replace earlier ones in pak load order.
+        """
+        by_uuid: dict[str, Race] = {}
+        for name, data in self._iter_files(_is_race_file):
+            try:
+                records = parse_races(parse_resource(data), source=name)
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
+                continue
+            for record in records:
+                by_uuid[record.uuid] = record
+        records = sorted(by_uuid.values(), key=lambda record: (record.name, record.uuid))
+        for record in records:
+            if record.display_name_handle:
+                record.display_name = self.localization.resolve(
+                    record.display_name_handle
+                )
+            if record.description_handle:
+                record.description = self.localization.resolve(
+                    record.description_handle
                 )
         return self._collect(records)
 

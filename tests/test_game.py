@@ -250,6 +250,22 @@ def test_add_class_spell_level_zero_targets_cantrip_lists(game):
     assert cantrips.display_name == "Wizard cantrips"
 
 
+def test_races_join_the_origin_tree(game):
+    """game.races mirrors game.classes: ParentGuid tree, progression-table
+    join, localized names, and tag-registry links."""
+    human = game.races["Human"]
+    assert human.display_name == "Human"
+    assert human.race_equipment == "EQP_Race_Human"
+    assert [p.level for p in human.progressions] == [1, 2]
+    assert [tag.name for tag in human.tags] == ["WEAPON"]
+
+    humanoid = game.races["Humanoid"]
+    assert humanoid.parent is None
+    assert humanoid.progressions == []  # roots carry no progression table
+    assert human.parent is humanoid
+    assert humanoid.subraces == [human]
+
+
 def test_progression_uuid_follows_pak_load_order(data_dir):
     from conftest import PROGRESSION_LSX
     from bg3forge.pak import PakWriter

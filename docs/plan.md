@@ -123,7 +123,10 @@ authoring work: `game.classes` ties each class/subclass to its learnable
 spell list (`SpellList`/`CanLearnSpells` — the wizard transcription pool),
 its progression table, and parent/subclass links, with
 `game.spell_lists_containing(spell)` as the class-spell authoring query.
-Race descriptions remain open for when a consumer needs them.
+Race join landed 2026-07-23: `game.races` models the `ParentGuid` tree
+(root `Humanoid` → races → subraces) with progression-table joins,
+localized names, and tag-registry links; cosmetic banks (hair/skin/eye
+colors, visuals) are deliberately unmodeled. **Milestone 5 is complete.**
 
 ## 6. Mod authoring — item pipeline complete, retail-verified — current
 

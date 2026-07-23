@@ -181,6 +181,38 @@ SPELL_LISTS_LSX = """\
 </save>
 """
 
+RACES_LSX = """\
+<save>
+  <region id="Races">
+    <node id="root">
+      <children>
+        <node id="Race">
+          <attribute id="Name" type="FixedString" value="Humanoid" />
+          <attribute id="UUID" type="guid" value="ffffffff-0000-0000-0000-000000000001" />
+        </node>
+        <node id="Race">
+          <attribute id="Name" type="FixedString" value="Human" />
+          <attribute id="UUID" type="guid" value="ffffffff-0000-0000-0000-000000000002" />
+          <attribute id="ParentGuid" type="guid" value="ffffffff-0000-0000-0000-000000000001" />
+          <attribute id="ProgressionTableUUID" type="guid" value="bbbbbbbb-0000-0000-0000-000000000001" />
+          <attribute id="DisplayName" type="TranslatedString" handle="h88888888-8888-8888-8888-888888888888" version="1" />
+          <attribute id="RaceEquipment" type="FixedString" value="EQP_Race_Human" />
+          <children>
+            <node id="Tags">
+              <children>
+                <node id="Tag">
+                  <attribute id="Object" type="guid" value="aaaa1111-0000-0000-0000-000000000001" />
+                </node>
+              </children>
+            </node>
+          </children>
+        </node>
+      </children>
+    </node>
+  </region>
+</save>
+"""
+
 CLASS_DESCRIPTIONS_LSX = """\
 <save>
   <region id="ClassDescriptions">
@@ -742,6 +774,7 @@ LOCA_ENTRIES = [
     LocaEntry("haaaa0000-0000-0000-0000-0000000000o2", 2, "Help the survivors."),
     LocaEntry("haaaa0000-0000-0000-0000-0000000000k1", 1, "Wilderness"),
     LocaEntry("h99999999-9999-9999-9999-999999999999", 1, "Wizard"),
+    LocaEntry("h88888888-8888-8888-8888-888888888888", 1, "Human"),
 ]
 
 
@@ -890,6 +923,7 @@ def fixture_files() -> dict[str, bytes]:
         "Public/Shared/Progressions/Progressions.lsx": PROGRESSION_LSX.encode(),
         "Public/Shared/Lists/SpellLists.lsx": SPELL_LISTS_LSX.encode(),
         "Public/Shared/ClassDescriptions/ClassDescriptions.lsx": CLASS_DESCRIPTIONS_LSX.encode(),
+        "Public/Shared/Races/Races.lsx": RACES_LSX.encode(),
         "Public/Shared/RootTemplates/Weapons.lsx": ROOTTEMPLATE_LSX.encode(),
         "Mods/Shared/Globals/WLD_Main_A/Items/_merged.lsx": GLOBAL_ITEMS_LSX.encode(),
         "Mods/Shared/Levels/WLD_Main_A/Items/_merged.lsx": LEVEL_ITEMS_LSX.encode(),

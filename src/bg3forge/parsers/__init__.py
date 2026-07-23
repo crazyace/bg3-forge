@@ -60,6 +60,7 @@ from .goals import Goal, parse_goal
 from .equipment import EquipmentSet, parse_equipment_sets
 from .progressions import Progression, ProgressionCollection, parse_progressions
 from .classdescriptions import ClassDescription, parse_class_descriptions
+from .races import Race, parse_races
 from .spelllists import (
     WIZARD_LEARNABLE_LIST,
     SpellList,
@@ -157,6 +158,8 @@ __all__ = [
     "parse_progressions",
     "ClassDescription",
     "parse_class_descriptions",
+    "Race",
+    "parse_races",
     "SpellList",
     "WIZARD_LEARNABLE_LIST",
     "build_spell_list_node",

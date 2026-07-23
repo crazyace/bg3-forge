@@ -14,6 +14,12 @@
 * Retail verification found 1,004 effective progression records across 144
   tables and 315 effective spell lists, with zero unresolved joins; the new
   benchmark stage takes 0.29 seconds on the reference install.
+* Added `game.races`: race and subrace records as a `ParentGuid` tree
+  (root `Humanoid` → playable races → subraces) joined to their
+  progression tables, localized names/descriptions, and the tag registry.
+  The retail census (156 nodes, nine attributes) pinned the schema;
+  character-creation cosmetic banks are deliberately not modeled. Counted
+  by `validate` — this completes the classes/races origin join.
 * Added `game.classes` (class descriptions): each class/subclass joined to
   its learnable spell list (`SpellList` + `CanLearnSpells` — the wizard
   transcription pool), its progression table, and `parent`/`subclasses`
