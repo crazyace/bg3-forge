@@ -337,3 +337,40 @@ def test_write_lsx_roundtrip():
     parsed = parse_lsx(write_lsx(original))
     _assert_documents_equal(original, parsed)
     assert parsed.regions["AllTypes"].key == "Name"
+
+
+def test_write_lsx_rejects_control_characters():
+    """XML 1.0 cannot represent C0 controls at all (not even as character
+    references), but ElementTree writes them through verbatim — the
+    output used to be rejected by parse_lsx and the game alike."""
+    from bg3forge.parsers.lsx import LsxError
+
+    def doc_with(**attr_kwargs):
+        document = LsxDocument()
+        node = LsxNode(id=attr_kwargs.pop("node_id", "Node"))
+        if attr_kwargs:
+            attr = LsxAttribute(
+                id=attr_kwargs.get("id", "A"),
+                type=attr_kwargs.get("type", "LSString"),
+                value=attr_kwargs.get("value"),
+                handle=attr_kwargs.get("handle"),
+            )
+            node.attributes[attr.id] = attr
+        document.regions[attr_kwargs.get("region", "R")] = node
+        return document
+
+    for bad_doc in (
+        doc_with(value="bad\x01value"),
+        doc_with(id="A\x00B", value="x"),
+        doc_with(type="LSString\x1f", value="x"),
+        doc_with(handle="h\x08handle"),
+        doc_with(node_id="Node\x0b"),
+    ):
+        with pytest.raises(LsxError, match="control character"):
+            write_lsx(bad_doc)
+
+    # Legal XML whitespace round-trips exactly (ElementTree escapes it
+    # as character references inside attribute values).
+    ok = doc_with(value="line1\nline2\ttabbed")
+    parsed = parse_lsx(write_lsx(ok))
+    assert parsed.regions["R"].attributes["A"].value == "line1\nline2\ttabbed"
