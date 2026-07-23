@@ -165,6 +165,10 @@ composing them and minting stable UUID5 identifiers/handles.
       list with a custom spell appended, and `new_scroll` emits the
       ActionType 33 learn action. Retail-verified: Forge Step transcribed
       from its scroll into the wizard spellbook and cast
+- [x] Class spells: `add_class_spell(game, mod, class, spell, level=…)`
+      extends a class's selection/prepare lists (cantrip-safe).
+      Retail-verified: Forge Step offered in a Sorcerer's level-up picker,
+      selected, and cast
 
 **Milestone complete and retail-verified end to end** — items, weapons,
 obtainability, and custom passives, statuses, and spells: a mod can ship
