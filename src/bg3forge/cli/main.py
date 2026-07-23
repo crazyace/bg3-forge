@@ -101,6 +101,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="disable the live progress line (auto-disabled when stderr is not a terminal)",
     )
 
+    lint = sub.add_parser(
+        "lint",
+        help="check a mod .pak for internal consistency before shipping",
+        description="Resolve base-game references by pointing at an install: "
+        "bg3forge --data-dir <install>/Data lint MyMod.pak",
+    )
+    lint.add_argument("pak", type=Path, help="the mod .pak to check")
+
     benchmark = sub.add_parser(
         "benchmark", help="time each pipeline stage against the game data"
     )
@@ -316,6 +324,21 @@ def _dispatch(args) -> int:
         )
         encoding = (getattr(sys.stdout, "encoding", None) or "").lower()
         print(format_report(report, unicode_symbols="utf" in encoding))
+        return 0 if report.ok else 1
+
+    if args.command == "lint":
+        from ..lint import format_report, lint_mod
+
+        # A base install (via --game-path / --data-dir / --extracted-dir)
+        # lets reference checks resolve; without one they are skipped.
+        have_base = any((args.game_path, args.data_dir, args.extracted_dir))
+        base = _open_game(args) if have_base else None
+        try:
+            report = lint_mod(args.pak, base=base)
+        finally:
+            if base is not None:
+                base.close()
+        print(format_report(report))
         return 0 if report.ok else 1
 
     if args.command == "validate":

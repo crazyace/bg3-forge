@@ -2,6 +2,20 @@
 
 ## 0.2.0 — unreleased
 
+### API
+
+* Added `bg3forge lint` (and `bg3forge.lint.lint_mod`) — checks a mod
+  `.pak` for internal consistency before it ships: every recognized file
+  parses, template UUIDs (`MapKey`/`ParentTemplateId`/`TemplateName`) are
+  well-formed, referenced `DisplayName`/`Description` handles have a
+  `.loca` entry (else they render as a raw handle in game), and — when an
+  install is supplied via `--data-dir` — `using` chains and equip
+  references (`PassivesOnEquip`, `StatusOnEquip`, `UnlockSpell(...)`)
+  resolve against the base game. A missing `using` target or malformed
+  UUID is an error (non-zero exit); a dangling handle or reference is a
+  warning. Reference checks are skipped, not failed, without a base
+  install, since a mod is not self-contained.
+
 ### Tooling
 
 * Added `scripts/build_data_release.py` — builds a downloadable dataset
