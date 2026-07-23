@@ -54,6 +54,26 @@ class StatsParseError(ValueError):
         super().__init__(f"{location}: {message}")
 
 
+class StatsWriteError(ValueError):
+    """A value cannot be represented in the stats ``.txt`` format."""
+
+
+#: The stats grammar has no escape syntax: a double quote inside a quoted
+#: argument changes how the line splits, and a newline starts a new
+#: directive — both silently reparse as *different* data (or worse, as
+#: injected lines).  Writing them must fail loudly instead.
+_UNWRITABLE_RE = re.compile(r'["\r\n]')
+
+
+def _check_writable(value: str, what: str) -> str:
+    if _UNWRITABLE_RE.search(value):
+        raise StatsWriteError(
+            f"{what} {value!r} contains a double quote or newline; "
+            "the stats format has no escape syntax for them"
+        )
+    return value
+
+
 @dataclass
 class StatsDocument:
     entries: list[StatsEntry] = field(default_factory=list)
@@ -105,13 +125,16 @@ def parse_stats(text: str, source: str | None = None) -> list[StatsEntry]:
 
 
 def _write_entry(entry: StatsEntry) -> str:
-    lines = [f'new entry "{entry.name}"']
+    lines = [f'new entry "{_check_writable(entry.name, "entry name")}"']
     if entry.type:
-        lines.append(f'type "{entry.type}"')
+        lines.append(f'type "{_check_writable(entry.type, "entry type")}"')
     if entry.using is not None:
-        lines.append(f'using "{entry.using}"')
+        lines.append(f'using "{_check_writable(entry.using, "using reference")}"')
     for key, value in entry.data.items():
-        lines.append(f'data "{key}" "{value}"')
+        lines.append(
+            f'data "{_check_writable(key, "data key")}"'
+            f' "{_check_writable(value, f"data value for {key!r}")}"'
+        )
     return "\n".join(lines)
 
 
@@ -127,12 +150,18 @@ def write_stats_document(document: StatsDocument) -> str:
 
     A global block, if any, is emitted first as consecutive ``key`` lines;
     entries follow, each separated by a blank line, matching retail files.
+
+    Raises :class:`StatsWriteError` for strings the format cannot carry
+    (double quotes and newlines have no escape syntax — emitting them
+    would silently reparse as different data).
     """
     chunks: list[str] = []
     if document.globals:
         chunks.append(
             "\n".join(
-                f'key "{name}","{value}"' for name, value in document.globals.items()
+                f'key "{_check_writable(name, "global key")}"'
+                f',"{_check_writable(value, f"global value for {name!r}")}"'
+                for name, value in document.globals.items()
             )
         )
     chunks.extend(_write_entry(entry) for entry in document.entries)

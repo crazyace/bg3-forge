@@ -39,6 +39,16 @@
 
 ### Fixed
 
+* The stats writer now refuses strings the format cannot carry. The
+  stats ``.txt`` grammar has no escape syntax, so a double quote or
+  newline in an entry name, type, ``using`` reference, data key/value,
+  or global silently reparsed as *different* data — a value containing
+  a newline could even inject whole ``data`` directives into the
+  generated file. ``write_stats``/``write_stats_document`` (and
+  therefore ``Mod.build``) now raise the new ``StatsWriteError`` (a
+  ``ValueError``) naming the offending field instead of corrupting the
+  output.
+
 * A file re-shipped by a higher-priority archive now overrides the base
   copy wholesale, as the engine loads it. `_iter_files` previously
   yielded *every* copy of a matching archived path from every pak, so
