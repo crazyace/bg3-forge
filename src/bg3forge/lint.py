@@ -30,6 +30,7 @@ from .game import (
     _is_stats_file,
 )
 from .parsers.localization import Localization
+from .parsers.meta import ModuleInfo, parse_meta
 from .parsers.resource import parse_resource
 from .parsers.roottemplates import RootTemplateIndex, parse_root_templates
 from .parsers.stats import StatsCollection, StatsEntry, parse_stats_document
@@ -93,6 +94,17 @@ def _split_list(raw: str | None) -> list[str]:
     return [part.strip() for part in raw.split(";") if part.strip()]
 
 
+def _is_meta_file(name: str) -> bool:
+    lowered = name.lower()
+    return lowered.startswith("mods/") and lowered.endswith("/meta.lsx")
+
+
+def _meta_dir(name: str) -> str:
+    """The ``<Folder>`` from a ``Mods/<Folder>/meta.lsx`` path."""
+    parts = name.split("/")
+    return parts[-2] if len(parts) >= 3 else ""
+
+
 def lint_mod(
     pak_path: str | Path,
     base: Game | str | Path | None = None,
@@ -129,6 +141,7 @@ def lint_mod(
 
     mod_stats: list[StatsEntry] = []
     mod_templates: list = []
+    metas: list[tuple[str, ModuleInfo | None]] = []
 
     with PakReader(pak_path) as pak:
         for entry in pak:
@@ -139,6 +152,16 @@ def lint_mod(
                 report.add(ERROR, "read", f"could not read entry: {exc}", name)
                 continue
 
+            if _is_meta_file(name):
+                # meta.lsx also matches the generic .lsx branch, so handle
+                # it first: a malformed or absent ModuleInfo is the single
+                # most common "my mod doesn't show up" failure.
+                try:
+                    metas.append((name, parse_meta(parse_resource(data))))
+                except ValueError as exc:  # LsxError / bad Version64 int
+                    report.add(ERROR, "meta", f"meta.lsx does not parse: {exc}", name)
+                    metas.append((name, None))
+                continue
             if _is_stats_file(name):
                 try:
                     document = parse_stats_document(
@@ -166,6 +189,7 @@ def lint_mod(
                 except ValueError as exc:
                     report.add(ERROR, "parse", f"localization does not parse: {exc}", name)
 
+    _check_meta(report, metas)
     _check_uuids(report, mod_templates)
     _check_handles(report, mod_stats, mod_templates, loca)
     _check_references(report, mod_stats, mod_templates, stats, have_base=base is not None)
@@ -177,6 +201,50 @@ def lint_mod(
             "pass --data-dir <install>/Data to resolve them against the base game",
         )
     return report
+
+
+def _check_meta(report: LintReport, metas: list[tuple[str, ModuleInfo | None]]) -> None:
+    """Validate the module manifest(s).  A missing or mis-declared
+    ``meta.lsx`` is the most common reason a mod never appears in the mod
+    manager, and it applies to *every* mod type — assets and scripts
+    included — so it is checked even when there is no data to lint."""
+    if not metas:
+        report.add(
+            ERROR, "meta",
+            "no Mods/<Folder>/meta.lsx — the pak has no module manifest and "
+            "will not load or appear in the mod manager",
+        )
+        return
+    if len(metas) > 1:
+        report.add(
+            WARNING, "meta",
+            f"{len(metas)} meta.lsx files found (a multi-module pak — unusual but valid)",
+        )
+    for path, module in metas:
+        if module is None:  # parse failure already reported
+            continue
+        if not module.name:
+            report.add(ERROR, "meta", "ModuleInfo has no Name", path)
+        if not module.uuid:
+            report.add(ERROR, "meta", "ModuleInfo has no UUID", path)
+        elif not _looks_like_uuid(module.uuid):
+            report.add(ERROR, "meta", f"ModuleInfo UUID {module.uuid!r} is not a valid UUID", path)
+        declared_dir = _meta_dir(path)
+        if declared_dir and module.folder != declared_dir:
+            report.add(
+                ERROR, "meta",
+                f"ModuleInfo Folder {module.folder!r} does not match its directory "
+                f"Mods/{declared_dir}/ — the game locates the mod's content by this "
+                "folder, so a mismatch loads nothing",
+                path,
+            )
+        if module.version == (0, 0, 0, 0):
+            report.add(
+                WARNING, "meta",
+                "ModuleInfo has no Version64 (or it is zero) — mod managers "
+                "show and compare mods by version",
+                path,
+            )
 
 
 def _check_uuids(report: LintReport, mod_templates: list) -> None:

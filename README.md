@@ -515,11 +515,14 @@ Python:
   [docs/data-release.md](docs/data-release.md)) and attached to the
   GitHub release; the tool is what regenerates them each patch.
 * ✅ **`bg3forge lint`** — point it at *your own* mod `.pak` and get its
-  internal consistency checked: does it parse, are UUIDs well-formed, do
-  `DisplayName` handles have `.loca` entries, and — with `--data-dir`
-  pointing at an install — do `using` chains and equip references
-  (passives/statuses/unlocked spells) resolve against the base game.
-  Catches the mistakes that ship broken mods, before upload.
+  internal consistency checked: is the `meta.lsx` module manifest present
+  and its `Folder` consistent (the #1 "mod doesn't show up" bug, and it
+  applies to *any* mod — assets and scripts included), does everything
+  parse, are UUIDs well-formed, do `DisplayName` handles have `.loca`
+  entries, and — with `--data-dir` pointing at an install — do `using`
+  chains and equip references (passives/statuses/unlocked spells) resolve
+  against the base game. Catches the mistakes that ship broken mods,
+  before upload.
 * 🔮 **Cross-patch data diff** — record-level "what changed between Patch
   N and N+1" (stats added/removed/changed, renamed boosts), the thing
   that silently breaks mods.
