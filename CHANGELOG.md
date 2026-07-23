@@ -49,6 +49,13 @@
   `ClassId` turned out to be the Wizard ClassDescription UUID (the class
   marked `IsDefaultForUseSpellAction`).
 
+* README Python snippets are now executed by the test suite
+  (`tests/test_readme.py`): each ```python block runs statement-by-
+  statement against the synthetic fixture game, so renamed APIs, wrong
+  signatures, or syntax errors in the docs fail CI. Only data-dependent
+  misses (retail names the fixture lacks, illustrative placeholders) are
+  tolerated.
+
 ### Mod authoring (experimental)
 
 The first write primitives aimed at programmatic mod creation:
