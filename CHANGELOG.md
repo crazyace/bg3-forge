@@ -39,6 +39,18 @@
 
 ### Fixed
 
+* A file re-shipped by a higher-priority archive now overrides the base
+  copy wholesale, as the engine loads it. `_iter_files` previously
+  yielded *every* copy of a matching archived path from every pak, so
+  the collections built by extension — quests, objectives, markers,
+  categories, treasure tables, atlases, equipment — contained both the
+  stale and the patched records after any patch or mod override, and
+  every reverse index built from them (objectives-for-quest,
+  quests-in-category, markers-by-id) returned duplicates. Record-level
+  layering across distinct paths (stats `using` chains, `.loca`
+  versions, progression UUIDs) is unchanged, and the lazy indexes
+  already used the same last-wins rule via `_locate_entries`.
+
 * LSPK v15/v16 archives (DOS2 DE, BG3 Early Access) are now actually
   readable. Both advertised versions were parsed with the v18 272-byte
   entry layout, but real v15/v16 entries are 296 bytes (LSLib's

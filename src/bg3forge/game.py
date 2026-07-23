@@ -1050,8 +1050,15 @@ class Game:
         """Yield (name, bytes) for archived/extracted files matching predicate.
 
         Paks are visited in (priority, name) order — the engine's load
-        order — so later, higher-priority archives override earlier ones
-        and patch-layered stats resolve against the right base.
+        order — and a path shipped by several archives is overridden
+        *wholesale*: only the highest-priority copy is yielded, exactly
+        as the engine sees it.  (Without this, a patch pak re-shipping a
+        journal or stats file made every collection built by extension
+        contain both the stale and the patched records.)  Record-level
+        layering — stats ``using`` chains, ``.loca`` versions,
+        progression UUIDs — still applies across *distinct* paths, all
+        of which are yielded.  ``_locate_entries`` applies the same
+        last-wins rule for the lazy indexes.
         """
         if self.extracted_dir is not None:
             for file in sorted(self.extracted_dir.rglob("*")):
@@ -1061,10 +1068,13 @@ class Game:
                 if predicate(rel):
                     yield rel, file.read_bytes()
             return
+        winners: dict[str, tuple[PakReader, object]] = {}
         for reader in self._open_readers():
             for entry in reader:
                 if predicate(entry.name):
-                    yield entry.name, reader.read(entry)
+                    winners[entry.name] = (reader, entry)
+        for name, (reader, entry) in winners.items():
+            yield name, reader.read(entry)
 
     def _open_readers(self) -> list[PakReader]:
         """All primary pak readers in (priority, name) load order.
