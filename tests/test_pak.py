@@ -153,6 +153,123 @@ def test_writer_rejects_legacy_versions(tmp_path):
         PakWriter(version=16)
 
 
+def _write_multipart_pak(tmp_path):
+    """Hand-build a two-part v18 archive: PakWriter only emits single-part
+    archives, but retail Textures.pak + Textures_1.pak splits are real."""
+    from bg3forge.pak.format import (
+        FILE_LIST_HEADER_STRUCT,
+        HEADER_STRUCT,
+        PakEntry,
+        PakHeader,
+    )
+
+    main_data = b"data living in the main archive"
+    part_data = b"data living in the _1 sibling part"
+    entries = [
+        PakEntry(name="main.txt", offset=HEADER_STRUCT.size, archive_part=0,
+                 flags=0, size_on_disk=len(main_data), uncompressed_size=0),
+        PakEntry(name="sibling.txt", offset=0, archive_part=1,
+                 flags=0, size_on_disk=len(part_data), uncompressed_size=0),
+    ]
+    table = b"".join(e.pack() for e in entries)
+    compressed = lz4compat.compress(table)
+    file_list = FILE_LIST_HEADER_STRUCT.pack(len(entries), len(compressed)) + compressed
+    header = PakHeader(
+        version=18, file_list_offset=HEADER_STRUCT.size + len(main_data),
+        file_list_size=len(file_list), flags=0, priority=0,
+        md5=b"\x00" * 16, num_parts=2,
+    )
+    pak_path = tmp_path / "Textures.pak"
+    pak_path.write_bytes(header.pack() + main_data + file_list)
+    (tmp_path / "Textures_1.pak").write_bytes(part_data)
+    return pak_path, main_data, part_data
+
+
+def test_multipart_pak_reads_from_sibling(tmp_path):
+    """Entries with archive_part != 0 read transparently from the _N
+    sibling file — previously exercised by zero tests."""
+    pak_path, main_data, part_data = _write_multipart_pak(tmp_path)
+    with PakReader(pak_path) as pak:
+        assert pak.read("main.txt") == main_data
+        assert pak.read("sibling.txt") == part_data
+
+
+def test_multipart_pak_missing_part_raises(tmp_path):
+    pak_path, _, _ = _write_multipart_pak(tmp_path)
+    (tmp_path / "Textures_1.pak").unlink()
+    with PakReader(pak_path) as pak:
+        assert pak.read("main.txt")  # part 0 unaffected
+        with pytest.raises(PakError, match="missing archive part"):
+            pak.read("sibling.txt")
+
+
+def test_zstd_pak_entry_roundtrip(tmp_path):
+    """ZSTD-compressed entries decompress through the optional zstandard
+    backend — previously exercised by zero tests."""
+    zstd = pytest.importorskip("zstandard")
+    from bg3forge.pak.format import (
+        FILE_LIST_HEADER_STRUCT,
+        HEADER_STRUCT,
+        CompressionMethod,
+        PakEntry,
+        PakHeader,
+    )
+
+    payload = b"compressible payload " * 64
+    blob = zstd.ZstdCompressor().compress(payload)
+    entry = PakEntry(
+        name="zstd.bin", offset=HEADER_STRUCT.size, archive_part=0,
+        flags=int(CompressionMethod.ZSTD), size_on_disk=len(blob),
+        uncompressed_size=len(payload),
+    )
+    table = entry.pack()
+    compressed = lz4compat.compress(table)
+    file_list = FILE_LIST_HEADER_STRUCT.pack(1, len(compressed)) + compressed
+    header = PakHeader(
+        version=18, file_list_offset=HEADER_STRUCT.size + len(blob),
+        file_list_size=len(file_list), flags=0, priority=0,
+        md5=b"\x00" * 16, num_parts=1,
+    )
+    pak_path = tmp_path / "zstd.pak"
+    pak_path.write_bytes(header.pack() + blob + file_list)
+    with PakReader(pak_path) as pak:
+        assert pak.read("zstd.bin") == payload
+
+
+def test_golden_entry_and_header_bytes():
+    """Pin the on-disk layouts against drift: exact pack() bytes and the
+    parse of a known-good byte string, independent of any writer."""
+    from bg3forge.pak.format import PakEntry, PakHeader
+
+    header = PakHeader(version=18, file_list_offset=0x11223344, file_list_size=0x55,
+                       flags=1, priority=2, md5=bytes(range(16)), num_parts=3)
+    packed = header.pack()
+    assert packed.hex() == (
+        "4c53504b"          # LSPK
+        "12000000"          # version 18
+        "4433221100000000"  # file_list_offset u64
+        "55000000"          # file_list_size u32
+        "01" "02"           # flags, priority
+        "000102030405060708090a0b0c0d0e0f"
+        "0300"              # num_parts u16
+    )
+    assert PakHeader.parse(packed) == header
+
+    entry = PakEntry(name="a/b.txt", offset=0x0000A1B2C3D4, archive_part=1,
+                     flags=2, size_on_disk=0x100, uncompressed_size=0x200)
+    packed = entry.pack()
+    assert len(packed) == 272
+    assert packed[:7] == b"a/b.txt" and packed[7:256] == bytes(249)
+    assert packed[256:].hex() == (
+        "d4c3b2a1"  # offset low u32
+        "0000"      # offset high u16
+        "01" "02"   # archive_part, flags
+        "00010000"  # size_on_disk u32
+        "00020000"  # uncompressed_size u32
+    )
+    assert PakEntry.parse(packed) == entry
+
+
 def test_lz4_errors_are_valueerrors():
     """Both LZ4 backends must fail with LZ4Error (a ValueError) — the
     native package's own exceptions don't subclass ValueError and used
