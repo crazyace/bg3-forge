@@ -382,6 +382,28 @@ Tracing the chain also revealed the scroll ``ClassId`` is the Wizard
 ClassDescription UUID and exposed the LSF guid text-rendering defect
 (fixed; byte layout frozen by a regression test).
 
+### Class spells at level-up — verified 2026-07-23
+
+The final delivery tier: a custom spell offered by the game's own
+level-up picker.  With every list containing ``Target_MistyStep``
+extended (46 lists via ``replace_spell_list``; the same recipe
+``add_class_spell`` packages per class), a respecced Sorcerer's level-3
+spell selection offered **Forge Step** — correct tooltip (Level 2
+Conjuration, custom description, bonus action, level-2 slot) — and the
+spell was selected and cast.  All three ways a player acquires a custom
+spell are now retail-verified: **item-granted** (equip → hotbar, per-rest
+cooldowns), **scroll** (cast by anyone; transcribed by wizards), and
+**class-learned** (level-up selection).
+
+Operational lessons: every "mod not working" dead end in this cycle was
+the same root cause — the pak absent from the game's *exported* load
+order (BG3 Mod Manager needs the explicit Export Order to Game step, and
+one build was never copied into the Mods folder).  `Ext.Mod.IsModLoaded`
+with the mod's deterministic UUID is the definitive two-second check and
+should be step one of any future load-test triage.  Also: give custom
+spells their own ``Icon`` — a clone wears its base's art in the picker,
+indistinguishable without hovering.
+
 ### Wiring survey — corpus-verified 2026-07-22
 
 `scripts/wiring_survey.py` swept all 25,564 retail templates and turned
