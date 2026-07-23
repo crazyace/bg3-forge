@@ -87,7 +87,11 @@ class TagRegistry:
     """UUID → tag lookup that also answers to engine names.
 
     ``registry["64bd4b15-..."]`` and ``registry["PALADIN"]`` both work;
-    iteration yields tags in insertion order.
+    iteration yields tags in insertion order.  UUID lookups are
+    case-insensitive — template attributes and tag files disagree on
+    casing in retail data, and every other UUID join in the graph is
+    normalized to lowercase.  Names stay case-sensitive (they are
+    canonical engine identifiers).
     """
 
     def __init__(self):
@@ -101,7 +105,7 @@ class TagRegistry:
         return iter(self._by_uuid.values())
 
     def __contains__(self, key: str) -> bool:
-        return key in self._by_uuid or key in self._by_name
+        return key.lower() in self._by_uuid or key in self._by_name
 
     def __getitem__(self, key: str) -> Tag:
         tag = self.get(key)
@@ -110,10 +114,10 @@ class TagRegistry:
         return tag
 
     def get(self, key: str, default: Tag | None = None) -> Tag | None:
-        return self._by_uuid.get(key) or self._by_name.get(key, default)
+        return self._by_uuid.get(key.lower()) or self._by_name.get(key, default)
 
     def add(self, tag: Tag) -> None:
-        self._by_uuid[tag.uuid] = tag
+        self._by_uuid[tag.uuid.lower()] = tag
         if tag.name:
             self._by_name[tag.name] = tag
 

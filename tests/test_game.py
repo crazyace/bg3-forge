@@ -398,6 +398,65 @@ def test_item_tags_resolve_to_tag_objects(game):
     assert sword.tags[0].display_name == "Weapon"
 
 
+def test_tag_uuid_joins_case_insensitive(game):
+    """Template attributes and tag files disagree on UUID casing in
+    retail data; every tag join must normalize."""
+    upper = "BBBB2222-0000-0000-0000-000000000002"
+    assert game.tags[upper].name == "LONGSWORD"
+    assert game.items_with_tag(upper) == game.items_with_tag(upper.lower())
+    assert {i.name for i in game.items_with_tag(upper)} == {
+        "WPN_Longsword", "WPN_Longsword_Magic"
+    }
+
+
+def test_item_icon_falls_back_to_template(tmp_path):
+    """Stats entries without their own Icon inherit the root template's,
+    exactly like DisplayName/Description already do."""
+    from bg3forge.pak import PakWriter
+    from conftest import fixture_files
+
+    files = dict(fixture_files())
+    weapon_path = "Public/Shared/Stats/Generated/Data/Weapon.txt"
+    files[weapon_path] = b"\n".join(
+        line
+        for line in files[weapon_path].splitlines()
+        if not line.startswith(b'data "Icon"')
+    )
+    writer = PakWriter()
+    for name, data in files.items():
+        writer.add(name, data)
+    writer.write(tmp_path / "Shared.pak")
+
+    game = Game(data_dir=tmp_path)
+    # No Icon anywhere in the stats chain; the template chain has one
+    # (inherited from the BASE_Weapon parent template).
+    assert game.items["WPN_Longsword"].icon == "Item_Generic"
+
+
+def test_localization_falls_back_to_english(tmp_path):
+    """Handles untranslated in the chosen language resolve via English
+    instead of returning empty strings; translations still win."""
+    from bg3forge.pak import PakWriter
+    from bg3forge.parsers.localization import LocaEntry, write_loca
+    from conftest import fixture_files
+
+    files = dict(fixture_files())
+    files["Localization/German/german.loca"] = write_loca(
+        [LocaEntry("h11111111-1111-1111-1111-111111111111", 1, "Feuerball")]
+    )
+    writer = PakWriter()
+    for name, data in files.items():
+        writer.add(name, data)
+    writer.write(tmp_path / "Shared.pak")
+
+    game = Game(data_dir=tmp_path, language="German")
+    # the one translated handle uses the German text...
+    assert game.spells["Projectile_Fireball"].display_name == "Feuerball"
+    # ...everything else falls back to English instead of ""
+    assert game.items["WPN_Longsword"].display_name == "Longsword"
+    assert game.tags["LONGSWORD"].items  # joins still resolve
+
+
 def test_tag_items_reverse_edge(game):
     tagged = game.tags["LONGSWORD"].items
     assert {item.name for item in tagged} == {"WPN_Longsword", "WPN_Longsword_Magic"}

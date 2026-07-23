@@ -243,6 +243,33 @@ def test_loca_roundtrip():
     ]
 
 
+def test_tag_registry_uuid_case_insensitive():
+    from bg3forge.parsers.tags import Tag, TagRegistry
+
+    registry = TagRegistry()
+    registry.add(Tag(uuid="AAAA1111-0000-0000-0000-000000000001", name="PALADIN"))
+    assert "aaaa1111-0000-0000-0000-000000000001" in registry
+    assert registry["aaaa1111-0000-0000-0000-000000000001"].name == "PALADIN"
+    assert registry.get("AAAA1111-0000-0000-0000-000000000001").name == "PALADIN"
+    # names remain case-sensitive: they are canonical engine identifiers
+    assert registry.get("PALADIN") is not None
+    assert registry.get("paladin") is None
+
+
+def test_localization_merge_missing():
+    from bg3forge.parsers.localization import Localization, LocaEntry, write_loca
+
+    primary = Localization()
+    primary.load_bytes(write_loca([LocaEntry("h0aaa", 2, "übersetzt")]))
+    fallback = Localization()
+    fallback.load_bytes(
+        write_loca([LocaEntry("h0aaa", 9, "translated"), LocaEntry("h0bbb", 1, "extra")])
+    )
+    primary.merge_missing(fallback)
+    assert primary.resolve("h0aaa") == "übersetzt"  # existing entries win
+    assert primary.resolve("h0bbb") == "extra"      # missing filled in
+
+
 def test_loca_truncated_entry_table():
     """num_entries is an untrusted u32: a table that doesn't fit the data
     must raise LocaError up front, not struct.error mid-loop."""

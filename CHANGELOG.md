@@ -37,6 +37,20 @@
   `TUT_Chest_Potions`, and what's its spawn UUID" — closing the loop with
   the authoring `treasure=` feature.
 
+### Fixed (game graph)
+
+* Tag UUID joins are now case-insensitive, like every other UUID join in
+  the graph: `TagRegistry` lookups, `items_with_tag`, and the tag
+  reverse index all normalize to lowercase, so template attributes and
+  tag files that disagree on casing still join. Tag *names* remain
+  case-sensitive (canonical engine identifiers).
+* Items whose stats chain carries no `Icon` now inherit the root
+  template's icon, exactly like `DisplayName`/`Description` already did.
+* Non-English games fall back to English for untranslated handles
+  instead of resolving to empty strings. Translations always win; only
+  handles the chosen language lacks entirely are filled from English
+  (`Localization.merge_missing`).
+
 ### Performance
 
 * Compiled Osiris stories parse ~30x faster. `story.div.osi` — the
