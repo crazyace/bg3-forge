@@ -22,8 +22,8 @@ def test_validate_clean_fixture(data_dir):
     assert report.counts["treasure_files"] == 1
     assert report.counts["treasure_tables"] == 1
     assert report.counts["loca_files"] == 1
-    assert report.counts["loca_handles"] == 18
-    assert report.counts["lsx_resources"] == 14  # plus progressions, spell lists, classes
+    assert report.counts["loca_handles"] == 19
+    assert report.counts["lsx_resources"] == 15  # plus progressions, spell lists, classes
     assert report.counts["lsf_resources"] == 2   # dialog + timeline
     assert report.counts["dialogs"] == 2   # binary + editor .lsj
     assert report.counts["dialog_nodes"] == 4
@@ -50,6 +50,7 @@ def test_validate_clean_fixture(data_dir):
     assert report.counts["spell_list_spells"] == 3
     assert report.counts["spell_list_spells_missing"] == 0
     assert report.counts["class_descriptions"] == 2
+    assert report.counts["races"] == 2
     assert report.counts["compiled_stories"] == 1
     assert report.counts["story_functions"] == 2
     assert report.counts["story_databases"] == 1
@@ -255,7 +256,7 @@ def test_run_benchmark(data_dir, tmp_path):
     assert all(seconds >= 0 for _, seconds in report.stages)
     assert report.counts["items"] == 3
     assert report.counts["spells"] == 2
-    assert report.counts["pak entries"] == 28
+    assert report.counts["pak entries"] == 29
     assert report.counts["tags"] == 2
     assert report.counts["dialogs indexed"] == 1
     assert report.counts["timelines indexed"] == 1
