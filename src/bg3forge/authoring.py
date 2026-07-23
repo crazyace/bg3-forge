@@ -771,9 +771,13 @@ def add_class_spell(
     the replacements.  Covers both acquisition styles — the level-up
     ``SelectSpells`` lists from the class's progressions, and the
     ``ClassDescription`` pool used by prepared casters and wizard
-    transcription.  Lists holding no spell of ``level`` (e.g. cantrip
-    lists) are left untouched, so a leveled spell is never offered as a
-    cantrip.  Idempotent: lists already containing ``spell`` are skipped.
+    transcription.  The level guard is symmetric: only lists already
+    holding spells of ``level`` are extended, so a leveled spell is never
+    offered as a cantrip — and ``level=0`` targets exactly the class's
+    cantrip lists (pair it with a spell cloned from a cantrip base, e.g.
+    ``using="Projectile_FireBolt"``, which inherits ``Level 0`` and the
+    slotless cost).  Idempotent: lists already containing ``spell`` are
+    skipped.
 
     ::
 

@@ -94,7 +94,7 @@ def test_item_templates_include_global_items_and_resolve_template_name(game):
 
 def test_spells(game):
     spells = game.spells
-    assert len(spells) == 1
+    assert len(spells) == 2
     fireball = spells[0]
     assert fireball.display_name == "Fireball"
     assert fireball.level == 3
@@ -165,7 +165,8 @@ def test_progression_graph(game):
     assert [passive.name for passive in level_one.passives] == ["SavageAttacks"]
     assert [spell.name for spell in level_one.spells] == ["Projectile_Fireball"]
     assert [spell.name for spell in level_one.selectable_spells] == [
-        "Projectile_Fireball"
+        "Projectile_Fireball",
+        "Projectile_FireBolt",
     ]
     assert [passive.name for passive in records[1].removed_passives] == [
         "SavageAttacks"
@@ -232,6 +233,21 @@ def test_add_class_spell_extends_matching_lists(game):
     # Idempotent: a spell already on the lists is not re-added.
     mod3 = Mod("ClassSpellMod3")
     assert add_class_spell(game, mod3, "Wizard", "Projectile_Fireball", level=3) == []
+
+
+def test_add_class_spell_level_zero_targets_cantrip_lists(game):
+    """The level guard is symmetric: level=0 extends exactly the cantrip
+    lists and leaves leveled lists alone."""
+    from bg3forge import Mod, add_class_spell
+    from bg3forge.parsers import parse_lsx, parse_spell_lists
+
+    mod = Mod("CantripMod")
+    extended = add_class_spell(game, mod, "Wizard", "Projectile_MyZap", level=0)
+    assert extended == ["cccccccc-0000-0000-0000-000000000003"]  # cantrips only
+    text = mod.files()["Public/CantripMod/Lists/SpellLists.lsx"].decode("utf-8")
+    (cantrips,) = parse_spell_lists(parse_lsx(text))
+    assert cantrips.spell_names == ["Projectile_FireBolt", "Projectile_MyZap"]
+    assert cantrips.display_name == "Wizard cantrips"
 
 
 def test_progression_uuid_follows_pak_load_order(data_dir):

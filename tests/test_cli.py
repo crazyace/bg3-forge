@@ -51,7 +51,7 @@ def test_progressions_json(tmp_path, data_dir):
     assert main([
         "--data-dir", str(data_dir), "spell-lists", "-o", str(spell_lists)
     ]) == 0
-    assert len(json.loads(spell_lists.read_text("utf-8"))) == 2
+    assert len(json.loads(spell_lists.read_text("utf-8"))) == 3
 
 
 def test_export_all_sqlite(tmp_path, data_dir, capsys):

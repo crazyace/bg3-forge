@@ -133,6 +133,11 @@ The first write primitives aimed at programmatic mod creation:
   damage, auto-derived damage tooltip, and inherited range/cost/visuals —
   confirming the scroll action and `CanUseSpellScroll` accept modded
   SpellData names.
+* `add_class_spell` supports cantrips: the level guard is symmetric, so
+  `level=0` extends exactly the class's cantrip lists (clone a cantrip
+  base like `Projectile_FireBolt` to inherit `Level 0` and the slotless
+  cost). Covered by a fixture cantrip list wired into the wizard's
+  level-1 selectors.
 * Added `add_class_spell(game, mod, class_name, spell, level=…)`: makes a
   custom spell a real class spell by extending every list the class
   selects from (progression `SelectSpells`) or prepares/learns from

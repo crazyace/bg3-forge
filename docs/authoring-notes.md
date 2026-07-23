@@ -177,9 +177,11 @@ How "Learn Spell" on a scroll works, traced through retail data:
   ``ClassDescription`` pool, extended only where the list already holds
   spells of that level (cantrip lists stay clean).  Selection casters get
   it in the level-up picker, prepared casters in their prepare list, and
-  the wizard in transcription.  Give the spell its own ``icon=`` — a
-  clone otherwise shows its base's art in the picker, indistinguishable
-  on sight.
+  the wizard in transcription.  ``level=0`` targets the class's cantrip
+  lists (the guard is symmetric — leveled lists stay untouched); pair it
+  with a spell cloned from a cantrip base.  Give the spell its own
+  ``icon=`` — a clone otherwise shows its base's art in the picker,
+  indistinguishable on sight.
 
 Related discovery: the scroll action's ``ClassId`` *is* the Wizard
 ClassDescription UUID (the class marked ``IsDefaultForUseSpellAction``).
