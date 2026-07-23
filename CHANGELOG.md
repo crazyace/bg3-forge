@@ -19,7 +19,9 @@
   progression tables, localized names/descriptions, and the tag registry.
   The retail census (156 nodes, nine attributes) pinned the schema;
   character-creation cosmetic banks are deliberately not modeled. Counted
-  by `validate` — this completes the classes/races origin join.
+  by `validate` — this completes the classes/races origin join,
+  retail-verified: the full taxonomy renders with progression levels on
+  exactly the playable branches and identity tags resolved end to end.
 * Added `game.classes` (class descriptions): each class/subclass joined to
   its learnable spell list (`SpellList` + `CanLearnSpells` — the wizard
   transcription pool), its progression table, and `parent`/`subclasses`

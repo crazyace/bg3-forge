@@ -413,6 +413,34 @@ indistinguishable without hovering.  And ship all of a mod's spells in
 list-mods can silently fight over them even when their picker lists are
 disjoint (last in load order wins).
 
+### Class and race origin joins — retail-verified 2026-07-23
+
+Milestone 5 closed with both halves of the origin join checked against
+the install:
+
+- **Classes**: 70 class/subclass descriptions; all twelve base classes
+  resolve with correct flags — Wizard is the only ``CanLearnSpells``
+  class (transcription is wizard-exclusive in the data), prepared
+  casters (Cleric/Druid/Paladin/Wizard) flagged, class spell-list sizes
+  match (Wizard 112, Bard 104, Sorcerer 87, Warlock 8 — warlocks select
+  from per-level lists instead), and
+  ``spell_lists_containing("Target_MistyStep")`` reproduces the
+  46-list census exactly.
+- **Races**: 156 records forming the full taxonomy — creature families
+  (Aberration → Mind Flayer, Fiend, Undead, …) with zero progression
+  levels, and the playable branches under ``Humanoid`` carrying their
+  racial progressions (Gold Dwarf 6, Drow/Human/Githyanki 4, tiefling
+  bloodlines 4 each) plus identity tags resolved through the tag
+  registry.
+
+Format lesson caught by the walk (not by the unit tests): race
+collections use *repeated single-entry children* — each ``Tags`` node
+carries one ``Object`` guid directly — unlike item templates' nested
+``Tags → Tag`` shape. The first parser assumed the nested shape and its
+fixture mirrored the assumption, so tests passed while every real tag
+parsed to nothing; only the retail walk exposed it. Fixtures verify
+shape, retail verifies truth.
+
 ### Wiring survey — corpus-verified 2026-07-22
 
 `scripts/wiring_survey.py` swept all 25,564 retail templates and turned
