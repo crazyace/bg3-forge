@@ -44,5 +44,10 @@ Homepage = "https://github.com/crazyace/bg3-forge"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+# Ship the PEP 561 marker so type checkers pick up bg3forge's annotations
+# in consuming projects.
+bg3forge = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -2,6 +2,16 @@
 
 ## 0.2.0 — unreleased
 
+### Packaging
+
+* BG3 Forge is now typed for downstream consumers: the package ships a
+  `py.typed` marker (PEP 561), so a type checker in a project that
+  depends on `bg3forge` sees its annotations instead of `Any`. A new
+  README "Embedding BG3 Forge" section documents depending on the library
+  (pin `>=0.2,<0.3` while pre-1.0), freezing it into a standalone tool
+  (the zero-dependency core makes this clean), the public-surface /
+  API-stability policy, and the request to credit downstream.
+
 ### API
 
 * Added `bg3forge lint` (and `bg3forge.lint.lint_mod`) — checks a mod

@@ -201,6 +201,43 @@ The extras (`lz4`, `zstd`, `icons`) are native/compiled packages, so a
 smaller install also means less to build, less to audit, and fewer places
 an install can fail.
 
+## Embedding BG3 Forge
+
+BG3 Forge is built to be built *on*. If you're making a mod-planning
+site, a data browser, a Discord bot, a GUI over the game data, or your
+own authoring pipeline, embed the library instead of shelling out to the
+CLI — every command is a thin wrapper over an importable module.
+
+**As a dependency.** The zero-dependency core makes Forge safe to depend
+on: it won't force native packages (Pillow, lz4, …) onto *your* users,
+and it installs anywhere Python does. Add only the extras your code path
+needs.
+
+```toml
+# pyproject.toml
+dependencies = ["bg3forge>=0.2,<0.3"]        # pin the minor while pre-1.0
+```
+
+**Bundled into a standalone tool.** Because the core has no compiled
+dependencies, Forge freezes cleanly into a single executable
+(PyInstaller, etc.) — nothing fragile to match against your users'
+machines. Ship a GUI or CLI with the game-data engine baked in.
+
+**Typed.** The package ships a `py.typed` marker (PEP 561), so your type
+checker sees Forge's annotations — `game.find_files(...)` resolves to
+`dict[str, Path]`, not `Any`.
+
+**API stability.** Pre-1.0, the public API may change at *minor*
+versions (0.2 → 0.3); patch releases won't break it. Pin `>=0.2,<0.3` and
+watch the changelog. Everything exported from `bg3forge` (and the
+documented `bg3forge.lint` / `bg3forge.validate` / `bg3forge.doctor`
+entry points) is public surface; names with a leading underscore are not.
+
+**A favor.** If you ship something built on BG3 Forge, a credit and a
+link back are appreciated — and please keep the LSLib credit in the chain
+(see [Acknowledgements](#acknowledgements)). If you hit a rough edge in
+the API, open an issue; consumer feedback is how the surface gets better.
+
 ## Features
 
 ### Asset extraction (`bg3forge.pak`)
