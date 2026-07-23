@@ -49,6 +49,8 @@ game.spells["Projectile_Fireball"].items  # items unlocking a spell
 game.statuses["BURNING"].items          # items applying a status
 game.tags["LONGSWORD"].items            # items carrying a tag (by name or UUID)
 game.spells["Shout_Rage"].progressions  # class/level progressions that grant it
+game.classes["Wizard"].spell_list       # the pool wizards learn/transcribe from
+game.races["Elf"].subraces              # the race tree (High Elf, Wood Elf, ...)
 
 # Dialogs are indexed, not eagerly parsed (there are ~9,400 of them):
 game.dialogs.find("Karlach")            # search archived paths — free
@@ -91,9 +93,9 @@ collections load on first access, and each relationship is resolved once
 and cached on the instance. You only pay for the data you actually touch.
 
 And it doesn't only *read* the game — Forge writes mods back into it. A
-`Mod` composes the same models into a loadable `.pak` (retail-verified in
-a Patch 8 game — the item spawns, its stats and localized text resolve,
-and equip boosts apply):
+`Mod` composes the same models into a loadable `.pak`, retail-verified in
+a Patch 8 game all the way from equip boosts to custom spells appearing
+in the class level-up picker:
 
 ```python
 from bg3forge import Mod
@@ -224,6 +226,9 @@ an install can fail.
   the containers that fill from a treasure table (and their spawn UUIDs)
 * **Progressions** (class/race level tables) and referenced spell lists —
   `parse_progressions` / `parse_spell_lists`
+* **Class & race descriptions** — `game.classes` / `game.races`: the
+  origin joins (learnable spell pools, `ParentGuid` class/race trees,
+  progression-table links) — `parse_class_descriptions` / `parse_races`
 * **Treasure tables** — `parse_treasure_tables`
 * **Tag registry** (`Tags/*.lsx|.lsf`) — UUID/name lookup with categories
   and localized display strings — `TagRegistry`
@@ -275,24 +280,29 @@ spell = mod.new_spell("Projectile_Sunbolt",  # a custom spell cloned from
     using="Projectile_FireBolt",             # a retail base (visuals/sounds
     display_name="Sunbolt",                  # inherit; effects override)
     spell_success=["DealDamage(2d10,Fire,Magical)"])
-mod.new_scroll("OBJ_Scroll_Sunbolt",      # ...cast from a scroll (and, by
-    spell=spell)                          # default, wizard-transcribable)
-mod.build("SunforgedArmors.pak")          # stats + template + meta + loca + treasure → pak
+mod.new_scroll("OBJ_Scroll_Sunbolt",      # ...cast from a scroll by anyone
+    spell=spell)                          # (wizards can also Learn it once the
+mod.build("SunforgedArmors.pak")          # spell joins their list — see below)
 ```
+
+(Also available: `new_weapon`, `new_elixir`, `new_passive`, and
+`place_in_treasure` — each one keyword-level sugar over the same
+pipeline.)
 
 To make a custom spell a real *class spell* — offered in the level-up
 picker, prepared lists, and wizard transcription — bridge the read and
-write sides with `add_class_spell` (it extends the class's current spell
-lists from your installed game, skipping wrong-level lists):
+write sides with `add_class_spell`. It reads the class's current spell
+lists from your installed game and ships them back extended, skipping
+lists of the wrong level (`level=0` targets the cantrip lists):
 
 ```python
 from bg3forge import Game, Mod, add_class_spell
 
-game, mod = Game(), Mod("SunboltForBards")
+game, mod = Game(), Mod("SunstepForBards")
 spell = mod.new_spell("Target_Sunstep", using="Target_MistyStep",
     display_name="Sunstep", icon="Spell_Conjuration_DimensionDoor")
 add_class_spell(game, mod, "Bard", spell, level=2)
-mod.build("SunboltForBards.pak")
+mod.build("SunstepForBards.pak")
 ```
 
 Rebuilding the same mod reproduces byte-identical identifiers (UUID5 from
@@ -303,14 +313,18 @@ the mod name). Under the hood it composes the write primitives:
   `build_templates_document` (with `ParentTemplateId` to reuse visuals,
   and `on_use` consume/cast actions for consumables)
 * **Module manifest** — `build_meta_document` (+ `parse_meta`)
+* **Spell lists** — `build_spell_list_node` / `build_spell_lists_document`
+  (behind `replace_spell_list` / `add_class_spell`)
 * **Version64** — `pack_version64` / `unpack_version64`
 * plus the existing `.loca` writer and `PakWriter`
 
 **Retail-verified in a Patch 8 game:** items drop from base-game chests
 with resolved stats, text, and icons; equip boosts, custom passives, and
 custom statuses apply; potions and scrolls consume and cast; a custom
-spell cast from its scroll; and a wizard *learned* a custom spell from
-its scroll (transcribe dialog, gold cost, spellbook cast). See
+spell cast from its scroll; a wizard *learned* a custom spell from its
+scroll (transcribe dialog, gold cost, spellbook cast); and custom spells
+appeared in the class level-up picker — a leveled spell for a Sorcerer
+and a cantrip — chosen and cast like any base-game spell. See
 [`docs/mod-authoring.md`](docs/mod-authoring.md) for the load-test steps
 and [`docs/baseline.md`](docs/baseline.md) for the verified results.
 
@@ -338,7 +352,8 @@ export_sqlite(game.spells, "bg3.db", table="spells")
 tags, atlases, and treasure tables straight out of the installed `.pak`
 archives (no extraction step needed) or from a previously extracted tree,
 and joins them into typed models (`Item`, `Spell`, `Passive`, `Status`,
-`Tag`) with resolved inheritance and localized display text. Dialogs are
+`Tag`, `ClassDescription`, `Race`) with resolved inheritance and
+localized display text. Dialogs are
 exposed through a lazy `DialogIndex` (`game.dialogs`) that lists from the
 pak indexes and parses per file on demand.
 
@@ -397,7 +412,8 @@ on Windows, macOS, and Linux.
 src/bg3forge/
 ├── pak/            # LSPK reader/writer, incremental extractor, patch detection
 ├── parsers/        # stats, loca, lsx, lsf, lsj, osiris, roottemplates,
-│                   # tags, dialogs, progressions, spell lists, treasure
+│                   # tags, dialogs, progressions, spell lists, classes,
+│                   # races, treasure
 ├── assets/         # texture atlases, icon extraction
 ├── exporters/      # json, sqlite, csv, markdown, yaml
 ├── cli/            # thin argparse front-end
@@ -458,12 +474,17 @@ src/bg3forge/
 * ✅ Typed progression graph (`game.progressions`) — classes/races → level
   records → granted `AddSpells` and selectable `SelectSpells`, resolved
   spell lists and passives, with reverse links on `Spell`/`Passive`
+* ✅ Class & race origin joins (`game.classes`, `game.races`) — learnable
+  spell pools, prepared-vs-selection flags, the `ParentGuid` race tree,
+  and tag links; **retail-verified** against all 70 class and 156 race
+  records
 * ✅ Mod authoring — a `Mod` capstone assembles stats, RootTemplate
-  (`_merged.lsf`), `meta.lsx`, localization, and treasure tables into a
-  `.pak`: armor, weapons, consumables (potions/elixirs/scrolls), and
-  custom passives, statuses, and spells; **retail-verified in a Patch 8
-  game** (items drop from a base-game chest, boosts/passives apply,
-  consumables consume, custom status + retail-parity tooltips render)
+  (`_merged.lsf`), `meta.lsx`, localization, treasure tables, and spell
+  lists into a `.pak`: armor, weapons, consumables (potions/elixirs/
+  scrolls), and custom passives, statuses, and spells — deliverable as
+  equipment grants, castable scrolls, wizard-transcribable scrolls, and
+  class level-up choices down to cantrips; **retail-verified in a Patch 8
+  game** for every delivery path
 * ⏳ Virtual texture (GTS/GTP) atlas support
 * ⏳ GR2 model metadata
 * ⏳ Full Osiris rule decompilation — metadata traversal is complete;
