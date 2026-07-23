@@ -76,6 +76,22 @@ def test_mod_identifiers_are_stable_across_rebuilds():
     assert a.add_string("k", "text") == b.add_string("k", "text")
 
 
+def test_same_name_across_kinds_gets_distinct_handles():
+    """A status, spell, passive, and item that share a name must not
+    share one localization handle — their string keys are kind-qualified."""
+    mod = Mod("Collide")
+    mod.new_status("Blaze", display_name="Status Blaze")
+    mod.new_spell("Blaze", spell_type="Target", display_name="Spell Blaze")
+    mod.new_passive("Blaze", display_name="Passive Blaze")
+    mod.new_item("Blaze", display_name="Item Blaze")
+
+    texts = {e.text for e in mod._loca}
+    handles = [e.key for e in mod._loca if e.text.endswith("Blaze")]
+    # every DisplayName produced a distinct handle and its own text
+    assert len(set(handles)) == 4
+    assert {"Status Blaze", "Spell Blaze", "Passive Blaze", "Item Blaze"} <= texts
+
+
 def test_empty_mod_still_produces_a_manifest(tmp_path):
     pak = Mod("EmptyMod").build(tmp_path / "EmptyMod.pak")
     with PakReader(pak) as reader:

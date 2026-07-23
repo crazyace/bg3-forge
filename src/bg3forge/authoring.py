@@ -210,18 +210,18 @@ class Mod:
         )
 
         display_handle = (
-            self.add_string(f"{name}:DisplayName", display_name) if display_name else None
+            self.add_string(f"item:{name}:DisplayName", display_name) if display_name else None
         )
         description_handle = (
-            self.add_string(f"{name}:Description", description) if description else None
+            self.add_string(f"item:{name}:Description", description) if description else None
         )
         effect_handle = (
-            self.add_string(f"{name}:TechnicalDescription", effect_description)
+            self.add_string(f"item:{name}:TechnicalDescription", effect_description)
             if effect_description
             else None
         )
         on_use_handle = (
-            self.add_string(f"{name}:OnUseDescription", on_use_description)
+            self.add_string(f"item:{name}:OnUseDescription", on_use_description)
             if on_use_description
             else None
         )
@@ -513,10 +513,10 @@ class Mod:
         stats_data.setdefault("StatusType", status_type)
         stats_data.setdefault("StackId", stack_id or name)
         if display_name:
-            handle = self.add_string(f"{name}:DisplayName", display_name)
+            handle = self.add_string(f"status:{name}:DisplayName", display_name)
             stats_data["DisplayName"] = f"{handle};1"
         if description:
-            handle = self.add_string(f"{name}:Description", description)
+            handle = self.add_string(f"status:{name}:Description", description)
             stats_data["Description"] = f"{handle};1"
         boost_field = _merge_semicolon(stats_data.get("Boosts"), boosts)
         if boost_field:
@@ -604,10 +604,10 @@ class Mod:
         if spell_type is not None:
             stats_data.setdefault("SpellType", spell_type)
         if display_name:
-            handle = self.add_string(f"{name}:DisplayName", display_name)
+            handle = self.add_string(f"spell:{name}:DisplayName", display_name)
             stats_data["DisplayName"] = f"{handle};1"
         if description:
-            handle = self.add_string(f"{name}:Description", description)
+            handle = self.add_string(f"spell:{name}:Description", description)
             stats_data["Description"] = f"{handle};1"
         if icon:
             stats_data["Icon"] = icon
@@ -670,10 +670,10 @@ class Mod:
         """
         stats_data = dict(data or {})
         if display_name:
-            handle = self.add_string(f"{name}:DisplayName", display_name)
+            handle = self.add_string(f"passive:{name}:DisplayName", display_name)
             stats_data["DisplayName"] = f"{handle};1"
         if description:
-            handle = self.add_string(f"{name}:Description", description)
+            handle = self.add_string(f"passive:{name}:Description", description)
             stats_data["Description"] = f"{handle};1"
         boost_field = _merge_semicolon(stats_data.get("Boosts"), boosts)
         if boost_field:

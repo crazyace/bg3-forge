@@ -1144,6 +1144,25 @@ class Game:
                 self._pak_readers[reader.path] = reader
         return self._reader_list
 
+    def find_files(self, pattern: str) -> dict[str, Path]:
+        """Archived paths matching ``pattern``, mapped to their source.
+
+        A pattern containing any of ``*?[`` is treated as a shell-style
+        glob (case-insensitive); otherwise it is a case-insensitive
+        substring.  The value is the pak (or extracted file) the path
+        lives in.  No file content is read — this is the public form of
+        what ``bg3forge search`` does, so other tools need not reach for
+        the private ``_locate_entries``.
+        """
+        import fnmatch
+
+        needle = pattern.lower()
+        if any(ch in needle for ch in "*?["):
+            predicate = lambda n: fnmatch.fnmatch(n.lower(), needle)  # noqa: E731
+        else:
+            predicate = lambda n: needle in n.lower()  # noqa: E731
+        return self._locate_entries(predicate)
+
     def _locate_entries(self, predicate) -> dict[str, Path]:
         """Map matching archived names to their source (pak or file) WITHOUT
         reading any content — the cheap half of indexed datasets."""

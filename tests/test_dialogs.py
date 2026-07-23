@@ -141,6 +141,17 @@ def test_timeline_index_and_dialog_linkage(data_dir):
     assert game.timelines.for_dialog(dialog) == []
 
 
+def test_find_files_public_api(data_dir):
+    """`bg3forge search` is glue around the public Game.find_files, so the
+    same query works from the library without touching a private method."""
+    game = Game(data_dir=data_dir)
+    substring = game.find_files("dialogsbinary")
+    assert [n for n in substring if n.endswith("CAMP_Greeting.lsf")]
+    glob = game.find_files("*/stats/generated/data/*.txt")
+    assert len(glob) == 6 and all(n.lower().endswith(".txt") for n in glob)
+    assert game.find_files("nothing-matches-this") == {}
+
+
 def test_search_cli(data_dir, capsys):
     from bg3forge.cli.main import main
 

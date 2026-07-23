@@ -205,16 +205,10 @@ def _dispatch(args) -> int:
         return 0
 
     if args.command == "search":
-        import fnmatch
         from collections import Counter
 
         game = _open_game(args)
-        needle = args.pattern.lower()
-        if any(ch in needle for ch in "*?["):
-            predicate = lambda n: fnmatch.fnmatch(n.lower(), needle)  # noqa: E731
-        else:
-            predicate = lambda n: needle in n.lower()  # noqa: E731
-        sources = game._locate_entries(predicate)
+        sources = game.find_files(args.pattern)
 
         if args.dirs:
             directories = Counter(name.rsplit("/", 1)[0] for name in sources)

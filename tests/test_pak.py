@@ -451,6 +451,33 @@ def test_extractor_incremental(tmp_path, sample_pak):
     assert len(forced.extracted) == len(fixture_files())
 
 
+def test_extractor_persists_manifest_on_failure(tmp_path, sample_pak, monkeypatch):
+    """If the loop aborts mid-pak, files already written must stay in the
+    manifest so a re-run resumes instead of re-extracting everything."""
+    out = tmp_path / "out"
+    extractor = Extractor(out)
+    reader = PakReader(sample_pak)
+    entries = list(reader)
+    boom_name = entries[2].name
+    real_read = reader.read
+
+    def read(entry):
+        if getattr(entry, "name", None) == boom_name:
+            raise PakError("simulated disk failure")
+        return real_read(entry)
+
+    monkeypatch.setattr(reader, "read", read)
+    with pytest.raises(PakError, match="simulated"):
+        extractor.extract(reader)
+    reader.close()
+
+    # The first two entries were written and recorded before the failure.
+    resumed = Extractor(out).extract(sample_pak)
+    assert boom_name in resumed.extracted            # the failed one now writes
+    assert entries[0].name in resumed.skipped        # earlier ones already done
+    assert entries[1].name in resumed.skipped
+
+
 def test_extractor_patterns(tmp_path, sample_pak):
     out = tmp_path / "out"
     result = Extractor(out).extract(sample_pak, patterns=["*/stats/generated/data/*"])
@@ -479,6 +506,39 @@ def test_extractor_rejects_paths_outside_output(tmp_path, entry_name):
         Extractor(output_dir).extract(pak_path)
 
     assert not (tmp_path / "escaped.txt").exists()
+
+
+@pytest.mark.parametrize(
+    "entry_name",
+    [
+        "Public/file.txt:stream",       # NTFS alternate data stream
+        "Public/CON",                    # reserved device name
+        "Public/nul.txt",                # reserved name with extension
+        "COM1/inner.txt",                # reserved name as a directory
+    ],
+)
+def test_extractor_rejects_windows_hazards(tmp_path, entry_name):
+    """Colons (NTFS ADS) and reserved device names are rejected even
+    though they pass the traversal checks."""
+    writer = PakWriter()
+    writer.add(entry_name, b"must not be written")
+    pak_path = writer.write(tmp_path / "hazard.pak")
+    with pytest.raises(PakError, match="unsafe archive entry path"):
+        Extractor(tmp_path / "out").extract(pak_path)
+
+
+def test_safe_output_path_accepts_normal_bg3_paths(tmp_path):
+    """The Windows-hazard checks must not reject legitimate archive paths
+    (device-name prefixes as substrings, dotted names)."""
+    from bg3forge._paths import safe_output_path
+
+    for ok in (
+        "Public/Shared/Stats/Generated/Data/Weapon.txt",
+        "Mods/CONtent/file.lsx",         # 'CON' only as a prefix, not the component
+        "Public/Auxiliary/thing.lsf",    # 'AUX' only as a prefix
+        "Localization/English/english.loca",
+    ):
+        safe_output_path(tmp_path, ok)  # does not raise
 
 
 def test_extractor_rejects_symlink_escape(tmp_path):
