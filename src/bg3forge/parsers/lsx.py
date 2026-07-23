@@ -17,8 +17,10 @@ Progressions, texture atlas definitions, meta.lsx, and much more::
       </region>
     </save>
 
-The binary sibling format (LSF) is not implemented yet; convert LSF
-resources to LSX with lslib/divine before feeding them in.
+The binary sibling format (LSF) is handled by :mod:`bg3forge.parsers.lsf`,
+which produces the same :class:`LsxDocument` structure;
+:func:`bg3forge.parsers.resource.parse_resource` sniffs the format and
+dispatches, so downstream code works with either serialization.
 """
 
 from __future__ import annotations

@@ -509,6 +509,37 @@ setup, style, and pull-request guidelines, and
 [docs/retail-testing.md](docs/retail-testing.md) for running the
 validation sweep against a real install.
 
+## Acknowledgements
+
+BG3 Forge stands on a decade of community reverse-engineering work, and
+some debts deserve naming:
+
+* **[LSLib](https://github.com/Norbyte/lslib)** by **Norbyte** — the
+  reference implementation for Larian's file formats. BG3 Forge is an
+  independent implementation (no LSLib code is used), but our LSPK, LSF,
+  and compiled-Osiris struct layouts follow LSLib's serializers and are
+  verified against them; where the two disagree, LSLib is presumed
+  right. If you need GR2 models, granular editing, or the widest format
+  coverage, use LSLib — it is the standard for a reason.
+* **[bg3.wiki](https://bg3.wiki/wiki/Modding:PAK_files)** and the wider
+  modding community — the documentation of formats, conventions, and
+  folder layouts that makes independent implementations possible at all.
+* The ecosystem this fits into:
+  **[BG3 Modders Multitool](https://github.com/ShinyHobo/BG3-Modders-Multitool)**
+  (ShinyHobo),
+  **[BG3 Mod Manager](https://github.com/LaughingLeader/BG3ModManager)**
+  (LaughingLeader),
+  **[Script Extender](https://github.com/Norbyte/bg3se)** (Norbyte), and
+  the **[BG3 Community Library](https://github.com/BG3-Community-Library-Team/BG3-Community-Library)**.
+  Forge complements these — it is the data layer for reading the game
+  and generating content programmatically, not a replacement for any of
+  them.
+* **Larian Studios** — for the game, and for shipping it in formats a
+  determined community could learn to read.
+
+If you build something on BG3 Forge, a credit and a link back are
+appreciated (and please keep the LSLib credit alongside it).
+
 ## Legal
 
 BG3 Forge reads data from **your own legally purchased copy** of Baldur's
