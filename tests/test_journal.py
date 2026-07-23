@@ -57,6 +57,31 @@ def test_parse_goal():
     assert goal.quest_refs["PLA_ZhentShipment"] == ["AgreedHelp"]
 
 
+def test_parse_goal_ignores_block_and_trailing_comments():
+    """Retail goal sources use /* */ block comments and trailing //
+    comments; counting them or harvesting quest refs from them corrupts
+    the metadata."""
+    goal = parse_goal(
+        "Version 1\n"
+        "KBSECTION\n"
+        "IF\n"
+        'DB_QuestIsAccepted("REAL_Quest") // active rule\n'
+        "THEN\n"
+        'QuestUpdate(_Char, "REAL_Quest", "Step1");\n'
+        "/*\n"
+        "IF\n"
+        'DB_QuestIsAccepted("COMMENTED_Quest")\n'
+        "THEN\n"
+        'QuestUpdate(_Char, "COMMENTED_Quest", "Ghost");\n'
+        "*/\n"
+        'DB_Fact("kept"); // DB_QuestIsAccepted("AlsoCommented")\n'
+    )
+    assert goal.rules == 1                       # not 2 — the block IF is gone
+    assert set(goal.quest_ids) == {"REAL_Quest"}  # commented quests excluded
+    assert "COMMENTED_Quest" not in goal.quest_refs
+    assert "AlsoCommented" not in goal.quest_refs
+
+
 def test_parse_objectives():
     from bg3forge.parsers import parse_objectives
     from conftest import OBJECTIVE_LSX

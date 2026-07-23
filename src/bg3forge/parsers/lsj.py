@@ -36,7 +36,13 @@ class LsjError(ValueError):
 
 
 def is_lsj(data: bytes) -> bool:
-    return data.lstrip()[:1] == b"{"
+    # A UTF-8 BOM is common on retail .lsj (parse_lsj itself decodes
+    # with utf-8-sig); bytes.lstrip() does not remove it, which used to
+    # misroute BOM'd files to the XML parser.
+    i = 3 if data.startswith(b"\xef\xbb\xbf") else 0
+    while i < len(data) and data[i] in b" \t\r\n":
+        i += 1
+    return data[i : i + 1] == b"{"
 
 
 def parse_lsj(data: bytes | str) -> LsxDocument:

@@ -39,6 +39,48 @@ _QUEST_CALL_RE = re.compile(
 _QUOTED_RE = re.compile(r'"([^"]*)"')
 
 
+def _strip_comments(text: str) -> str:
+    """Remove ``//`` line comments and ``/* ... */`` block comments.
+
+    Retail goal sources use both — commented-out rules and facts are
+    common in Larian's raw scripts.  Counting them (or harvesting quest
+    refs from them) corrupts the metadata, and a trailing ``//`` after a
+    statement used to hide the statement itself.  Quoted strings are
+    respected; newlines inside block comments are preserved so line
+    structure survives.
+    """
+    if "/" not in text:
+        return text
+    out: list[str] = []
+    i, n = 0, len(text)
+    in_string = False
+    while i < n:
+        ch = text[i]
+        if in_string:
+            out.append(ch)
+            if ch == '"':
+                in_string = False
+            i += 1
+        elif ch == '"':
+            in_string = True
+            out.append(ch)
+            i += 1
+        elif ch == "/" and text.startswith("//", i):
+            end = text.find("\n", i)
+            i = n if end == -1 else end  # keep the newline itself
+        elif ch == "/" and text.startswith("/*", i):
+            end = text.find("*/", i + 2)
+            if end == -1:
+                i = n  # unterminated block: the rest is comment
+            else:
+                out.append("\n" * text.count("\n", i, end + 2))
+                i = end + 2
+        else:
+            out.append(ch)
+            i += 1
+    return "".join(out)
+
+
 @dataclass
 class Goal:
     name: str                      # file stem, e.g. "Act1_DEN_AdventurersQuest"
@@ -64,9 +106,9 @@ def parse_goal(text: str, source: str | None = None) -> Goal:
     goal = Goal(name=name, source=source)
 
     section = None
-    for raw_line in text.splitlines():
+    for raw_line in _strip_comments(text).splitlines():
         line = raw_line.strip()
-        if not line or line.startswith("//"):
+        if not line:
             continue
         if match := _SECTION_RE.match(line):
             section = match.group(1)

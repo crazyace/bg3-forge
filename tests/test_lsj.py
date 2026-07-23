@@ -50,6 +50,10 @@ def test_lsj_sniffing():
     assert is_lsj(b'  {"save": {}}')
     assert not is_lsj(b"LSOF....")
     assert not is_lsj(b"<save/>")
+    # UTF-8 BOM (common on retail .lsj) must not misroute to the XML path
+    assert is_lsj(b'\xef\xbb\xbf{"save": {}}')
+    assert is_lsj(b'\xef\xbb\xbf\n  {"save": {}}')
+    assert not is_lsj(b"\xef\xbb\xbf<save/>")
     document = parse_resource(DIALOG_LSJ.encode())
     assert "dialog" in document.regions
 
