@@ -178,7 +178,10 @@ def _scan_pak_contents(primaries: list[Path], language: str, report: DoctorRepor
     for pak_path in primaries:
         try:
             reader = PakReader(pak_path)
-        except ValueError:
+        except ValueError as exc:
+            # Every primary already parsed its header, so a failure here
+            # means the file list is damaged — report it, don't skip it.
+            add(CheckResult(FAIL, "Corrupt pak", f"{pak_path.name} ({exc})"))
             continue
         with reader:
             for entry in reader:

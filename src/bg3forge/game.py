@@ -35,8 +35,7 @@ from .models import (
     Status,
 )
 from .parsers.equipment import EquipmentSet, parse_equipment_sets
-from .pak.format import SIGNATURE as _LSPK_SIGNATURE
-from .pak.reader import PakReader
+from .pak.reader import PakReader, file_is_lspk
 from .parsers.localization import Localization
 from .parsers.osiris import CompiledStory, parse_osiris
 from .parsers.progressions import (
@@ -1099,7 +1098,7 @@ class Game:
                     # interrupted patch): record it so `bg3forge validate`
                     # and doctor can surface it instead of silently
                     # loading without its data.
-                    if self._reads_as_lspk(pak_path):
+                    if file_is_lspk(pak_path):
                         self.load_issues.append(
                             LoadIssue(file=pak_path.name, error=str(exc))
                         )
@@ -1109,15 +1108,6 @@ class Game:
             for reader in readers:
                 self._pak_readers[reader.path] = reader
         return self._reader_list
-
-    @staticmethod
-    def _reads_as_lspk(path: Path) -> bool:
-        """True when the file starts with the LSPK signature."""
-        try:
-            with path.open("rb") as fh:
-                return fh.read(4) == _LSPK_SIGNATURE
-        except OSError:
-            return False
 
     def _locate_entries(self, predicate) -> dict[str, Path]:
         """Map matching archived names to their source (pak or file) WITHOUT

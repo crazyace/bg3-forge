@@ -50,7 +50,7 @@ from .parsers.journal import (
     parse_quests,
 )
 from .parsers.dialogs import parse_dialog
-from .pak.reader import PakReader
+from .pak.reader import PakReader, file_is_lspk
 from .parsers.lsf import is_lsf
 from .parsers.lsj import is_lsj
 from .parsers.localization import parse_loca
@@ -95,7 +95,7 @@ def validate_data(
     report = ValidationReport()
     counts = report.counts
     for key in (
-        "paks", "pak_parts_skipped", "stats_files", "stats_entries",
+        "paks", "paks_corrupt", "pak_parts_skipped", "stats_files", "stats_entries",
         "stats_globals", "treasure_files", "treasure_tables", "loca_files",
         "loca_handles", "lsx_resources", "lsf_resources", "lsj_resources",
         "root_templates",
@@ -125,8 +125,19 @@ def validate_data(
     for index, pak_path in enumerate(pak_paths, start=1):
         try:
             reader = PakReader(pak_path)
-        except ValueError:
-            counts["pak_parts_skipped"] += 1
+        except ValueError as exc:
+            # Secondary archive parts and foreign files carry no LSPK
+            # signature — skipping them is routine.  A file that *does*
+            # is a damaged archive: exactly what a validation sweep
+            # exists to surface, so it must fail the report, not hide
+            # in the skip counter.
+            if file_is_lspk(pak_path):
+                counts["paks_corrupt"] += 1
+                report.issues.append(
+                    ValidationIssue(file=pak_path.name, stage="pak", error=str(exc))
+                )
+            else:
+                counts["pak_parts_skipped"] += 1
             continue
         counts["paks"] += 1
         prefix = f"[{index}/{len(pak_paths)}] {pak_path.name}"

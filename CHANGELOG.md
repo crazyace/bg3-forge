@@ -39,6 +39,17 @@
 
 ### Fixed
 
+* `validate_data` and `bg3forge doctor` no longer report a broken
+  install as healthy. A damaged archive — LSPK signature present but the
+  file list unreadable — was counted as a routine "skipped part"
+  (`pak_parts_skipped`) by validate and silently skipped by doctor's
+  content scan, so `report.ok` stayed true with entire paks missing from
+  the sweep. Corrupt archives now produce a `stage="pak"` validation
+  issue (tracked by the new `paks_corrupt` count) and a FAIL doctor
+  check; genuine secondary parts and foreign files still skip silently.
+  The LSPK-signature probe is shared with `Game` as
+  `bg3forge.pak.reader.file_is_lspk`.
+
 * The stats writer now refuses strings the format cannot carry. The
   stats ``.txt`` grammar has no escape syntax, so a double quote or
   newline in an entry name, type, ``using`` reference, data key/value,

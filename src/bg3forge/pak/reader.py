@@ -9,6 +9,7 @@ from typing import Iterator
 from . import lz4compat
 from .format import (
     FILE_LIST_HEADER_STRUCT,
+    SIGNATURE,
     CompressionMethod,
     PakEntry,
     PakHeader,
@@ -17,6 +18,20 @@ from .format import (
 
 class PakError(ValueError):
     pass
+
+
+def file_is_lspk(path: str | Path) -> bool:
+    """True when the file on disk starts with the LSPK signature.
+
+    Distinguishes a *damaged* archive (worth reporting) from secondary
+    archive parts and foreign files (routinely skipped): only the former
+    carry the signature.
+    """
+    try:
+        with Path(path).open("rb") as fh:
+            return fh.read(4) == SIGNATURE
+    except OSError:
+        return False
 
 
 class PakReader:

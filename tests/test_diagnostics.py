@@ -82,6 +82,25 @@ def test_validate_counts_lsf(tmp_path, data_dir):
     assert report.counts["root_templates"] == 6
 
 
+def test_validate_reports_corrupt_pak(data_dir):
+    """A damaged archive (LSPK signature, unreadable file list) must fail
+    the sweep — it used to hide in the pak_parts_skipped counter and the
+    report said ok.  Real secondary parts still skip silently."""
+    from bg3forge.pak.format import HEADER_STRUCT, SIGNATURE
+
+    corrupt = HEADER_STRUCT.pack(SIGNATURE, 18, 10**6, 0, 0, 0, b"\x00" * 16, 0)
+    (data_dir / "Corrupt.pak").write_bytes(corrupt)
+    (data_dir / "Textures_1.pak").write_bytes(b"raw part data")
+
+    report = validate_data(data_dir)
+    assert not report.ok
+    pak_issues = [i for i in report.issues if i.stage == "pak"]
+    assert [i.file for i in pak_issues] == ["Corrupt.pak"]
+    assert report.counts["paks_corrupt"] == 1
+    assert report.counts["pak_parts_skipped"] == 1
+    assert report.counts["paks"] == 1  # the good pak still validates
+
+
 def test_validate_reports_corrupt_files(tmp_path, data_dir):
     writer = PakWriter()
     writer.add("Localization/English/broken.loca", b"LOCA" + b"\x01" * 4)  # truncated
