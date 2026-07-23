@@ -2,6 +2,17 @@
 
 ## 0.2.0 — unreleased
 
+### Tooling
+
+* Added `scripts/build_data_release.py` — builds a downloadable dataset
+  bundle (SQLite + JSON + CSV for items/spells/passives/statuses/
+  characters/progressions/spell-lists, plus a `MANIFEST.json` recording
+  the game version, `bg3forge` version, row counts, and validation
+  coverage) from an installed copy of the game. Output is byte-reproducible
+  for a given install. This is the *data-export release* step: the
+  resolved data is published to the community — who mostly don't run
+  Python — as a release asset. See [docs/data-release.md](docs/data-release.md).
+
 ### API
 
 * Added `game.find_files(pattern)` — archived paths matching a glob or
