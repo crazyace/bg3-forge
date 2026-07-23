@@ -53,6 +53,21 @@ def test_doctor_healthy_install(full_install):
     assert "2 readable" in _check(report, "Pak archives").detail
 
 
+def test_doctor_reports_corrupt_pak(data_dir):
+    """A pak whose header parses but whose file list is damaged used to
+    be silently skipped by the content scan; it must FAIL the report."""
+    from bg3forge.pak.format import HEADER_STRUCT, SIGNATURE
+
+    corrupt = HEADER_STRUCT.pack(SIGNATURE, 18, 10**6, 0, 0, 0, b"\x00" * 16, 0)
+    (data_dir / "Corrupt.pak").write_bytes(corrupt)
+
+    report = run_doctor(data_dir=data_dir)
+    assert not report.ok
+    check = _check(report, "Corrupt pak")
+    assert check.status == FAIL
+    assert "Corrupt.pak" in check.detail
+
+
 def test_doctor_warns_without_gustav_or_meta(data_dir):
     report = run_doctor(data_dir=data_dir)
     assert report.ok  # warnings, not failures
