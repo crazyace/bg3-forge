@@ -125,10 +125,24 @@ _MAX_STRING = 16 * 1024 * 1024
 _MIN_VERSION = 0x010D
 _MAX_VERSION = 0x010F
 
+# Fixed-width layouts, precompiled once.  story.div.osi is a multi-
+# megabyte file read almost entirely through these helpers and
+# ``string()``; per-call ``struct.calcsize`` was the dominant cost of
+# parsing a retail story.
+_U8 = struct.Struct("<B")
+_I8 = struct.Struct("<b")
+_U16 = struct.Struct("<H")
+_U32 = struct.Struct("<I")
+_I32 = struct.Struct("<i")
+
+#: XOR-descramble translation tables, one per scramble byte, built lazily.
+_DESCRAMBLE_TABLES: dict[int, bytes] = {}
+
 
 class _Reader:
     def __init__(self, data: bytes, source: str | None):
-        self.data = memoryview(data)
+        self._bytes = data if isinstance(data, bytes) else bytes(data)
+        self.data = memoryview(self._bytes)
         self.offset = 0
         self.source = source or "<story.div.osi>"
         self.scramble = 0
@@ -163,20 +177,28 @@ class _Reader:
         self.offset = end
         return value
 
+    def _fixed(self, layout: struct.Struct) -> int:
+        try:
+            (value,) = layout.unpack_from(self._bytes, self.offset)
+        except struct.error:
+            raise self.fail(f"truncated input (need {layout.size} bytes)") from None
+        self.offset += layout.size
+        return value
+
     def u8(self) -> int:
-        return self.unpack("<B")
+        return self._fixed(_U8)
 
     def i8(self) -> int:
-        return self.unpack("<b")
+        return self._fixed(_I8)
 
     def u16(self) -> int:
-        return self.unpack("<H")
+        return self._fixed(_U16)
 
     def u32(self) -> int:
-        return self.unpack("<I")
+        return self._fixed(_U32)
 
     def i32(self) -> int:
-        return self.unpack("<i")
+        return self._fixed(_I32)
 
     def boolean(self) -> bool:
         value = self.u8()
@@ -185,16 +207,26 @@ class _Reader:
         return bool(value)
 
     def string(self) -> str:
-        value = bytearray()
-        while True:
-            if len(value) >= _MAX_STRING:
-                raise self.fail("string exceeds safety limit")
-            byte = self.u8() ^ self.scramble
-            if byte == 0:
-                break
-            value.append(byte)
+        # The terminator is the byte that XORs to zero — the scramble byte
+        # itself — so it can be found with one C-level scan, and the body
+        # descrambled with one translate() pass.  The file is dominated by
+        # strings; walking them byte-at-a-time through struct made the
+        # retail story orders of magnitude slower to parse than needed.
+        end = self._bytes.find(self.scramble, self.offset)
+        if end < 0:
+            raise self.fail("truncated input (unterminated string)")
+        if end - self.offset >= _MAX_STRING:
+            raise self.fail("string exceeds safety limit")
+        raw = self._bytes[self.offset : end]
+        self.offset = end + 1
+        if self.scramble:
+            table = _DESCRAMBLE_TABLES.get(self.scramble)
+            if table is None:
+                table = bytes(i ^ self.scramble for i in range(256))
+                _DESCRAMBLE_TABLES[self.scramble] = table
+            raw = raw.translate(table)
         try:
-            return value.decode("utf-8")
+            return raw.decode("utf-8")
         except UnicodeDecodeError as exc:
             raise self.fail(f"invalid UTF-8 string: {exc}") from exc
 

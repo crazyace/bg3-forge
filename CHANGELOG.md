@@ -37,6 +37,16 @@
   `TUT_Chest_Potions`, and what's its spawn UUID" — closing the loop with
   the authoring `treasure=` feature.
 
+### Performance
+
+* Compiled Osiris stories parse ~30x faster. `story.div.osi` — the
+  largest single file in a retail install — is dominated by scrambled
+  null-terminated strings, which the reader consumed one byte at a time
+  through `struct` (five Python-level calls per byte). Strings are now
+  located with a single C-level scan and descrambled with one
+  `bytes.translate` pass, and the fixed-width helpers use precompiled
+  `Struct` objects.
+
 ### Fixed
 
 * `write_lsx` now refuses C0 control characters (other than
