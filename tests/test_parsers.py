@@ -74,6 +74,41 @@ def test_write_stats_omits_absent_type_and_using():
     assert "using" not in text  # using is None -> no line invented
 
 
+def test_write_stats_rejects_unrepresentable_strings():
+    """The stats grammar has no escape syntax: a double quote or newline
+    in any written string would silently reparse as *different* data —
+    or inject whole directives.  The writer must refuse, not corrupt."""
+    from bg3forge.parsers import StatsWriteError
+
+    # The injection the guard prevents: without it, this value writes a
+    # file where "GodMode" is a separate, legitimate-looking data line.
+    sneaky = StatsEntry(
+        name="WPN_Fine", data={"Notes": 'x"\ndata "GodMode" "1'}
+    )
+    with pytest.raises(StatsWriteError, match="Notes"):
+        write_stats([sneaky])
+
+    cases = [
+        StatsEntry(name='A" "B'),                              # quote in name
+        StatsEntry(name="A", type='Weapon"'),                  # quote in type
+        StatsEntry(name="A", using='Base\n'),                  # newline in using
+        StatsEntry(name="A", data={'K" "': "v"}),              # quote in key
+        StatsEntry(name="A", data={"K": 'v" "w'}),             # quote in value
+    ]
+    for entry in cases:
+        with pytest.raises(StatsWriteError):
+            write_stats([entry])
+
+    with pytest.raises(StatsWriteError, match="global"):
+        write_stats([], globals={'Prof"Base': "2"})
+    with pytest.raises(StatsWriteError, match="global"):
+        write_stats([], globals={"ProfBase": "2\n3"})
+
+    # StatsWriteError participates in the ValueError contract like every
+    # other error in the pipeline.
+    assert issubclass(StatsWriteError, ValueError)
+
+
 def test_write_stats_emits_key_globals():
     """Globals serialize as consecutive `key "Name","Value"` lines and
     survive a round trip (the Data.txt / XPData.txt shape)."""
