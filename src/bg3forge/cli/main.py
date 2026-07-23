@@ -17,7 +17,7 @@ from ..exporters import FORMATS, export_json
 from ..game import Game, GameNotFoundError
 from ..pak.extractor import Extractor
 from ..pak.patches import PatchDetector
-from ..pak.reader import PakReader
+from ..pak.reader import PakReader, file_is_lspk
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -245,22 +245,32 @@ def _dispatch(args) -> int:
                 print("error: unpack needs a game install or --data-dir", file=sys.stderr)
                 return 1
             paks = sorted(game.data_dir.rglob("*.pak"))
-        total_extracted = total_skipped = 0
+        total_extracted = total_skipped = failures = 0
         for pak_path in paks:
             try:
                 result = extractor.extract(pak_path, patterns=args.pattern, force=args.force)
-            except ValueError:
-                continue  # secondary archive part or foreign file
+            except ValueError as exc:
+                # Files without the LSPK signature are secondary archive
+                # parts or foreign files — skipping them is routine.  A
+                # real archive that fails (unsafe entry path, truncated
+                # data) must be reported, not silently dropped.
+                if file_is_lspk(pak_path):
+                    failures += 1
+                    print(f"error: {pak_path.name}: {exc}", file=sys.stderr)
+                continue
             total_extracted += len(result.extracted)
             total_skipped += len(result.skipped)
             if result.total:  # keep quiet about paks with nothing matching
                 print(f"{pak_path.name}: {len(result.extracted)} extracted, "
                       f"{len(result.skipped)} unchanged")
         print(f"done: {total_extracted} extracted, {total_skipped} unchanged")
-        return 0
+        return 1 if failures else 0
 
     if args.command == "patches":
         game = _open_game(args)
+        if game.data_dir is None:
+            print("error: patches needs a game install or --data-dir", file=sys.stderr)
+            return 1
         detector = PatchDetector(args.snapshot)
         report = detector.compare(game.data_dir)
         for name in report.added:

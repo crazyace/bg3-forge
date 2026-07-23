@@ -26,6 +26,64 @@ def test_unpack_pattern(tmp_path, sample_pak):
     assert not (out_dir / "Public/Shared/Stats/Generated/Data/Weapon.txt").exists()
 
 
+def test_unpack_reports_corrupt_pak(tmp_path, sample_pak, capsys):
+    """A damaged archive (LSPK signature, unreadable file list) must be
+    reported with a non-zero exit — it used to be silently skipped as if
+    it were a foreign file.  Real secondary parts still skip quietly."""
+    from bg3forge.pak.format import HEADER_STRUCT, SIGNATURE
+
+    data_dir = sample_pak.parent
+    corrupt = HEADER_STRUCT.pack(SIGNATURE, 18, 10**6, 0, 0, 0, b"\x00" * 16, 0)
+    (data_dir / "Corrupt.pak").write_bytes(corrupt)
+    (data_dir / "Textures_1.pak").write_bytes(b"raw part data")
+
+    out_dir = tmp_path / "extracted"
+    code = main(["--data-dir", str(data_dir), "unpack", "-o", str(out_dir)])
+    captured = capsys.readouterr()
+    assert code == 1
+    assert "Corrupt.pak" in captured.err
+    assert "Textures_1.pak" not in captured.err
+    # the good pak still extracted
+    assert (out_dir / "Public/Shared/Stats/Generated/Data/Weapon.txt").exists()
+
+
+def test_unpack_single_corrupt_pak_fails(tmp_path, capsys):
+    """Naming a corrupt pak explicitly must fail, not print 'done'."""
+    from bg3forge.pak.format import HEADER_STRUCT, SIGNATURE
+
+    bad = tmp_path / "Corrupt.pak"
+    bad.write_bytes(HEADER_STRUCT.pack(SIGNATURE, 18, 10**6, 0, 0, 0, b"\x00" * 16, 0))
+    code = main(["unpack", str(bad), "-o", str(tmp_path / "out")])
+    assert code == 1
+    assert "Corrupt.pak" in capsys.readouterr().err
+
+
+def test_patches_with_extracted_dir_errors_cleanly(tmp_path, sample_pak, capsys):
+    """`patches --extracted-dir` has no pak directory to fingerprint; it
+    must exit with a clear error, not a Path(None) TypeError traceback."""
+    from bg3forge.pak.extractor import Extractor
+
+    out = tmp_path / "extracted"
+    Extractor(out).extract(sample_pak)
+    code = main([
+        "--extracted-dir", str(out),
+        "patches", "--snapshot", str(tmp_path / "snap.json"),
+    ])
+    assert code == 1
+    assert "needs a game install" in capsys.readouterr().err
+
+
+def test_patch_scan_skips_unreadable_pak(tmp_path, sample_pak):
+    """An unreadable .pak (here: a directory with the extension) must be
+    skipped by the fingerprint scan, not raise OSError."""
+    from bg3forge.pak.patches import PatchDetector
+
+    (sample_pak.parent / "Weird.pak").mkdir()
+    fingerprints = PatchDetector(tmp_path / "snap.json").scan(sample_pak.parent)
+    assert "Shared.pak" in fingerprints
+    assert "Weird.pak" not in fingerprints
+
+
 def test_spells_json(tmp_path, data_dir, capsys):
     output = tmp_path / "spells.json"
     assert main(["--data-dir", str(data_dir), "spells", "-o", str(output)]) == 0

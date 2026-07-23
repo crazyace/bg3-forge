@@ -54,6 +54,8 @@ class PatchDetector:
                 result[key] = PakFingerprint.of(pak)
             except ValueError:
                 continue  # not an LSPK file (or a non-primary archive part)
+            except OSError:
+                continue  # unreadable (permissions, vanished mid-scan, a directory)
         return result
 
     def compare(self, data_dir: str | Path) -> PatchReport:

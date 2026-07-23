@@ -39,6 +39,15 @@
 
 ### Fixed
 
+* CLI robustness: `bg3forge unpack` now reports a damaged archive on
+  stderr and exits non-zero instead of silently skipping it as a
+  "foreign file" — including when the corrupt pak was named explicitly,
+  which used to print `done` and exit 0. `bg3forge patches` with
+  `--extracted-dir` exits with a clear error instead of crashing with a
+  `TypeError` traceback (`Path(None)`), and the patch-detection scan
+  skips unreadable `.pak` paths (permissions, directories) instead of
+  letting `OSError` escape.
+
 * `validate_data` and `bg3forge doctor` no longer report a broken
   install as healthy. A damaged archive — LSPK signature present but the
   file list unreadable — was counted as a routine "skipped part"
