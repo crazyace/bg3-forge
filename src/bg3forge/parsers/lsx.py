@@ -23,6 +23,7 @@ resources to LSX with lslib/divine before feeding them in.
 
 from __future__ import annotations
 
+import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -82,6 +83,24 @@ class LsxError(ValueError):
     pass
 
 
+#: C0 control characters other than tab/newline/carriage return are not
+#: representable in XML 1.0 at all — not even as character references —
+#: but ElementTree writes them through verbatim, producing a document
+#: that no conforming parser (the game's included, and our own
+#: ``parse_lsx``) can read back.  Writing them must fail loudly.
+_ILLEGAL_XML_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
+def _check_xml_writable(value: str, what: str) -> str:
+    match = _ILLEGAL_XML_RE.search(value)
+    if match:
+        raise LsxError(
+            f"{what} contains control character {match.group()!r}, "
+            "which XML 1.0 cannot represent"
+        )
+    return value
+
+
 def parse_lsx(source: str | bytes) -> LsxDocument:
     if isinstance(source, bytes):
         source = source.decode("utf-8-sig", errors="replace")
@@ -111,7 +130,9 @@ def write_lsx(document: LsxDocument) -> str:
         save, "version", major="4", minor="0", revision="9", build="330"
     )
     for region_id, root in document.regions.items():
-        region_el = ET.SubElement(save, "region", id=region_id)
+        region_el = ET.SubElement(
+            save, "region", id=_check_xml_writable(region_id, "region id")
+        )
         _write_node(region_el, root)
     ET.indent(save)
     return '<?xml version="1.0" encoding="utf-8"?>\n' + ET.tostring(
@@ -120,17 +141,30 @@ def write_lsx(document: LsxDocument) -> str:
 
 
 def _write_node(parent_el: ET.Element, node: LsxNode) -> None:
-    node_el = ET.SubElement(parent_el, "node", id=node.id)
+    node_el = ET.SubElement(
+        parent_el, "node", id=_check_xml_writable(node.id, "node id")
+    )
     if node.key:
-        node_el.set("key", node.key)
+        node_el.set("key", _check_xml_writable(node.key, "node key"))
     for attr in node.attributes.values():
-        attr_el = ET.SubElement(node_el, "attribute", id=attr.id, type=attr.type)
+        attr_el = ET.SubElement(
+            node_el,
+            "attribute",
+            id=_check_xml_writable(attr.id, "attribute id"),
+            type=_check_xml_writable(attr.type, f"type of attribute {attr.id!r}"),
+        )
         if attr.handle is not None:
-            attr_el.set("handle", attr.handle)
+            attr_el.set(
+                "handle",
+                _check_xml_writable(attr.handle, f"handle of attribute {attr.id!r}"),
+            )
             if attr.version is not None:
                 attr_el.set("version", str(attr.version))
         if attr.value is not None:
-            attr_el.set("value", attr.value)
+            attr_el.set(
+                "value",
+                _check_xml_writable(attr.value, f"value of attribute {attr.id!r}"),
+            )
     if node.children:
         children_el = ET.SubElement(node_el, "children")
         for child in node.children:

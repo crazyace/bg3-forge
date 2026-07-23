@@ -39,6 +39,14 @@
 
 ### Fixed
 
+* `write_lsx` now refuses C0 control characters (other than
+  tab/newline/carriage return) in node ids, keys, and attribute
+  ids/types/handles/values. XML 1.0 cannot represent them at all — not
+  even as character references — but ElementTree wrote them through
+  verbatim, producing documents that `parse_lsx`, the game, and every
+  conforming XML parser reject. Offenders now raise `LsxError` naming
+  the field; legal whitespace still round-trips exactly.
+
 * CLI robustness: `bg3forge unpack` now reports a damaged archive on
   stderr and exits non-zero instead of silently skipping it as a
   "foreign file" — including when the corrupt pak was named explicitly,
