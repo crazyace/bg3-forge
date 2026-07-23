@@ -44,6 +44,11 @@ def parse_loca(data: bytes) -> list[LocaEntry]:
     signature, num_entries, texts_offset = _HEADER.unpack_from(data)
     if signature != SIGNATURE:
         raise LocaError(f"not a .loca file (signature {signature!r})")
+    # num_entries is an untrusted u32: validate the whole entry table fits
+    # before looping, so a truncated or corrupt file raises LocaError here
+    # instead of leaking struct.error from deep inside the loop.
+    if _HEADER.size + num_entries * _ENTRY.size > len(data):
+        raise LocaError("truncated entry table")
     entries: list[LocaEntry] = []
     entry_offset = _HEADER.size
     text_offset = texts_offset

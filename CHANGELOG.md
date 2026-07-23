@@ -39,6 +39,44 @@
 
 ### Fixed
 
+* LSPK v15/v16 archives (DOS2 DE, BG3 Early Access) are now actually
+  readable. Both advertised versions were parsed with the v18 272-byte
+  entry layout, but real v15/v16 entries are 296 bytes (LSLib's
+  `FileEntry15`, with u64 offset/size fields), and the v15 header carries
+  no `num_parts` — so opening any genuine legacy archive failed with an
+  uncaught size-mismatch error. `PakReader` now selects the header and
+  entry layout by version, and `PakWriter` rejects legacy versions
+  instead of stamping them onto v18 structures.
+
+* Malformed binary files can no longer crash whole collection loads.
+  `Game` documents that a bad file is recorded in `load_issues` and
+  skipped, but the binary parsers leaked `struct.error`, `zlib.error`,
+  `IndexError`, and native-LZ4 exceptions — none of them `ValueError`
+  subclasses — past every `except ValueError` containment, so one
+  truncated `.pak` or `.lsf` (an interrupted download or patch) aborted
+  `Game()`, `validate_data()`, and `run_doctor()`. All parser entrypoints
+  now hold their documented error contract: `parse_lsf` raises `LsfError`
+  for any malformed input (guaranteed by a contract wrapper plus targeted
+  guards), `parse_loca` validates its entry table up front, `PakReader`
+  rejects truncated file lists and implausible file counts as `PakError`,
+  and both LZ4 backends raise `LZ4Error`. A byte-flip sweep over a full
+  LSF resource pins the contract in CI.
+* Corrupt LSF adjacency data can no longer hang the parser: attribute
+  chains with cyclic or out-of-range `first_attr`/`next_attr` links, and
+  `TranslatedFSString` values with negative lengths or unbounded argument
+  nesting, now raise `LsfError` instead of looping or recursing forever.
+  Attribute value lengths are validated against their type before
+  decoding.
+* Native LZ4 block decompression silently returned *short* output when
+  the expected size field was larger than the actual content;
+  `lz4compat.decompress` now enforces the exact size with both backends,
+  and the pure-Python decoder rejects truncated literal runs it
+  previously truncated silently.
+* A damaged archive with a valid LSPK signature is now recorded in
+  `Game.load_issues` instead of being silently skipped as a "foreign
+  file" — a corrupt primary pak previously vanished with no diagnostic
+  anywhere.
+
 * LSF guid attributes now render in canonical text form. Larian stores
   the last two guid groups as little-endian 16-bit words; earlier
   releases rendered those bytes swapped (e.g. the scroll ClassId read as

@@ -1,9 +1,10 @@
 """On-disk structures of Larian LSPK (.pak) archives.
 
-BG3 ships LSPK version 18 archives (version 15 has the same entry layout
-with a slightly different header).  Layout of a v18 archive:
+BG3 ships LSPK version 18 archives; versions 15 (DOS2 DE) and 16 (BG3
+Early Access) are also readable.  Struct layouts follow LSLib, the
+reference implementation.  Layout of a v18 archive:
 
-* Header (at offset 0)::
+* Header (at offset 0; v16 is identical, v15 omits ``num_parts``)::
 
       char[4]  signature      "LSPK"
       u32      version        18
@@ -20,7 +21,7 @@ with a slightly different header).  Layout of a v18 archive:
       u32      compressed_size
       u8[...]  LZ4 block-compressed table of ``num_files`` entries
 
-* File entry (272 bytes each)::
+* v18 file entry (272 bytes each)::
 
       char[256] name          null-padded UTF-8 path
       u32       offset_lo     low 32 bits of data offset
@@ -30,6 +31,17 @@ with a slightly different header).  Layout of a v18 archive:
                               high nibble: compression level
       u32       size_on_disk  compressed size
       u32       uncompressed_size (0 when stored uncompressed)
+
+* v15/v16 file entry (296 bytes each; LSLib's ``FileEntry15``)::
+
+      char[256] name
+      u64       offset
+      u64       size_on_disk
+      u64       uncompressed_size
+      u32       archive_part
+      u32       flags
+      u32       crc
+      u32       unknown2
 """
 
 from __future__ import annotations
@@ -42,10 +54,14 @@ SIGNATURE = b"LSPK"
 SUPPORTED_VERSIONS = (15, 16, 18)
 DEFAULT_VERSION = 18
 
-HEADER_STRUCT = struct.Struct("<4sIQIBB16sH")
+_MAGIC_VERSION_STRUCT = struct.Struct("<4sI")
+HEADER_STRUCT = struct.Struct("<4sIQIBB16sH")  # v16/v18 (LSPKHeader16)
+HEADER15_STRUCT = struct.Struct("<4sIQIBB16s")  # v15 has no num_parts
 FILE_LIST_HEADER_STRUCT = struct.Struct("<II")
-ENTRY_STRUCT = struct.Struct("<256sIHBBII")
+ENTRY_STRUCT = struct.Struct("<256sIHBBII")  # v18 (FileEntry18)
 ENTRY_SIZE = ENTRY_STRUCT.size  # 272
+ENTRY15_STRUCT = struct.Struct("<256sQQQIIII")  # v15/v16 (FileEntry15)
+ENTRY15_SIZE = ENTRY15_STRUCT.size  # 296
 NAME_SIZE = 256
 
 
@@ -68,25 +84,50 @@ class PakHeader:
 
     @classmethod
     def parse(cls, data: bytes) -> "PakHeader":
-        if len(data) < HEADER_STRUCT.size:
+        if len(data) < _MAGIC_VERSION_STRUCT.size:
             raise ValueError("file too small to be a .pak archive")
-        (
-            signature,
-            version,
-            file_list_offset,
-            file_list_size,
-            flags,
-            priority,
-            md5,
-            num_parts,
-        ) = HEADER_STRUCT.unpack_from(data)
+        signature, version = _MAGIC_VERSION_STRUCT.unpack_from(data)
         if signature != SIGNATURE:
             raise ValueError(f"not an LSPK archive (signature {signature!r})")
         if version not in SUPPORTED_VERSIONS:
             raise ValueError(f"unsupported LSPK version {version}")
+        layout = HEADER15_STRUCT if version == 15 else HEADER_STRUCT
+        if len(data) < layout.size:
+            raise ValueError("file too small to be a .pak archive")
+        if version == 15:
+            (_, _, file_list_offset, file_list_size, flags, priority, md5) = (
+                layout.unpack_from(data)
+            )
+            num_parts = 1  # v15 predates multi-part archives
+        else:
+            (
+                _,
+                _,
+                file_list_offset,
+                file_list_size,
+                flags,
+                priority,
+                md5,
+                num_parts,
+            ) = layout.unpack_from(data)
         return cls(version, file_list_offset, file_list_size, flags, priority, md5, num_parts)
 
+    @property
+    def entry_size(self) -> int:
+        """Size of one file-list entry for this archive version."""
+        return ENTRY15_SIZE if self.version < 18 else ENTRY_SIZE
+
     def pack(self) -> bytes:
+        if self.version == 15:
+            return HEADER15_STRUCT.pack(
+                SIGNATURE,
+                self.version,
+                self.file_list_offset,
+                self.file_list_size,
+                self.flags,
+                self.priority,
+                self.md5,
+            )
         return HEADER_STRUCT.pack(
             SIGNATURE,
             self.version,
@@ -130,6 +171,22 @@ class PakEntry:
         return cls(
             name=name,
             offset=off_lo | (off_hi << 32),
+            archive_part=part,
+            flags=flags,
+            size_on_disk=size_on_disk,
+            uncompressed_size=uncompressed,
+        )
+
+    @classmethod
+    def parse15(cls, data: bytes, offset: int = 0) -> "PakEntry":
+        """Parse the 296-byte v15/v16 entry layout (LSLib's FileEntry15)."""
+        raw_name, off, size_on_disk, uncompressed, part, flags, _crc, _unknown = (
+            ENTRY15_STRUCT.unpack_from(data, offset)
+        )
+        name = raw_name.rstrip(b"\x00").decode("utf-8", errors="replace")
+        return cls(
+            name=name,
+            offset=off,
             archive_part=part,
             flags=flags,
             size_on_disk=size_on_disk,

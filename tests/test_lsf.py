@@ -206,6 +206,120 @@ def test_truncated_file():
         parse_lsf(blob[: len(blob) // 2])
 
 
+def test_truncated_header_and_metadata():
+    """Cuts inside the engine version / metadata structs must raise
+    LsfError, not leak struct.error (the Game load_issues contract)."""
+    blob = write_lsf(parse_lsx(ALL_TYPES_LSX), version=6)
+    for cut in (10, 14, 20, 40, 60):
+        with pytest.raises(LsfError):
+            parse_lsf(blob[:cut])
+
+
+def test_corrupt_compressed_section():
+    """A corrupt zlib stream must surface as LsfError, not zlib.error."""
+    blob = bytearray(
+        write_lsf(parse_lsx(ALL_TYPES_LSX), version=6, compression=CompressionMethod.ZLIB)
+    )
+    start = 16 + 48  # magic+version + engine version + v6 metadata
+    blob[start : start + 4] = b"\x00\x00\x00\x00"  # clobber the zlib header
+    with pytest.raises(LsfError):
+        parse_lsf(bytes(blob))
+
+
+def test_attribute_chain_guards():
+    """V3 first_attr/next_attr are file-controlled: out-of-range and
+    negative indices and cyclic chains must all raise LsfError — a cycle
+    used to hang the parser forever."""
+    from bg3forge.parsers.lsf import _AttrInfo, _NodeInfo, _build_document
+
+    def build(nodes, attrs):
+        return _build_document([["N"]], nodes, attrs, {}, b"", True, True)
+
+    with pytest.raises(LsfError, match="invalid attribute"):
+        build([_NodeInfo(name_ref=0, parent=-1, first_attr=5)], [])
+    with pytest.raises(LsfError, match="invalid attribute"):
+        # -2 is a valid *Python* index; it must not silently wrap
+        build(
+            [_NodeInfo(name_ref=0, parent=-1, first_attr=-2)],
+            [_AttrInfo(name_ref=0, type_id=0, length=0, offset=0)],
+        )
+    with pytest.raises(LsfError, match="loops"):
+        build(
+            [_NodeInfo(name_ref=0, parent=-1, first_attr=0)],
+            [_AttrInfo(name_ref=0, type_id=0, length=0, offset=0, next_attr=0)],
+        )
+
+
+def test_attribute_value_size_guards():
+    """The stored value length is independent of the type id; a mismatch
+    must raise LsfError instead of struct.error/IndexError."""
+    from bg3forge.parsers.lsf import _AttrInfo, _decode_attribute
+
+    def decode(type_id, payload):
+        info = _AttrInfo(name_ref=0, type_id=type_id, length=len(payload), offset=0)
+        return _decode_attribute([["N"]], info, payload, True)
+
+    with pytest.raises(LsfError, match="needs 4"):
+        decode(4, b"\x01\x02")  # int32 with 2 bytes
+    with pytest.raises(LsfError, match="needs 12"):
+        decode(12, b"\x00" * 4)  # fvec3 with 4 bytes
+    with pytest.raises(LsfError, match="bool"):
+        decode(19, b"")
+    with pytest.raises(LsfError, match="guid"):
+        decode(31, b"\x00" * 8)
+    with pytest.raises(LsfError, match="TranslatedString"):
+        decode(28, b"\x00")  # shorter than its own header
+
+
+def test_translated_fs_guards():
+    import struct
+
+    from bg3forge.parsers.lsf import _decode_translated_fs
+
+    def fs(depth):
+        """A TranslatedFSString value nesting one argument per level."""
+        leaf = struct.pack("<H", 1) + struct.pack("<i", 1) + b"\x00" + struct.pack("<i", 0)
+        if depth == 0:
+            return leaf
+        inner = fs(depth - 1)
+        return (
+            struct.pack("<H", 1) + struct.pack("<i", 1) + b"\x00"  # version + handle
+            + struct.pack("<i", 1)                                  # one argument
+            + struct.pack("<i", 0)                                  # empty key
+            + inner
+            + struct.pack("<i", 0)                                  # empty value
+        )
+
+    handle, version, _ = _decode_translated_fs(fs(3), 0, True)
+    assert version == 1
+
+    with pytest.raises(LsfError, match="deeply"):
+        _decode_translated_fs(fs(40), 0, True)
+    with pytest.raises(LsfError, match="negative"):
+        # negative handle length would walk pos backwards
+        _decode_translated_fs(struct.pack("<H", 1) + struct.pack("<i", -5), 0, True)
+    with pytest.raises(LsfError, match="argument count"):
+        _decode_translated_fs(
+            struct.pack("<H", 1) + struct.pack("<i", 1) + b"\x00" + struct.pack("<i", -1),
+            0,
+            True,
+        )
+
+
+def test_byte_flips_never_leak_raw_errors():
+    """Contract sweep: flipping any single byte of a valid LSF must either
+    still parse or raise LsfError — never struct.error, IndexError, zlib
+    errors, or a hang."""
+    blob = write_lsf(parse_lsx(ALL_TYPES_LSX), version=6)
+    for offset in range(8, len(blob), 3):  # keep the magic intact
+        corrupted = bytearray(blob)
+        corrupted[offset] ^= 0xFF
+        try:
+            parse_lsf(bytes(corrupted))
+        except LsfError:
+            pass
+
+
 def test_empty_document_roundtrip():
     parsed = parse_lsf(write_lsf(LsxDocument()))
     assert parsed.regions == {}

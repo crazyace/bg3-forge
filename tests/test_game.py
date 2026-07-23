@@ -46,6 +46,34 @@ def test_bad_file_is_recorded_not_fatal(tmp_path):
     assert "outside any" in issue.error
 
 
+def test_corrupt_pak_recorded_not_silent(tmp_path):
+    """A file with the LSPK signature that fails to open is a damaged
+    archive (truncated download, interrupted patch) — it must land in
+    load_issues, not vanish silently.  Foreign files and secondary
+    archive parts still skip without noise."""
+    from bg3forge.pak import PakWriter
+    from bg3forge.pak.format import HEADER_STRUCT, SIGNATURE
+    from conftest import fixture_files
+
+    writer = PakWriter()
+    for name, data in fixture_files().items():
+        writer.add(name, data)
+    writer.write(tmp_path / "Shared.pak")
+
+    # Valid LSPK header pointing its file list far beyond EOF.
+    corrupt = HEADER_STRUCT.pack(SIGNATURE, 18, 10**6, 0, 0, 0, b"\x00" * 16, 0)
+    (tmp_path / "Corrupt.pak").write_bytes(corrupt)
+    # A secondary archive part carries no LSPK header: skipping is routine.
+    (tmp_path / "Textures_1.pak").write_bytes(b"raw part data")
+
+    game = Game(data_dir=tmp_path)
+    assert "WPN_Longsword" in game.stats  # the good pak still loads
+    corrupt_issues = [i for i in game.load_issues if i.file == "Corrupt.pak"]
+    assert len(corrupt_issues) == 1
+    assert "file list" in corrupt_issues[0].error
+    assert not any(i.file == "Textures_1.pak" for i in game.load_issues)
+
+
 def test_localization_loaded(game):
     assert game.localization.resolve("h11111111-1111-1111-1111-111111111111;1") == "Fireball"
 

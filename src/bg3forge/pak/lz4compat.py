@@ -33,9 +33,24 @@ class LZ4Error(ValueError):
 
 
 def decompress(data: bytes, uncompressed_size: int) -> bytes:
-    """Decompress a raw LZ4 block of known uncompressed size."""
+    """Decompress a raw LZ4 block of known uncompressed size.
+
+    Raises :class:`LZ4Error` (a ``ValueError``) for corrupt input or a
+    size mismatch, with either backend.
+    """
     if _lz4block is not None:
-        return _lz4block.decompress(data, uncompressed_size=uncompressed_size)
+        try:
+            result = _lz4block.decompress(data, uncompressed_size=uncompressed_size)
+        except _lz4block.LZ4BlockError as exc:
+            raise LZ4Error(f"corrupt LZ4 block: {exc}") from exc
+        # Native lz4 treats uncompressed_size as a buffer size and happily
+        # returns *less*; enforce the exact size the pure path already does.
+        if len(result) != uncompressed_size:
+            raise LZ4Error(
+                f"decompressed size mismatch: got {len(result)}, "
+                f"expected {uncompressed_size}"
+            )
+        return result
     return _py_decompress(data, uncompressed_size)
 
 
@@ -47,7 +62,11 @@ def compress(data: bytes) -> bytes:
 
 
 def decompress_frame(data: bytes) -> bytes:
-    """Decompress LZ4 *frame* format data (possibly concatenated frames)."""
+    """Decompress LZ4 *frame* format data (possibly concatenated frames).
+
+    Raises :class:`LZ4Error` (a ``ValueError``) for corrupt input, with
+    either backend.
+    """
     if _lz4block is not None:
         import lz4.frame
 
@@ -55,9 +74,12 @@ def decompress_frame(data: bytes) -> bytes:
         pos = 0
         # lz4.frame handles one frame per call; loop for concatenated frames.
         while pos < len(data):
-            decompressed, bytes_read = lz4.frame.decompress(
-                data[pos:], return_bytes_read=True
-            )
+            try:
+                decompressed, bytes_read = lz4.frame.decompress(
+                    data[pos:], return_bytes_read=True
+                )
+            except RuntimeError as exc:  # lz4.frame's corrupt-input error
+                raise LZ4Error(f"corrupt LZ4 frame: {exc}") from exc
             out += decompressed
             if bytes_read <= 0:
                 break
@@ -143,6 +165,8 @@ def _py_decompress(src: bytes, uncompressed_size: int | None) -> bytes:
                     literal_len += extra
                     if extra != 255:
                         break
+            if i + literal_len > n:
+                raise LZ4Error("truncated literal run")
             dst += src[i : i + literal_len]
             i += literal_len
             if i >= n:
@@ -162,6 +186,8 @@ def _py_decompress(src: bytes, uncompressed_size: int | None) -> bytes:
             start = len(dst) - offset
             if start < 0:
                 raise LZ4Error("match offset beyond output start")
+            if uncompressed_size is not None and len(dst) + match_len > uncompressed_size:
+                raise LZ4Error("decompressed output exceeds expected size")
             # Matches may overlap the output being built; copy byte-wise.
             for j in range(match_len):
                 dst.append(dst[start + j])

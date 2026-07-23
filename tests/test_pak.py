@@ -53,6 +53,127 @@ def test_not_a_pak(tmp_path):
         PakReader(bogus)
 
 
+def test_truncated_pak_raises_pakerror(tmp_path, sample_pak):
+    """Truncation anywhere — mid-header, mid-file-list — must raise a
+    ValueError subclass, never a raw struct.error (a truncated download
+    used to crash Game(), validate_data(), and run_doctor())."""
+    blob = sample_pak.read_bytes()
+    for cut in (20, 45, len(blob) - 5):
+        truncated = tmp_path / f"cut{cut}.pak"
+        truncated.write_bytes(blob[:cut])
+        with pytest.raises(ValueError):
+            PakReader(truncated)
+
+
+def _file_list_offset(blob: bytes) -> int:
+    from bg3forge.pak.format import HEADER_STRUCT
+
+    return HEADER_STRUCT.unpack_from(blob)[2]
+
+
+def test_implausible_file_count(tmp_path, sample_pak):
+    """A corrupt num_files must be rejected before it drives a giant
+    allocation in the decompressor."""
+    blob = bytearray(sample_pak.read_bytes())
+    offset = _file_list_offset(blob)
+    blob[offset : offset + 4] = (0x7FFFFFFF).to_bytes(4, "little")
+    bad = tmp_path / "huge.pak"
+    bad.write_bytes(bytes(blob))
+    with pytest.raises(PakError, match="implausible file count"):
+        PakReader(bad)
+
+
+def test_corrupt_file_list(tmp_path, sample_pak):
+    blob = bytearray(sample_pak.read_bytes())
+    offset = _file_list_offset(blob)
+    # Replace the whole compressed table with an endless literal run —
+    # invalid for both the native and the pure-Python decoder.
+    blob[offset + 8 :] = b"\xff" * (len(blob) - offset - 8)
+    bad = tmp_path / "corrupt.pak"
+    bad.write_bytes(bytes(blob))
+    with pytest.raises(PakError, match="file list"):
+        PakReader(bad)
+
+
+def _write_legacy_pak(path, version):
+    """Hand-build a v15/v16 archive in LSLib's FileEntry15 layout: the
+    entry table is 296 bytes per entry with u64 offset/size fields, and
+    the v15 header carries no num_parts."""
+    from bg3forge.pak.format import (
+        ENTRY15_STRUCT,
+        FILE_LIST_HEADER_STRUCT,
+        HEADER15_STRUCT,
+        HEADER_STRUCT,
+        SIGNATURE,
+    )
+
+    content = b"hello from a legacy archive"
+    header_size = HEADER15_STRUCT.size if version == 15 else HEADER_STRUCT.size
+    name = b"Public/Legacy/file.txt".ljust(256, b"\x00")
+    # offset, size_on_disk, uncompressed (0: stored), part, flags, crc, unknown2
+    table = ENTRY15_STRUCT.pack(name, header_size, len(content), 0, 0, 0, 0, 0)
+    compressed = lz4compat.compress(table)
+    file_list = FILE_LIST_HEADER_STRUCT.pack(1, len(compressed)) + compressed
+    file_list_offset = header_size + len(content)
+    if version == 15:
+        header = HEADER15_STRUCT.pack(
+            SIGNATURE, version, file_list_offset, len(file_list), 0, 0, b"\x00" * 16
+        )
+    else:
+        header = HEADER_STRUCT.pack(
+            SIGNATURE, version, file_list_offset, len(file_list), 0, 0, b"\x00" * 16, 1
+        )
+    path.write_bytes(header + content + file_list)
+    return content
+
+
+@pytest.mark.parametrize("version", [15, 16])
+def test_reads_legacy_entry_layout(tmp_path, version):
+    """v15/v16 entries are 296 bytes (FileEntry15), not the 272-byte v18
+    layout — parsing them with the v18 struct used to fail on every
+    genuine legacy archive."""
+    pak_path = tmp_path / f"legacy{version}.pak"
+    content = _write_legacy_pak(pak_path, version)
+    with PakReader(pak_path) as pak:
+        assert pak.names() == ["Public/Legacy/file.txt"]
+        assert pak.header.version == version
+        assert pak.read("Public/Legacy/file.txt") == content
+
+
+def test_legacy_struct_sizes_pinned():
+    from bg3forge.pak.format import ENTRY15_SIZE, HEADER15_STRUCT, HEADER_STRUCT
+
+    assert ENTRY15_SIZE == 296
+    assert HEADER15_STRUCT.size == 38  # no num_parts
+    assert HEADER_STRUCT.size == 40
+
+
+def test_writer_rejects_legacy_versions(tmp_path):
+    with pytest.raises(ValueError, match="v18"):
+        PakWriter(version=16)
+
+
+def test_lz4_errors_are_valueerrors():
+    """Both LZ4 backends must fail with LZ4Error (a ValueError) — the
+    native package's own exceptions don't subclass ValueError and used
+    to escape every `except ValueError` in the pipeline."""
+    with pytest.raises(lz4compat.LZ4Error) as excinfo:
+        lz4compat.decompress(b"\xff" + b"\x00" * 5, 10)
+    assert isinstance(excinfo.value, ValueError)
+
+    with pytest.raises(lz4compat.LZ4Error):
+        lz4compat.decompress_frame(b"garbage12345")
+
+
+def test_lz4_size_mismatch_rejected():
+    """Native lz4 returns short output when the expected size is larger
+    than the real content; both backends must reject the mismatch."""
+    compressed = lz4compat.compress(b"exact payload")
+    assert lz4compat.decompress(compressed, 13) == b"exact payload"
+    with pytest.raises(lz4compat.LZ4Error, match="mismatch|corrupt"):
+        lz4compat.decompress(compressed, 100)
+
+
 def test_pure_python_lz4_roundtrip():
     data = b"abcabcabcabc" * 50 + b"tail"
     compressed = lz4compat._py_compress_literals(data)
