@@ -255,7 +255,7 @@ an install can fail.
 * `bg3forge convert` converts `.lsf` ↔ `.lsx` from the command line — no
   lslib/divine required
 
-### Mod authoring (experimental)
+### Mod authoring
 
 The inverse of everything above: generate a mod programmatically. A `Mod`
 mints stable UUIDs and localization handles, lays files out under the
