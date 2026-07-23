@@ -37,6 +37,20 @@
   `TUT_Chest_Potions`, and what's its spawn UUID" — closing the loop with
   the authoring `treasure=` feature.
 
+### Security
+
+* Decompression of third-party paks and mod files is now bounded so a
+  crafted archive can't drive an unbounded allocation. A per-entry /
+  per-section uncompressed size that is implausible for its compressed
+  input (beyond DEFLATE's ~1032:1, LZ4's ~255:1, or zstd's headroom) is
+  rejected as a `DecompressionBombError` before any native decompressor
+  pre-allocates that many bytes; zlib inflation is self-bounded; and the
+  LZ4 *frame* path (native and pure-Python) decodes against an output
+  cap instead of trusting the frame's own content-size hint. Applies to
+  pak entries (`PakReader.read`) and LSF sections. All errors remain
+  `ValueError` subclasses, so `Game`'s per-file `load_issues` containment
+  still applies.
+
 ### Docs & CI
 
 * The README execution guard is now strict about `NameError`: blocks

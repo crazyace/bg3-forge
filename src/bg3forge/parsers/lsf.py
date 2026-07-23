@@ -196,6 +196,7 @@ def parse_lsf(data: bytes) -> LsxDocument:
         OverflowError,
         zlib.error,
         lz4compat.LZ4Error,
+        lz4compat.DecompressionBombError,
     ) as exc:
         raise LsfError(f"malformed LSF resource: {exc}") from exc
 
@@ -292,11 +293,16 @@ def _read_section(
     if method is CompressionMethod.NONE:
         blob = raw
     elif method is CompressionMethod.ZLIB:
-        blob = zlib.decompress(raw)
+        blob = lz4compat.zlib_decompress(raw)
     elif method is CompressionMethod.LZ4:
+        # uncompressed_size is attacker-controlled metadata; bound both
+        # paths so a corrupt/hostile section can't drive a huge alloc.
         if allow_chunked:
-            blob = lz4compat.decompress_frame(raw)
+            blob = lz4compat.decompress_frame(raw, max_output_size=uncompressed_size)
         else:
+            lz4compat.guard_size(
+                len(raw), uncompressed_size, lz4compat.MAX_RATIO_LZ4, "LSF section"
+            )
             blob = lz4compat.decompress(raw, uncompressed_size)
     elif method is CompressionMethod.ZSTD:
         try:
@@ -304,9 +310,14 @@ def _read_section(
         except ImportError:
             raise LsfError("zstd-compressed LSF; install bg3forge[zstd]") from None
         try:
+            lz4compat.guard_size(
+                len(raw), uncompressed_size, lz4compat.MAX_RATIO_ZSTD, "LSF section"
+            )
             blob = zstandard.ZstdDecompressor().decompress(
                 raw, max_output_size=uncompressed_size
             )
+        except lz4compat.DecompressionBombError as exc:
+            raise LsfError(f"LSF section: {exc}") from exc
         except zstandard.ZstdError as exc:
             raise LsfError(f"corrupt zstd section: {exc}") from exc
     else:  # pragma: no cover - CompressionMethod is exhaustive

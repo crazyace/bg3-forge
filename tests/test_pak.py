@@ -270,6 +270,104 @@ def test_golden_entry_and_header_bytes():
     assert PakEntry.parse(packed) == entry
 
 
+def test_guard_size_rejects_implausible_declared_size():
+    """A tiny compressed input declaring a huge output is rejected before
+    any native decompressor pre-allocates that many bytes."""
+    from bg3forge.pak.lz4compat import (
+        DecompressionBombError,
+        MAX_RATIO_LZ4,
+        guard_size,
+    )
+
+    guard_size(1000, 200_000, MAX_RATIO_LZ4, "ok")  # 200x — within bound
+    with pytest.raises(DecompressionBombError, match="implausible"):
+        guard_size(100, 1_000_000_000, MAX_RATIO_LZ4, "bomb")  # ~10Mx
+
+
+def test_zlib_decompress_roundtrip_and_corruption():
+    import zlib
+
+    from bg3forge.pak.lz4compat import LZ4Error, zlib_decompress
+
+    payload = b"repeatable stats data " * 500
+    assert zlib_decompress(zlib.compress(payload)) == payload
+    with pytest.raises(LZ4Error, match="corrupt zlib"):
+        zlib_decompress(b"definitely not a zlib stream")
+
+
+def test_zlib_decompress_bounds_expansion():
+    """The self-bound trips when the declared input hint is far smaller
+    than the real expansion (the bomb shape)."""
+    import zlib
+
+    from bg3forge.pak.lz4compat import DecompressionBombError, zlib_decompress
+
+    stream = zlib.compress(b"\x00" * 5_000_000)  # ~5 MB of zeros, tiny stream
+    # Claiming the stream is only a handful of bytes makes 5 MB implausible.
+    with pytest.raises(DecompressionBombError, match="1032"):
+        zlib_decompress(stream, compressed_hint=8)
+
+
+@pytest.mark.skipif(not lz4compat.HAVE_NATIVE_LZ4, reason="lz4 not installed")
+def test_frame_decode_bounded_native():
+    from bg3forge.pak.lz4compat import DecompressionBombError, compress_frame, decompress_frame
+
+    payload = b"the quick brown fox " * 10_000
+    frame = compress_frame(payload)
+    assert decompress_frame(frame, max_output_size=len(payload)) == payload
+    with pytest.raises(DecompressionBombError, match="exceeds bound"):
+        decompress_frame(frame, max_output_size=1000)
+
+
+@pytest.mark.skipif(not lz4compat.HAVE_NATIVE_LZ4, reason="lz4 not installed")
+def test_frame_decode_bounded_pure():
+    """The pure-Python frame decoder honors the same bound (frame built
+    with native lz4, decoded by the fallback)."""
+    import lz4.frame
+
+    from bg3forge.pak.lz4compat import DecompressionBombError, _py_decompress_frame
+
+    # Keep within one frame block: the pure decoder decodes blocks
+    # independently and does not resolve cross-block (linked) matches.
+    payload = b"pure python frame payload " * 300
+    frame = lz4.frame.compress(payload)
+    assert _py_decompress_frame(frame, max_output_size=len(payload)) == payload
+    with pytest.raises(DecompressionBombError, match="exceeds bound"):
+        _py_decompress_frame(frame, max_output_size=200)
+
+
+def test_pak_entry_rejects_decompression_bomb(tmp_path):
+    """End to end: a pak entry whose header lies about its uncompressed
+    size (tiny LZ4 payload, 2 GB declared) fails with PakError rather than
+    attempting a 2 GB allocation."""
+    from bg3forge.pak.format import (
+        FILE_LIST_HEADER_STRUCT,
+        HEADER_STRUCT,
+        CompressionMethod,
+        PakEntry,
+        PakHeader,
+    )
+
+    blob = lz4compat.compress(b"small")
+    entry = PakEntry(
+        name="bomb.bin", offset=HEADER_STRUCT.size, archive_part=0,
+        flags=int(CompressionMethod.LZ4), size_on_disk=len(blob),
+        uncompressed_size=2_000_000_000,
+    )
+    table = lz4compat.compress(entry.pack())
+    file_list = FILE_LIST_HEADER_STRUCT.pack(1, len(table)) + table
+    header = PakHeader(
+        version=18, file_list_offset=HEADER_STRUCT.size + len(blob),
+        file_list_size=len(file_list), flags=0, priority=0,
+        md5=b"\x00" * 16, num_parts=1,
+    )
+    pak_path = tmp_path / "bomb.pak"
+    pak_path.write_bytes(header.pack() + blob + file_list)
+    with PakReader(pak_path) as pak:
+        with pytest.raises(PakError, match="implausible|bomb"):
+            pak.read("bomb.bin")
+
+
 def test_lz4_errors_are_valueerrors():
     """Both LZ4 backends must fail with LZ4Error (a ValueError) — the
     native package's own exceptions don't subclass ValueError and used

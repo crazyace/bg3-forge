@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import zlib
 from pathlib import Path
 from typing import Iterator
 
@@ -159,14 +158,19 @@ def _decompress(
         return raw
     if method is CompressionMethod.ZLIB:
         try:
-            return zlib.decompress(raw)
-        except zlib.error as exc:
+            return lz4compat.zlib_decompress(raw)
+        except lz4compat.LZ4Error as exc:
             raise PakError(f"corrupt zlib data for {name!r}: {exc}") from exc
+        except ValueError as exc:  # DecompressionBombError
+            raise PakError(f"{name!r}: {exc}") from exc
     if method is CompressionMethod.LZ4:
         try:
+            lz4compat.guard_size(len(raw), uncompressed_size, lz4compat.MAX_RATIO_LZ4, name)
             return lz4compat.decompress(raw, uncompressed_size)
         except lz4compat.LZ4Error as exc:
             raise PakError(f"corrupt LZ4 data for {name!r}: {exc}") from exc
+        except ValueError as exc:  # DecompressionBombError
+            raise PakError(f"{name!r}: {exc}") from exc
     if method is CompressionMethod.ZSTD:
         try:
             import zstandard
@@ -175,9 +179,12 @@ def _decompress(
                 f"{name!r} is zstd-compressed; install bg3forge[zstd]"
             ) from None
         try:
+            lz4compat.guard_size(len(raw), uncompressed_size, lz4compat.MAX_RATIO_ZSTD, name)
             return zstandard.ZstdDecompressor().decompress(
                 raw, max_output_size=uncompressed_size
             )
+        except lz4compat.DecompressionBombError as exc:
+            raise PakError(f"{name!r}: {exc}") from exc
         except zstandard.ZstdError as exc:
             raise PakError(f"corrupt zstd data for {name!r}: {exc}") from exc
     raise PakError(f"unknown compression method {method} for {name!r}")

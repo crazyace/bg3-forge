@@ -20,6 +20,8 @@ This keeps the core library dependency-free.
 
 from __future__ import annotations
 
+import zlib
+
 try:  # pragma: no cover - exercised implicitly when lz4 is installed
     import lz4.block as _lz4block
 except ImportError:  # pragma: no cover
@@ -27,9 +29,49 @@ except ImportError:  # pragma: no cover
 
 HAVE_NATIVE_LZ4 = _lz4block is not None
 
+# Worst-case expansion each codec can achieve.  A declared uncompressed
+# size beyond ``compressed_bytes * ratio`` is a corrupt length field or a
+# decompression bomb — reject it before a native decompressor
+# pre-allocates that many bytes.  DEFLATE tops out near 1032:1, an LZ4
+# block near 255:1; zstd is given generous headroom.
+MAX_RATIO_ZLIB = 1032
+MAX_RATIO_LZ4 = 255
+MAX_RATIO_ZSTD = 1024
+_RATIO_SLACK = 4096
+
 
 class LZ4Error(ValueError):
     """Raised when an LZ4 block cannot be decoded."""
+
+
+class DecompressionBombError(ValueError):
+    """A declared uncompressed size is implausible for its input."""
+
+
+def guard_size(compressed_len: int, declared: int, ratio: int, what: str) -> None:
+    """Reject an implausible declared uncompressed size before it drives a
+    pre-allocation (native LZ4/zstd allocate exactly ``declared`` bytes)."""
+    if declared > compressed_len * ratio + _RATIO_SLACK:
+        raise DecompressionBombError(
+            f"{what}: declared size {declared} implausible for "
+            f"{compressed_len} compressed bytes (>{ratio}x)"
+        )
+
+
+def zlib_decompress(data: bytes, compressed_hint: int | None = None) -> bytes:
+    """Inflate a zlib stream, refusing to expand it past DEFLATE's ~1032:1
+    worst case (decompression-bomb guard).  Raises :class:`LZ4Error` on a
+    corrupt stream and :class:`DecompressionBombError` on overflow."""
+    limit = (compressed_hint if compressed_hint is not None else len(data))
+    limit = limit * MAX_RATIO_ZLIB + _RATIO_SLACK
+    obj = zlib.decompressobj()
+    try:
+        out = obj.decompress(data, limit)
+        if obj.unconsumed_tail:
+            raise DecompressionBombError("zlib stream expands beyond ~1032x its input")
+        return out + obj.flush()
+    except zlib.error as exc:
+        raise LZ4Error(f"corrupt zlib stream: {exc}") from exc
 
 
 def decompress(data: bytes, uncompressed_size: int) -> bytes:
@@ -61,31 +103,40 @@ def compress(data: bytes) -> bytes:
     return _py_compress_literals(data)
 
 
-def decompress_frame(data: bytes) -> bytes:
+def decompress_frame(data: bytes, max_output_size: int | None = None) -> bytes:
     """Decompress LZ4 *frame* format data (possibly concatenated frames).
 
-    Raises :class:`LZ4Error` (a ``ValueError``) for corrupt input, with
-    either backend.
+    When ``max_output_size`` is given, decoding is bounded to that many
+    bytes so a malicious frame's content-size hint cannot drive an
+    unbounded allocation; exceeding it raises
+    :class:`DecompressionBombError`.  Raises :class:`LZ4Error` for corrupt
+    input, with either backend.
     """
     if _lz4block is not None:
         import lz4.frame
 
         out = bytearray()
-        pos = 0
-        # lz4.frame handles one frame per call; loop for concatenated frames.
-        while pos < len(data):
+        remaining = data
+        # One frame per decompressor; loop for concatenated frames.  The
+        # bounded max_length lets a bomb be caught before its full output
+        # is materialized, unlike lz4.frame.decompress (which trusts the
+        # frame's own content-size header and pre-allocates from it).
+        while remaining:
+            decoder = lz4.frame.LZ4FrameDecompressor()
+            budget = -1 if max_output_size is None else max_output_size - len(out) + 1
             try:
-                decompressed, bytes_read = lz4.frame.decompress(
-                    data[pos:], return_bytes_read=True
-                )
+                out += decoder.decompress(remaining, budget)
             except RuntimeError as exc:  # lz4.frame's corrupt-input error
                 raise LZ4Error(f"corrupt LZ4 frame: {exc}") from exc
-            out += decompressed
-            if bytes_read <= 0:
-                break
-            pos += bytes_read
+            if max_output_size is not None and len(out) > max_output_size:
+                raise DecompressionBombError(
+                    f"LZ4 frame output exceeds bound {max_output_size}"
+                )
+            if not decoder.eof:
+                raise LZ4Error("truncated LZ4 frame")
+            remaining = decoder.unused_data or b""
         return bytes(out)
-    return _py_decompress_frame(data)
+    return _py_decompress_frame(data, max_output_size)
 
 
 def compress_frame(data: bytes) -> bytes:
@@ -105,7 +156,7 @@ _SKIPPABLE_MIN = 0x184D2A50
 _SKIPPABLE_MAX = 0x184D2A5F
 
 
-def _py_decompress_frame(src: bytes) -> bytes:
+def _py_decompress_frame(src: bytes, max_output_size: int | None = None) -> bytes:
     out = bytearray()
     i = 0
     try:
@@ -140,6 +191,10 @@ def _py_decompress_frame(src: bytes) -> bytes:
                     raise LZ4Error("truncated LZ4 frame block")
                 i += block_size
                 out += block if is_uncompressed else _py_decompress(block, None)
+                if max_output_size is not None and len(out) > max_output_size:
+                    raise DecompressionBombError(
+                        f"LZ4 frame output exceeds bound {max_output_size}"
+                    )
                 if block_checksum:
                     i += 4
             if flg & 0x04:  # content checksum (not verified)
