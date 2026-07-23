@@ -138,6 +138,8 @@ $ bg3forge convert Weapons.lsf Weapons.lsx
 $ bg3forge patches --update
 $ bg3forge doctor       # diagnose the install and environment
 $ bg3forge validate     # parse everything, report any file that fails
+$ bg3forge lint MyMod.pak                        # check your own mod's consistency
+$ bg3forge --data-dir "…/Data" lint MyMod.pak    # …and resolve its base-game references
 $ bg3forge benchmark    # repeatable stage timings + peak RSS
 ```
 
@@ -512,10 +514,15 @@ Python:
   Generated locally from a real install (see
   [docs/data-release.md](docs/data-release.md)) and attached to the
   GitHub release; the tool is what regenerates them each patch.
-* 🔜 **`bg3forge lint`** — point it at *your own* mod `.pak` and get its
-  internal consistency checked: does it parse, do `using` references
-  resolve, do `DisplayName` handles have `.loca` entries, are UUIDs
-  well-formed. Catches the mistakes that ship broken mods, before upload.
+* ✅ **`bg3forge lint`** — point it at *your own* mod `.pak` and get its
+  internal consistency checked: is the `meta.lsx` module manifest present
+  and its `Folder` consistent (the #1 "mod doesn't show up" bug, and it
+  applies to *any* mod — assets and scripts included), does everything
+  parse, are UUIDs well-formed, do `DisplayName` handles have `.loca`
+  entries, and — with `--data-dir` pointing at an install — do `using`
+  chains and equip references (passives/statuses/unlocked spells) resolve
+  against the base game. Catches the mistakes that ship broken mods,
+  before upload.
 * 🔮 **Cross-patch data diff** — record-level "what changed between Patch
   N and N+1" (stats added/removed/changed, renamed boosts), the thing
   that silently breaks mods.

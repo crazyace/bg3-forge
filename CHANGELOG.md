@@ -2,6 +2,31 @@
 
 ## 0.2.0 — unreleased
 
+### API
+
+* Added `bg3forge lint` (and `bg3forge.lint.lint_mod`) — checks a mod
+  `.pak` for internal consistency before it ships:
+  * **Module manifest** — exactly one `Mods/<Folder>/meta.lsx` is present
+    and parses, with a Name, a well-formed UUID, and a `Folder` that
+    matches the directory it lives in (a mismatch loads nothing). This is
+    the most common "my mod doesn't appear in the mod manager" failure,
+    and it applies to *every* mod type — asset and script mods included,
+    not just data mods.
+  * **Format** — every recognized file parses; template UUIDs
+    (`MapKey`/`ParentTemplateId`/`TemplateName`) are well-formed (catches
+    a shipped `<base-template-uuid>` placeholder).
+  * **Localization** — referenced `DisplayName`/`Description` handles have
+    a `.loca` entry (else they render as a raw handle in game).
+  * **References** — when an install is supplied via `--data-dir`,
+    `using` chains and equip references (`PassivesOnEquip`,
+    `StatusOnEquip`, `UnlockSpell(...)`) resolve against the base game.
+
+  A missing/mis-declared `meta.lsx`, a missing `using` target, or a
+  malformed UUID is an error (non-zero exit); a dangling handle,
+  reference, or missing version is a warning. Reference checks are
+  skipped, not failed, without a base install, since a mod is not
+  self-contained.
+
 ### Tooling
 
 * Added `scripts/build_data_release.py` — builds a downloadable dataset
