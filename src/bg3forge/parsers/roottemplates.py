@@ -330,6 +330,17 @@ class RootTemplateIndex:
         self._stats_index = None  # invalidate the reverse indexes
         self._treasure_index = None
 
+    def copy(self) -> "RootTemplateIndex":
+        """An independent index over the same templates.
+
+        Templates are immutable after parsing, so the new index shares
+        them; only the ``map_key`` mapping is duplicated, letting a caller
+        layer more documents on top without re-parsing the originals.
+        """
+        clone = RootTemplateIndex()
+        clone._templates = dict(self._templates)
+        return clone
+
     def resolved(self, map_key: str) -> dict[str, str]:
         """Effective fields for a template with ancestors merged in."""
         fields: dict[str, str] = {}

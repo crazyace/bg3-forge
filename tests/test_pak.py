@@ -270,6 +270,36 @@ def test_golden_entry_and_header_bytes():
     assert PakEntry.parse(packed) == entry
 
 
+def test_parse_all_matches_per_entry_parse():
+    """The bulk iter_unpack path must produce byte-identical entries to
+    the per-offset parse, for both v18 and v15/v16 layouts."""
+    from bg3forge.pak.format import (
+        ENTRY15_STRUCT,
+        ENTRY_SIZE,
+        ENTRY15_SIZE,
+        ENTRY_STRUCT,
+        PakEntry,
+    )
+
+    v18 = b"".join(
+        ENTRY_STRUCT.pack(f"P/f{i}.lsf".encode().ljust(256, b"\x00"),
+                          i * 7 & 0xFFFFFFFF, i % 4, i % 3, 2, 100 + i, 200 + i)
+        for i in range(50)
+    )
+    assert PakEntry.parse_all(v18, 18) == [
+        PakEntry.parse(v18, i * ENTRY_SIZE) for i in range(50)
+    ]
+
+    v15 = b"".join(
+        ENTRY15_STRUCT.pack(f"P/f{i}.lsf".encode().ljust(256, b"\x00"),
+                            i * 9, 100 + i, 200 + i, i % 4, i % 3, 0, 0)
+        for i in range(50)
+    )
+    assert PakEntry.parse_all(v15, 16) == [
+        PakEntry.parse15(v15, i * ENTRY15_SIZE) for i in range(50)
+    ]
+
+
 def test_guard_size_rejects_implausible_declared_size():
     """A tiny compressed input declaring a huge output is rejected before
     any native decompressor pre-allocates that many bytes."""

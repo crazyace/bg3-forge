@@ -201,16 +201,20 @@ class TimelineIndex(ResourceIndex):
             game, _is_timeline_file, lambda data, name: parse_resource(data)
         )
 
+    @cached_property
+    def _by_stem(self) -> dict[str, list[str]]:
+        """Lowercased file stem → timeline paths, built once."""
+        index: dict[str, list[str]] = {}
+        for name in self._sources:
+            stem = name.rsplit("/", 1)[-1].rsplit(".", 1)[0].lower()
+            index.setdefault(stem, []).append(name)
+        return index
+
     def for_dialog(self, dialog: Dialog) -> list[str]:
         """Timeline paths whose file stem matches the dialog's timeline id."""
         if not dialog.timeline_id:
             return []
-        stem = dialog.timeline_id.lower()
-        return [
-            name
-            for name in self._sources
-            if name.rsplit("/", 1)[-1].rsplit(".", 1)[0].lower() == stem
-        ]
+        return list(self._by_stem.get(dialog.timeline_id.lower(), ()))
 
 
 def _is_stats_file(name: str) -> bool:
@@ -392,6 +396,7 @@ class Game:
         #: validate`` reports the same failures with full detail.
         self.load_issues: list[LoadIssue] = []
         self._reader_list: list[PakReader] | None = None
+        self._extracted_files: list[tuple[str, Path]] | None = None
 
     # -- raw collections -----------------------------------------------------
 
@@ -448,13 +453,16 @@ class Game:
         resolves that reference alongside normal ``ParentTemplateId``
         inheritance.
         """
-        index = RootTemplateIndex()
-        for predicate in (_is_roottemplate_file, _is_placed_item_file):
-            for name, data in self._iter_files(predicate):
-                try:
-                    index.add_document(parse_resource(data))
-                except ValueError as exc:
-                    self.load_issues.append(LoadIssue(file=name, error=str(exc)))
+        # RootTemplates are the largest files in the game; `templates`
+        # has already parsed them, so start from a copy of that index and
+        # layer only the placed-item files on top (they load after the
+        # RootTemplates, preserving override order).
+        index = self.templates.copy()
+        for name, data in self._iter_files(_is_placed_item_file):
+            try:
+                index.add_document(parse_resource(data))
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=name, error=str(exc)))
         return index
 
     @cached_property
@@ -1077,10 +1085,7 @@ class Game:
         last-wins rule for the lazy indexes.
         """
         if self.extracted_dir is not None:
-            for file in sorted(self.extracted_dir.rglob("*")):
-                if not file.is_file():
-                    continue
-                rel = file.relative_to(self.extracted_dir).as_posix()
+            for rel, file in self._extracted_file_list():
                 if predicate(rel):
                     yield rel, file.read_bytes()
             return
@@ -1091,6 +1096,19 @@ class Game:
                     winners[entry.name] = (reader, entry)
         for name, (reader, entry) in winners.items():
             yield name, reader.read(entry)
+
+    def _extracted_file_list(self) -> list[tuple[str, Path]]:
+        """Every file under ``extracted_dir`` as (posix-relative, path),
+        walked and sorted once.  ~18 lazily-built collections each iterate
+        this; before caching, each re-ran ``rglob('*')`` plus a per-file
+        ``is_file()`` over the whole tree."""
+        if self._extracted_files is None:
+            self._extracted_files = [
+                (file.relative_to(self.extracted_dir).as_posix(), file)
+                for file in sorted(self.extracted_dir.rglob("*"))
+                if file.is_file()
+            ]
+        return self._extracted_files
 
     def _open_readers(self) -> list[PakReader]:
         """All primary pak readers in (priority, name) load order.
@@ -1131,10 +1149,7 @@ class Game:
         reading any content — the cheap half of indexed datasets."""
         sources: dict[str, Path] = {}
         if self.extracted_dir is not None:
-            for file in sorted(self.extracted_dir.rglob("*")):
-                if not file.is_file():
-                    continue
-                rel = file.relative_to(self.extracted_dir).as_posix()
+            for rel, file in self._extracted_file_list():
                 if predicate(rel):
                     sources[rel] = file
             return sources
