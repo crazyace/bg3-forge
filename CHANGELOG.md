@@ -93,6 +93,19 @@
   located with a single C-level scan and descrambled with one
   `bytes.translate` pass, and the fixed-width helpers use precompiled
   `Struct` objects.
+* `item_templates` no longer re-parses every RootTemplate file. It now
+  builds on a copy of the already-parsed `templates` index (RootTemplates
+  are the largest files in the game), layering only the placed-item
+  files — cutting the graph's most expensive parse in half.
+* In extracted-directory mode the tree is walked and sorted once and
+  cached, instead of `rglob('*')` plus a per-file `stat` on every one of
+  the ~18 lazily-built collections.
+* `game.timelines.for_dialog` resolves via a prebuilt stem→paths index
+  instead of a full linear scan (with per-entry `rsplit`/`lower`) on
+  every call.
+* Pak file lists parse via a single `struct.iter_unpack` pass rather than
+  a per-entry offset-and-unpack loop (~1.3x on the hundreds of thousands
+  of entries in a retail install).
 
 ### Fixed (parsers)
 

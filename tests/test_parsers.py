@@ -26,6 +26,7 @@ from bg3forge.parsers import (
     write_stats_document,
     RootTemplateIndex,
 )
+from bg3forge.parsers.lsx import LsxAttribute, LsxNode
 from bg3forge.parsers.progressions import parse_progressions
 from bg3forge.parsers.spelllists import parse_spell_lists
 
@@ -431,6 +432,23 @@ def test_root_template_inheritance():
     assert resolved["Icon"] == "Item_Generic"    # inherited from parent
     assert resolved["Name"] == "WPN_Longsword"   # own value wins
     assert parse_root_templates(parse_lsx(ROOTTEMPLATE_LSX))[0].map_key.startswith("0000base")
+
+
+def test_root_template_index_copy_is_independent():
+    """copy() lets item_templates layer placed items on top of the parsed
+    RootTemplates without re-parsing them or mutating the original."""
+    base = RootTemplateIndex()
+    base.add_document(parse_lsx(ROOTTEMPLATE_LSX))
+    clone = base.copy()
+    assert len(clone) == len(base)
+    assert clone.resolved("1111aaaa-0000-0000-0000-000000000001")["Icon"] == "Item_Generic"
+
+    extra = LsxNode(id="GameObjects")
+    extra.attributes["MapKey"] = LsxAttribute(id="MapKey", type="FixedString", value="new-key")
+    extra.attributes["Name"] = LsxAttribute(id="Name", type="LSString", value="Placed")
+    clone.add_document(build_templates_document([extra]))
+    assert "new-key" in clone and "new-key" not in base  # original untouched
+    assert len(clone) == len(base) + 1
 
 
 # -- meta.lsx / Version64 ----------------------------------------------------

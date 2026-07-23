@@ -585,3 +585,7 @@ def test_game_from_extracted_dir(tmp_path, sample_pak):
     game = Game(extracted_dir=out)
     assert {item.name for item in game.items} >= {"WPN_Longsword"}
     assert game.spells[0].display_name == "Fireball"
+    # The tree is walked once and cached, not re-globbed per collection.
+    assert game._extracted_file_list() is game._extracted_file_list()
+    names = {rel for rel, _ in game._extracted_file_list()}
+    assert "Public/Shared/Stats/Generated/Data/Weapon.txt" in names

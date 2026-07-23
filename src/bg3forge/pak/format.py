@@ -193,6 +193,26 @@ class PakEntry:
             uncompressed_size=uncompressed,
         )
 
+    @classmethod
+    def parse_all(cls, table: bytes, version: int) -> list["PakEntry"]:
+        """Parse a whole file-list table at once.
+
+        ``struct.iter_unpack`` walks the fixed-size records in C, avoiding
+        a Python-level offset multiply and method dispatch per entry — the
+        file list holds hundreds of thousands of entries across a retail
+        install.  ``table`` must be exactly ``num_files * entry_size``
+        bytes (the caller sizes it so).
+        """
+        if version < 18:  # 296-byte FileEntry15
+            return [
+                cls(rn.rstrip(b"\x00").decode("utf-8", "replace"), off, part, flags, sod, unc)
+                for rn, off, sod, unc, part, flags, _crc, _unk in ENTRY15_STRUCT.iter_unpack(table)
+            ]
+        return [
+            cls(rn.rstrip(b"\x00").decode("utf-8", "replace"), lo | (hi << 32), part, flags, sod, unc)
+            for rn, lo, hi, part, flags, sod, unc in ENTRY_STRUCT.iter_unpack(table)
+        ]
+
     def pack(self) -> bytes:
         raw_name = self.name.encode("utf-8")
         if len(raw_name) > NAME_SIZE:
