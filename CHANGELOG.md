@@ -43,6 +43,12 @@
   validates, and compresses retail data. Interactive validation also shows
   the current pak on a self-overwriting detail line; progress is written to
   stderr so normal output remains automation-friendly.
+* Data releases now fail closed: unresolved progression passives,
+  progression spell lists, or spell-list spells are validation issues
+  rather than informational counters, and `build_data_release.py` exits
+  without writing a bundle when coverage is not clean. This prevents a
+  dangling relationship from coexisting with a misleading `OK` report
+  and healthy manifest.
 
 ### Mod validation
 
