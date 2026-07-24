@@ -158,6 +158,11 @@ def build(args: argparse.Namespace) -> Path:
     else:
         validation_detail = "skipped for extracted data"
     progress.finish(validation_detail)
+    if game.data_dir is not None and not report.ok:
+        raise RuntimeError(
+            f"source validation failed with {len(report.issues)} issue(s); "
+            "release bundle was not written"
+        )
 
     progress.start("Writing release bundle")
     manifest = {
@@ -210,7 +215,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         bundle = build(args)
-    except GameNotFoundError as exc:
+    except (GameNotFoundError, RuntimeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
