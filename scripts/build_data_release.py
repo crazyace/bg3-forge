@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 import zipfile
 from pathlib import Path
 
@@ -48,6 +49,49 @@ DATASETS = (
     "items", "spells", "passives", "statuses",
     "characters", "progressions", "spell_lists",
 )
+
+
+class _Progress:
+    """Numbered build stages with an optional self-overwriting detail line."""
+
+    def __init__(self, total: int, stream=None):
+        self.total = total
+        self.stream = stream or sys.stderr
+        self.index = 0
+        self.started = 0.0
+        self._live_width = 0
+
+    def start(self, label: str) -> None:
+        self.index += 1
+        self.started = time.perf_counter()
+        width = len(str(self.total))
+        print(
+            f"[{self.index:>{width}}/{self.total}] {label}...",
+            file=self.stream,
+            flush=True,
+        )
+
+    def update(self, message: str) -> None:
+        """Show validation detail only when the stream is a terminal."""
+        if not getattr(self.stream, "isatty", lambda: False)():
+            return
+        line = f"  {message}"
+        padded = line.ljust(self._live_width)
+        self._live_width = max(self._live_width, len(line))
+        print(f"\r{padded}", end="", file=self.stream, flush=True)
+
+    def finish(self, detail: str = "") -> None:
+        if self._live_width:
+            print(
+                "\r" + " " * self._live_width + "\r",
+                end="",
+                file=self.stream,
+                flush=True,
+            )
+            self._live_width = 0
+        elapsed = time.perf_counter() - self.started
+        suffix = f" — {detail}" if detail else ""
+        print(f"  done{suffix} ({elapsed:.1f}s)", file=self.stream, flush=True)
 
 
 def _detect_game_version(game: Game) -> str:
@@ -75,6 +119,8 @@ def _open_game(args: argparse.Namespace) -> Game:
 
 
 def build(args: argparse.Namespace) -> Path:
+    progress = _Progress(len(DATASETS) + 3)
+    print("Building BG3 Forge data release", file=sys.stderr, flush=True)
     game = _open_game(args)
     staging = args.output / "bundle"
     (staging / "json").mkdir(parents=True, exist_ok=True)
@@ -82,27 +128,38 @@ def build(args: argparse.Namespace) -> Path:
 
     counts: dict[str, int] = {}
     for dataset in DATASETS:
+        progress.start(f"Exporting {dataset}")
         objects = list(getattr(game, dataset))
         counts[dataset] = len(objects)
         export_sqlite(objects, staging / "bg3forge-data.sqlite", table=dataset)
         export_json(objects, staging / "json" / f"{dataset}.json")
         export_csv(objects, staging / "csv" / f"{dataset}.csv")
-        print(f"  {dataset:14s} {len(objects):>6,}")
+        progress.finish(f"{len(objects):,} rows")
 
+    progress.start("Detecting game version")
     game_version = _detect_game_version(game)
+    progress.finish(game_version)
 
     # Coverage/provenance: a validation sweep says whether every recognized
     # file in the install parsed cleanly, so consumers know the dataset was
     # built from a fully-understood install.
+    progress.start("Validating source archives")
     coverage: dict[str, object] = {}
     if game.data_dir is not None:
-        report = validate_data(game.data_dir)
+        report = validate_data(game.data_dir, progress=progress.update)
         coverage = {
             "ok": report.ok,
             "issues": len(report.issues),
             "paks": report.counts.get("paks", 0),
         }
+        validation_detail = (
+            f"{coverage['paks']:,} paks, {coverage['issues']:,} issues"
+        )
+    else:
+        validation_detail = "skipped for extracted data"
+    progress.finish(validation_detail)
 
+    progress.start("Writing release bundle")
     manifest = {
         "bg3forge_version": __version__,
         "game_version": game_version,
@@ -121,6 +178,7 @@ def build(args: argparse.Namespace) -> Path:
     label = args.label or game_version
     bundle = args.output / f"bg3forge-data-{label}.zip"
     _zip_dir(staging, bundle)
+    progress.finish(f"{bundle.stat().st_size / 1_000_000:.1f} MB")
     return bundle
 
 
