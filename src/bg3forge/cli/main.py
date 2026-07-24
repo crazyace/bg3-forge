@@ -109,6 +109,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     lint.add_argument("pak", type=Path, help="the mod .pak to check")
 
+    lookup = sub.add_parser(
+        "lookup",
+        help="resolve a name / UUID / handle to its data and cross-references",
+    )
+    lookup.add_argument("query", help="a stats name, template/tag UUID, or h... handle")
+
     benchmark = sub.add_parser(
         "benchmark", help="time each pipeline stage against the game data"
     )
@@ -340,6 +346,17 @@ def _dispatch(args) -> int:
                 base.close()
         print(format_report(report))
         return 0 if report.ok else 1
+
+    if args.command == "lookup":
+        from ..lookup import format_report, lookup
+
+        game = _open_game(args)
+        try:
+            result = lookup(game, args.query)
+        finally:
+            game.close()
+        print(format_report(result))
+        return 0 if (result.found or result.suggestions) else 1
 
     if args.command == "validate":
         from ..validate import format_report, validate_data

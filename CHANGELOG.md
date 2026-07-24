@@ -2,6 +2,17 @@
 
 ## 0.2.0 — unreleased
 
+### API
+
+* Added `bg3forge lookup <query>` (and `bg3forge.lookup.lookup`) — resolve
+  a stats name, a template/tag UUID, or an `h…` localization handle to a
+  summary with cross-references: an item's granted passives/statuses/
+  spells, tags, and owner templates; the reverse edges for a
+  spell/passive/status (which items or progressions grant it); a template
+  or tag by UUID; a handle to its text. A partial name returns ranked
+  suggestions. Answers the "what is this / what's its UUID / what grants
+  it" questions modders hit constantly.
+
 ### Packaging
 
 * BG3 Forge is now typed for downstream consumers: the package ships a
