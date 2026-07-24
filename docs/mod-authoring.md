@@ -1,14 +1,20 @@
-# Mod authoring — retail load test
+# Mod authoring — retail verification
 
-The authoring primitives and the `Mod` capstone are verified by
-round-tripping every file back through Forge's own parsers. That proves
-the output matches *the game's format*. It does not yet prove *the game
-accepts it* — the equivalent of the read side's retail validation gate.
+The authoring primitives and the `Mod` capstone are verified both by
+round-tripping every generated file through Forge's parsers and by loading
+the resulting mods in a retail Patch 8 game. Generated armor, weapons,
+consumables, passives, statuses, and spells have loaded successfully; items
+have appeared in base-game treasure, scrolls have cast and taught custom
+spells, and custom spells have appeared in class level-up selection.
 
-This checklist is that gate. Run it once against a real install to turn
-"structurally correct" into "actually loads."
+The detailed results and the operational lessons discovered during those
+checks are recorded in [the retail baseline](baseline.md#mod-authoring--retail-verified-2026-07-22).
+This checklist documents the repeatable smoke test for future releases and
+game patches.
 
-## Build a test mod
+## Reproduce the verification
+
+### Build a test mod
 
 ```python
 from bg3forge import Mod
@@ -37,14 +43,14 @@ plate = game.items["ARM_Body_Plate"]         # or any armor you want to clone
 print(plate.owner_templates[0].map_key)      # -> use as parent_template
 ```
 
-## Install and load
+### Install and load
 
 1. Copy `ForgeSmokeTest.pak` into the BG3 `Mods` folder
    (`%LOCALAPPDATA%\Larian Studios\Baldur's Gate 3\Mods` on Windows).
 2. Enable the mod in your mod manager (or add it to `modsettings.lsx`).
 3. Launch the game and load or start a save.
 
-## Verify (in order — each rules out a layer)
+### Verify (in order — each rules out a layer)
 
 - [ ] **The game boots with the mod enabled.** A malformed `meta.lsx`
       usually shows up here (mod missing from the list, or a load error).
@@ -61,7 +67,7 @@ print(plate.owner_templates[0].map_key)      # -> use as parent_template
 - [ ] **The visuals render.** The item should use the `parent_template`'s
       appearance rather than a placeholder.
 
-## If something fails
+### If something fails
 
 Note which checkbox failed and what you saw — that isolates the layer:
 
