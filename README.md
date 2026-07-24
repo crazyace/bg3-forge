@@ -140,6 +140,7 @@ $ bg3forge doctor       # diagnose the install and environment
 $ bg3forge validate     # parse everything, report any file that fails
 $ bg3forge lint MyMod.pak                        # check your own mod's consistency
 $ bg3forge --data-dir "…/Data" lint MyMod.pak    # …and resolve its base-game references
+$ bg3forge lookup WPN_Longsword                  # resolve a name/UUID/handle + cross-refs
 $ bg3forge benchmark    # repeatable stage timings + peak RSS
 ```
 
@@ -563,8 +564,11 @@ Python:
 * 🔮 **Cross-patch data diff** — record-level "what changed between Patch
   N and N+1" (stats added/removed/changed, renamed boosts), the thing
   that silently breaks mods.
-* 🔮 **`bg3forge lookup <name>`** — resolve a name ↔ display name ↔ UUID
-  ↔ handle ↔ what grants it, the lookup modders do constantly.
+* ✅ **`bg3forge lookup <query>`** — resolve a stats name, a template/tag
+  UUID, or an `h…` localization handle to its display name, description,
+  UUID, icon, and cross-references (what an item grants; which items or
+  progressions grant a spell/passive/status), the lookup modders do
+  constantly. A partial name returns ranked suggestions.
 
 ## Development
 
