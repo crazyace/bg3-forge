@@ -74,6 +74,35 @@ def test_build_data_release_is_reproducible(tmp_path, data_dir):
     assert hashes[0] == hashes[1]  # same install -> byte-identical bundle
 
 
+def test_build_data_release_refuses_failed_validation(
+    tmp_path, data_dir, monkeypatch, capsys
+):
+    mod = _load_script()
+    from bg3forge.validate import ValidationIssue, ValidationReport
+
+    report = ValidationReport(
+        issues=[
+            ValidationIssue(
+                file="<progressions>",
+                stage="progression-passives",
+                error="1 unresolved passive reference",
+            )
+        ]
+    )
+    monkeypatch.setattr(mod, "validate_data", lambda *_args, **_kwargs: report)
+
+    out = tmp_path / "dist"
+    code = mod.main(
+        ["--data-dir", str(data_dir), "--output", str(out), "--label", "bad"]
+    )
+
+    assert code == 1
+    captured = capsys.readouterr()
+    assert "release bundle was not written" in captured.err
+    assert "attach it to a release" not in captured.out
+    assert not (out / "bg3forge-data-bad.zip").exists()
+
+
 class _TTYBuffer(io.StringIO):
     def isatty(self):
         return True
