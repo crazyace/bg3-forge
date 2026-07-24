@@ -192,11 +192,10 @@ pip install bg3forge            # core: zero dependencies
 pip install "bg3forge[all]"     # native LZ4, zstd, icon pipeline, YAML
 ```
 
-> **Note:** this README documents the `main` branch. The released
-> [0.1.0](https://pypi.org/project/bg3forge/0.1.0/) predates the mod
-> authoring layer (`Mod`, `new_armor`, …) and the
-> progressions/classes/races graph — for those, [install from
-> source](#development) until 0.2.0 ships.
+> **Version note:** BG3 Forge 0.2.0 includes the mod-authoring layer,
+> progression/class/race graph, mod linting, resolved-data releases, and
+> forgiving lookup workflow documented here. Development on `main` may move
+> ahead after release; pin `bg3forge>=0.2,<0.3` for the stable 0.2 API.
 
 The core library has **no required dependencies** — it includes a
 pure-Python LZ4 block codec, so it installs and runs anywhere Python does.

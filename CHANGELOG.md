@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.2.0 — unreleased
+## 0.2.0 — 2026-07-23
 
-### API
+### Lookup
 
 * Added `bg3forge lookup <query>` (and `bg3forge.lookup.lookup`) — resolve
   a stats name, a template/tag UUID, or an `h…` localization handle to a
@@ -39,7 +39,7 @@
   (the zero-dependency core makes this clean), the public-surface /
   API-stability policy, and the request to credit downstream.
 
-### API
+### Mod validation
 
 * Added `bg3forge lint` (and `bg3forge.lint.lint_mod`) — checks a mod
   `.pak` for internal consistency before it ships:
@@ -80,7 +80,7 @@
   semicolon-delimited scalar values; default JSON/YAML remains nested and
   lossless.
 
-### API
+### Game graph
 
 * Added `game.find_files(pattern)` — archived paths matching a glob or
   substring, mapped to their source pak (or extracted file), reading no
@@ -141,6 +141,10 @@
 
 ### Docs & CI
 
+* CI now builds the sdist and wheel on every pull request, runs `twine check`,
+  verifies the two version declarations and zero-dependency metadata,
+  rejects stray files in the wheel, and smoke-tests the installed CLI/API
+  from a fresh virtual environment.
 * The README execution guard is now strict about `NameError`: blocks
   share one namespace (the README is a progressive narrative), a
   `NameError` is tolerated only for documented placeholders or names

@@ -1,42 +1,66 @@
 # Release checklist
 
-Steps for cutting a bg3forge release. Written for `0.1.0`; reuse for
-every release.
+Use this checklist for every BG3 Forge release. Prepare a release-candidate
+pull request first; do not create the tag or GitHub release until the
+automated and retail-install gates below pass.
 
-## 1. Freshness
+## 1. Release candidate
 
-- [ ] `pytest` — all green
-- [ ] Latest `main` GitHub Actions CI is green across the full OS/Python
-      matrix and the zero-dependency job
-- [ ] **Read the entire README top to bottom** against the current
-      code. Examples and roadmaps update themselves during development;
-      inventory sections (feature lists, project layout tree, extras
-      table) drift silently. This step exists because they have before.
-- [ ] `CHANGELOG.md`: move the version from "unreleased" to dated,
-      confirm it covers everything `git log` since the last tag says
-- [ ] Version in `pyproject.toml` and `src/bg3forge/__init__.py` agree
+- [ ] The release-candidate pull request is green across the full
+      OS/Python matrix, the zero-dependency job, and the built-package job.
+- [ ] **Read the entire README top to bottom** against the current code.
+      Examples and roadmaps update during development; inventory sections
+      such as feature lists, the project tree, and extras table can drift
+      silently.
+- [ ] Date the release section in `CHANGELOG.md` and reconcile it with
+      every commit since the previous tag.
+- [ ] Set the same final version in `pyproject.toml` and
+      `src/bg3forge/__init__.py`.
+- [ ] Review `docs/releases/<version>.md` as the user-facing GitHub,
+      PyPI, and Nexus announcement.
+- [ ] Confirm the release tag will be `v<version>`.
 
-## 2. Retail validation (needs a machine with the game)
+## 2. Retail validation
 
-- [ ] `bg3forge doctor` — all ✓
-- [ ] `bg3forge validate --max-issues 999` — exit 0
-- [ ] `bg3forge benchmark` — no unexplained regression vs
-      `docs/baseline.md`; update the baseline if the numbers moved for
-      a known reason (new stages, new datasets)
+These checks require a machine with Baldur's Gate 3 installed:
+
+```console
+bg3forge doctor
+bg3forge validate --max-issues 999
+bg3forge benchmark
+python scripts/build_data_release.py
+```
+
+- [ ] `doctor` reports all checks healthy.
+- [ ] `validate` exits 0 with no unexplained issues.
+- [ ] `benchmark` has no unexplained regression against
+      `docs/baseline.md`; update the baseline for intentional changes.
+- [ ] The data-release script produces
+      `dist/bg3forge-data-<game-version>.zip`.
+- [ ] The bundle's `MANIFEST.json` records the expected BG3 Forge
+      version, retail game version, dataset counts, and successful coverage.
 
 ## 3. Package
 
-- [ ] `python -m build`
-- [ ] `python -m twine check dist/*`
-- [ ] Wheel contains only `bg3forge/**` (no tests, no docs):
-      `python -m zipfile -l dist/bg3forge-<ver>-py3-none-any.whl`
-- [ ] Fresh-venv smoke test:
+CI's **Build and smoke-test distributions** job is the authoritative
+package gate. It automatically:
 
-      python -m venv /tmp/relcheck && /tmp/relcheck/bin/pip install dist/*.whl
-      /tmp/relcheck/bin/bg3forge --version
-      /tmp/relcheck/bin/python -c "from bg3forge import Game"
+- builds the sdist and wheel;
+- runs `twine check`;
+- confirms both source version declarations match the wheel metadata;
+- rejects tests, docs, or other stray wheel contents;
+- confirms the core package has zero required dependencies; and
+- installs the wheel into a fresh virtual environment, then exercises the
+  CLI and public Python API.
 
-- [ ] The core install pulls **zero dependencies** (watch the pip output)
+To reproduce the build locally:
+
+```console
+python -m pip install --upgrade build twine
+python -m build
+python -m twine check dist/*
+python scripts/check_release_artifact.py dist/bg3forge-<version>-py3-none-any.whl
+```
 
 ## 4. Publish
 
@@ -44,23 +68,38 @@ The repository publishes through `.github/workflows/publish.yml`. Its
 build job has read-only repository access; only the separate publish job
 can request an OIDC token, and no long-lived PyPI token is stored.
 
-First release only:
+One-time setup, if it is not already configured:
 
-- [ ] Create a protected GitHub environment named `pypi`
-- [ ] Register a pending PyPI trusted publisher with these exact values:
-      project `bg3forge`, owner `crazyace`, repository `bg3-forge`,
-      workflow `publish.yml`, environment `pypi`
+- [ ] Create a protected GitHub environment named `pypi`.
+- [ ] Register a PyPI trusted publisher with project `bg3forge`, owner
+      `crazyace`, repository `bg3-forge`, workflow `publish.yml`, and
+      environment `pypi`.
 
-Every release:
+For every release:
 
-- [ ] Tag: `git tag v<ver> && git push origin v<ver>`
-- [ ] Publish a GitHub release for that tag with the changelog section as
-      its body; this triggers the trusted-publisher workflow
-- [ ] Confirm the `Publish to PyPI` workflow built, checked, and uploaded
-      both the sdist and wheel
-- [ ] Verify: `pip install bg3forge==<ver>` from a clean venv
+- [ ] Merge the release-candidate pull request.
+- [ ] Tag the exact merge commit:
+      `git tag v<version> && git push origin v<version>`.
+- [ ] Publish a GitHub release for that tag using
+      `docs/releases/<version>.md` as its body. Publishing the release
+      triggers the trusted-publisher workflow.
+- [ ] Confirm the **Publish to PyPI** workflow built, checked, and uploaded
+      both the sdist and wheel.
+- [ ] Attach the retail data bundle:
+      `gh release upload v<version> dist/bg3forge-data-<game-version>.zip`.
+- [ ] Verify `pip install bg3forge==<version>` in a clean environment.
+- [ ] Verify the GitHub release displays the Python distributions, data
+      bundle, and final release notes.
 
-## 5. After
+## 5. Community announcement
 
-- [ ] Bump the version to the next `.dev0` in both places
-- [ ] Start the next "unreleased" section in `CHANGELOG.md`
+- [ ] Reuse the user-focused release notes for Nexus and community posts.
+- [ ] State clearly that BG3 Forge is a toolkit, not an in-game mod and not
+      something to install through BG3 Mod Manager.
+- [ ] Link the GitHub release, PyPI package, documentation, and patch-labeled
+      data bundle.
+
+## 6. After
+
+- [ ] Bump both version declarations to the next `.dev0`.
+- [ ] Start the next `unreleased` section in `CHANGELOG.md`.
