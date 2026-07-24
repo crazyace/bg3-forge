@@ -241,6 +241,7 @@ class StatsCollection:
         # the earlier definition; resolution needs those older layers.
         self._layers: dict[str, list[StatsEntry]] = {}
         self.globals: dict[str, str] = {}  # key "Name","Value" constants
+        self._resolved_type_cache: dict[str, str] = {}
         for entry in entries:
             self.add(entry)
 
@@ -260,6 +261,9 @@ class StatsCollection:
         # Later definitions override earlier ones, mirroring pak priority.
         self._entries[entry.name] = entry
         self._layers.setdefault(entry.name, []).append(entry)
+        # A new base or patch layer can change the inherited type of this
+        # entry and anything that uses it.
+        self._resolved_type_cache.clear()
 
     def load_text(self, text: str, source: str | None = None) -> None:
         document = parse_stats_document(text, source)
@@ -276,8 +280,43 @@ class StatsCollection:
             self.load_file(path)
 
     def by_type(self, *types: str) -> list[StatsEntry]:
+        """Entries whose effective type matches one of the requested types.
+
+        Patch layers and derived entries may omit type and inherit it
+        through using. Looking only at the latest definition's raw type
+        drops those entries from every typed model collection.
+        """
         wanted = set(types)
-        return [e for e in self._entries.values() if e.type in wanted]
+        return [
+            entry
+            for entry in self._entries.values()
+            if self.resolved_type(entry.name) in wanted
+        ]
+
+    def resolved_type(self, name: str) -> str:
+        """Return the nearest explicit type along the inheritance chain."""
+        if name in self._resolved_type_cache:
+            return self._resolved_type_cache[name]
+
+        seen_ids: set[int] = set()
+        cursor = self._entries.get(name)
+        while cursor is not None:
+            if id(cursor) in seen_ids:
+                raise StatsParseError(f"inheritance cycle at {cursor.name!r}")
+            seen_ids.add(id(cursor))
+            if cursor.type:
+                self._resolved_type_cache[name] = cursor.type
+                return cursor.type
+            target = cursor.using
+            if target is None:
+                break
+            if target == cursor.name:
+                cursor = self._previous_layer(cursor)
+            else:
+                cursor = self._entries.get(target)
+
+        self._resolved_type_cache[name] = ""
+        return ""
 
     def resolved(self, name: str) -> dict[str, str]:
         """Effective key/value data for ``name`` with inheritance applied.
