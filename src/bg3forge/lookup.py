@@ -9,6 +9,7 @@ ranked suggestions instead.
 
 from __future__ import annotations
 
+import textwrap
 import uuid as _uuid
 from dataclasses import dataclass, field
 
@@ -23,8 +24,12 @@ _KINDS = (
     ("character", "characters"),
 )
 
+_WRAP_WIDTH = 78  # target line width for the value column
 _MAX_SUGGESTIONS = 25
-_MAX_LIST = 12
+# Cross-reference lists (e.g. "learnable by") are shown in full for any
+# realistic query; the cap only guards a pathological lookup (a passive on
+# hundreds of characters) and always reports the honest overflow count.
+_MAX_LIST = 60
 
 
 @dataclass
@@ -255,9 +260,18 @@ def format_report(result: LookupResult) -> str:
     for section in result.sections:
         lines.append(section.title)
         lines.append("-" * len(section.title))
-        width = max((len(label) for label, _ in section.rows), default=0)
+        label_width = max((len(label) for label, _ in section.rows), default=0)
+        indent = 2 + label_width + 2
+        avail = max(24, _WRAP_WIDTH - indent)
         for label, value in section.rows:
-            lines.append(f"  {label:<{width}}  {value}")
+            # Wrap long values (a list of classes, a description) onto
+            # continuation lines aligned under the value column, so nothing
+            # is truncated and nothing runs off into a ragged soft-wrap.
+            wrapped = textwrap.wrap(
+                value, width=avail, break_long_words=False, break_on_hyphens=False
+            ) or [""]
+            lines.append(f"  {label:<{label_width}}  {wrapped[0]}")
+            lines.extend(" " * indent + cont for cont in wrapped[1:])
         lines.append("")
     if result.suggestions:
         shown = len(result.suggestions)
