@@ -1,7 +1,9 @@
 # BG3 Forge
 
-BG3 Forge is an open-source toolkit for extracting, parsing, and exporting
-Baldur's Gate 3 assets and game data into developer-friendly formats.
+BG3 Forge is an open-source data and mod-authoring toolkit for Baldur's
+Gate 3. It reads an installed copy of the game into a connected,
+developer-friendly model, then uses the same foundations to generate,
+package, and validate mods.
 
 ## Why?
 
@@ -19,6 +21,28 @@ a typed Python API out. Same input, byte-identical output, every time.
 Python module; the `bg3forge` command is a thin layer of glue on top. Other
 projects can import the library directly instead of invoking external
 scripts.
+
+## What this gives the community
+
+* **Find answers in the installed game.** `bg3forge lookup` resolves names,
+  UUIDs, localization handles, and the relationships between items, spells,
+  passives, statuses, characters, classes, and progressions.
+* **Catch broken mods before upload.** `bg3forge lint` checks a mod's manifest,
+  formats, UUIDs, localization, and — when an install is available — its
+  references to base-game content.
+* **Build new content programmatically.** The `Mod` API creates armor,
+  weapons, consumables, passives, statuses, spells, and class spell-list
+  additions, then packages them into a loadable `.pak`.
+* **Power other community tools.** The typed Python API and deterministic
+  exporters provide a reusable engine for GUIs, planners, databases, bots,
+  and mod-authoring pipelines.
+* **Publish resolved data for non-Python users.** Release tooling produces
+  patch-labeled SQLite, JSON, and CSV bundles for wiki editors,
+  theorycrafters, and tool authors.
+
+Forge complements LSLib, BG3 Modders Multitool, BG3 Mod Manager, Script
+Extender, and the BG3 Community Library. It is the programmatic data and
+authoring layer alongside them, not a replacement for them.
 
 ## What it looks like
 
@@ -112,7 +136,7 @@ mod.new_armor(
 mod.build("MyArmors.pak")
 ```
 
-See [Mod authoring](#mod-authoring-experimental) below for the full API.
+See [Mod authoring](#mod-authoring) below for the full API.
 
 And from the command line:
 

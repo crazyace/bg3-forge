@@ -83,7 +83,7 @@ project's *actual* needs wins.
 
 1. Fork and create a topic branch.
 2. Add tests for anything you fix or add (`pytest` must pass; CI runs
-   Linux/macOS/Windows on Python 3.10–3.12, plus a no-dependency job).
+   Linux/macOS/Windows on Python 3.10–3.13, plus a no-dependency job).
 3. Keep commits focused with clear messages.
 4. Open a pull request describing *what* and *why*; link related issues.
 

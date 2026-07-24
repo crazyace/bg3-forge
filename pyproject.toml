@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "bg3forge"
 version = "0.2.0.dev0"
-description = "Toolkit for extracting, parsing, and exporting Baldur's Gate 3 assets and game data"
+description = "Data, inspection, validation, and mod-authoring toolkit for Baldur's Gate 3"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -40,6 +40,9 @@ bg3forge = "bg3forge.cli.main:main"
 
 [project.urls]
 Homepage = "https://github.com/crazyace/bg3-forge"
+Documentation = "https://github.com/crazyace/bg3-forge#readme"
+Issues = "https://github.com/crazyace/bg3-forge/issues"
+Changelog = "https://github.com/crazyace/bg3-forge/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["src"]
