@@ -69,6 +69,11 @@
   for a given install. This is the *data-export release* step: the
   resolved data is published to the community — who mostly don't run
   Python — as a release asset. See [docs/data-release.md](docs/data-release.md).
+* CSV/SQLite exports (and flattened JSON) now expand progression and
+  spell-list `fields` mappings into queryable `fields.<Key>` columns.
+  List columns such as `subclass_ids` and `spell_names` use stable
+  semicolon-delimited scalar values; default JSON/YAML remains nested and
+  lossless.
 
 ### API
 
