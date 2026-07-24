@@ -17,10 +17,11 @@ def export_json(
 ) -> Path:
     """Write objects as a JSON array.
 
-    With ``flatten=False`` (default) records keep their nested ``data``
-    mapping; with ``flatten=True`` the ``data.<Key>`` layout used by the
-    tabular exporters is written instead.  Keys are sorted for
-    deterministic output.
+    With ``flatten=False`` (default) dataclass records keep their nested
+    mappings and lists.  With ``flatten=True``, raw ``data`` / ``fields``
+    mappings become namespaced columns and list-valued model fields become
+    semicolon-delimited scalars, matching the tabular exporters.  Keys are
+    sorted for deterministic output.
     """
     path = ensure_parent(path)
     if flatten:

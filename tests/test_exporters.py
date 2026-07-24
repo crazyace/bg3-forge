@@ -6,6 +6,8 @@ import pytest
 
 from bg3forge.exporters import export_csv, export_json, export_markdown, export_sqlite, export_yaml
 from bg3forge.models import Spell
+from bg3forge.parsers.progressions import Progression
+from bg3forge.parsers.spelllists import SpellList
 
 
 @pytest.fixture
@@ -95,3 +97,70 @@ def test_export_yaml(tmp_path, spells):
     path = export_yaml(spells, tmp_path / "spells.yaml")
     records = yaml.safe_load(path.read_text("utf-8"))
     assert records[0]["name"] == "Projectile_Fireball"
+
+
+def test_export_csv_flattens_progression_fields_and_lists(tmp_path):
+    progression = Progression(
+        uuid="11111111-1111-1111-1111-111111111111",
+        name="Wizard",
+        table_uuid="22222222-2222-2222-2222-222222222222",
+        level=2,
+        progression_type=0,
+        fields={
+            "Boosts": "ActionResource(SpellSlot,1,2)",
+            "PassivesAdded": "SculptSpells;ArcaneRecovery",
+        },
+        subclass_ids=[
+            "33333333-3333-3333-3333-333333333333",
+            "44444444-4444-4444-4444-444444444444",
+        ],
+    )
+
+    path = export_csv([progression], tmp_path / "progressions.csv")
+    with path.open(newline="", encoding="utf-8") as fh:
+        row = next(csv.DictReader(fh))
+
+    assert "fields" not in row
+    assert row["fields.Boosts"] == "ActionResource(SpellSlot,1,2)"
+    assert row["fields.PassivesAdded"] == "SculptSpells;ArcaneRecovery"
+    assert row["subclass_ids"] == (
+        "33333333-3333-3333-3333-333333333333;"
+        "44444444-4444-4444-4444-444444444444"
+    )
+
+
+def test_export_sqlite_flattens_spell_list_fields_and_lists(tmp_path):
+    spell_list = SpellList(
+        uuid="55555555-5555-5555-5555-555555555555",
+        spell_names=["Projectile_Fireball", "Target_MistyStep"],
+        comment="Wizard level 2",
+        fields={
+            "Name": "Wizard spells",
+            "Spells": "Projectile_Fireball;Target_MistyStep",
+        },
+    )
+
+    path = export_sqlite([spell_list], tmp_path / "bg3.db", table="spell_lists")
+    with sqlite3.connect(path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute('SELECT * FROM "spell_lists"').fetchone()
+
+    assert row is not None
+    assert "fields" not in row.keys()
+    assert row["fields_Name"] == "Wizard spells"
+    assert row["fields_Spells"] == "Projectile_Fireball;Target_MistyStep"
+    assert row["spell_names"] == "Projectile_Fireball;Target_MistyStep"
+
+
+def test_export_json_keeps_spell_list_structure_nested(tmp_path):
+    spell_list = SpellList(
+        uuid="55555555-5555-5555-5555-555555555555",
+        spell_names=["Projectile_Fireball", "Target_MistyStep"],
+        fields={"Name": "Wizard spells"},
+    )
+
+    path = export_json([spell_list], tmp_path / "spell-lists.json")
+    record = json.loads(path.read_text("utf-8"))[0]
+
+    assert record["fields"] == {"Name": "Wizard spells"}
+    assert record["spell_names"] == ["Projectile_Fireball", "Target_MistyStep"]

@@ -2,9 +2,10 @@
 
 Every exporter consumes an iterable of models (or plain dicts) and writes
 one named dataset.  Records are flattened via :func:`bg3forge.models.to_record`
-so nested ``data`` fields become stable ``data.<Key>`` columns.  Column
-order is deterministic: fields in first-seen order, which keeps exports
-reproducible for identical inputs.
+so nested ``data`` / ``fields`` mappings become stable namespaced columns
+and list-valued model fields become semicolon-delimited scalars.  Column order
+is deterministic: fields in first-seen order, which keeps exports reproducible
+for identical inputs.
 """
 
 from __future__ import annotations

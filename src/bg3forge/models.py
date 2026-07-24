@@ -408,17 +408,25 @@ class Status(GameObject):
 def to_record(obj: Any) -> dict[str, Any]:
     """Flatten a model (or plain dict) into an export-friendly dict.
 
-    The raw ``data`` mapping is folded in under ``data.<Key>`` columns so
-    tabular exporters (CSV, SQLite) get stable scalar fields.
+    Raw ``data`` and ``fields`` mappings are folded into namespaced columns
+    (``data.<Key>`` / ``fields.<Key>``).  List-valued dataclass fields are
+    joined with ``;`` — the delimiter BG3 uses for these source lists — so
+    CSV, SQLite, and flattened JSON contain stable scalar values.
+
+    Plain dictionaries are treated as already normalized and returned
+    unchanged.
     """
     if isinstance(obj, dict):
         return dict(obj)
     record = asdict(obj)
-    data = record.pop("data", {}) or {}
-    for key, value in data.items():
-        record[f"data.{key}"] = value
+    for mapping_name in ("data", "fields"):
+        values = record.pop(mapping_name, {}) or {}
+        for key, value in values.items():
+            record[f"{mapping_name}.{key}"] = value
+    for key, value in record.items():
+        if isinstance(value, (list, tuple)):
+            record[key] = ";".join(str(item) for item in value)
     return record
-
 
 def _to_int(value: str | None) -> int | None:
     try:
