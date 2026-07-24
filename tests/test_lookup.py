@@ -54,6 +54,22 @@ def test_lookup_character_ability_scores(game):
     assert "STR" in rows["ability scores"] and "CHA" in rows["ability scores"]
 
 
+def test_names_dedupes_by_name():
+    """Cross-reference lists collapse repeated names — a spell learnable
+    across many levels resolves to the same class table per level, and the
+    reader wants the distinct classes, not one row per level."""
+    from bg3forge.lookup import _names
+
+    class _Obj:
+        def __init__(self, name):
+            self.name = name
+
+    objs = [_Obj("TransmutationSchool")] * 8 + [_Obj("EnchantmentSchool")] * 4 + [_Obj("Sorcerer")]
+    rendered = _names(objs)
+    assert rendered == "TransmutationSchool, EnchantmentSchool, Sorcerer"
+    assert rendered.count("TransmutationSchool") == 1
+
+
 def test_lookup_status_and_applied_by(game):
     rows = _rows(_section(lookup(game, "BURNING"), "status:"))
     assert rows["display name"] == "Burning"

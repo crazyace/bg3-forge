@@ -19,6 +19,8 @@
   * A partial name returns suggestions **ranked** (name hit over
     display-only, prefix over mid-string, shorter names first) with the
     **true total** reported so a broad query never silently truncates.
+  * Cross-reference lists dedupe by name, so a spell learnable across
+    many levels lists each class once, not once per level record.
 
 ### Packaging
 

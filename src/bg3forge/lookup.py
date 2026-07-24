@@ -59,7 +59,11 @@ def _looks_like_uuid(value: str) -> bool:
 
 
 def _names(objects, limit: int = _MAX_LIST) -> str:
-    names = [getattr(o, "name", str(o)) for o in objects]
+    # Dedupe by name, preserving first-seen order.  Progressions are keyed
+    # per (table, level), so a spell learnable across many levels resolves
+    # to the same class name repeatedly (e.g. TransmutationSchool ×8) — the
+    # reader wants the distinct classes, not one row per level.
+    names = list(dict.fromkeys(getattr(o, "name", str(o)) for o in objects))
     if not names:
         return ""
     shown = names[:limit]
