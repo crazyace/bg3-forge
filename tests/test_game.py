@@ -46,11 +46,12 @@ def test_bad_file_is_recorded_not_fatal(tmp_path):
     assert "outside any" in issue.error
 
 
-def test_overridden_file_replaces_not_duplicates(tmp_path):
-    """A patch pak re-shipping an archived path overrides it wholesale —
-    the engine only ever sees the highest-priority copy.  Collections
-    used to extend() per yielded file, so every record in an overridden
-    journal/stats file appeared twice: once stale, once patched."""
+def test_whole_resources_override_but_same_path_stats_layer(tmp_path):
+    """Resources override by virtual path, while stats definitions layer.
+
+    Retail hotfix paks can re-ship a Stats path with only self-using deltas.
+    Dropping the lower copy removes the base definitions and Patch 8 models.
+    """
     from bg3forge.pak import PakWriter
     from conftest import fixture_files
 
@@ -61,13 +62,14 @@ def test_overridden_file_replaces_not_duplicates(tmp_path):
     writer.write(tmp_path / "Shared.pak")
 
     baseline = Game(data_dir=tmp_path)
+    item_count = len(baseline.items)
     quest_count = len(list(baseline.quests))
     objective_count = len(baseline.objectives_for_quest("PLA_ZhentShipment"))
     marker_count = len(baseline.quest_markers)
-    assert quest_count and objective_count and marker_count
+    assert item_count and quest_count and objective_count and marker_count
 
-    # The patch re-ships the journal files unchanged and buffs the
-    # longsword's damage in the stats file.
+    # Journal resources are complete replacements. The same-path stats file
+    # is deliberately only a partial layer and omits the repeated type.
     quest_path = "Mods/Shared/Story/Journal/quest_prototypes.lsx"
     weapon_path = "Public/Shared/Stats/Generated/Data/Weapon.txt"
     patch = PakWriter(priority=10)
@@ -76,20 +78,26 @@ def test_overridden_file_replaces_not_duplicates(tmp_path):
         "Mods/Shared/Story/Journal/objective_prototypes.lsx",
         files["Mods/Shared/Story/Journal/objective_prototypes.lsx"],
     )
-    patch.add(weapon_path, files[weapon_path].replace(b'"1d8"', b'"2d6"'))
+    patch.add(
+        weapon_path,
+        b'new entry "WPN_Longsword"\n'
+        b'using "WPN_Longsword"\n'
+        b'data "Damage" "2d6"\n',
+    )
     patch.write(tmp_path / "Patch.pak")
 
     game = Game(data_dir=tmp_path)
-    # No duplicates in the collections or the indexes built from them...
+    # Whole resources and their indexes contain no stale duplicates.
     assert len(list(game.quests)) == quest_count
     assert len(game.objectives_for_quest("PLA_ZhentShipment")) == objective_count
     assert len(game.quest_markers) == marker_count
-    # ...and the patched copy is the one that loaded.
+    # Stats retain the lower same-path definitions, apply the later delta,
+    # and inherit the omitted type so every typed model remains present.
+    assert len(game.items) == item_count
+    assert game.stats.resolved_type("WPN_Longsword") == "Weapon"
     assert game.stats.resolved("WPN_Longsword")["Damage"] == "2d6"
-    # Layering across *distinct* paths is untouched: the magic variant
-    # still inherits through `using` from the patched base.
     assert game.stats.resolved("WPN_Longsword_Magic")["Damage"] == "2d6"
-    assert game.stats.resolved("WPN_Longsword_Magic")["Rarity"] == "Rare"
+    assert game.items["WPN_Longsword_Magic"].rarity == "Rare"
 
 
 def test_corrupt_pak_recorded_not_silent(tmp_path):
