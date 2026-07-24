@@ -48,3 +48,35 @@ jobs:
 
       - name: Test
         run: python -m pytest -q
+
+  package:
+    # Exercise exactly what the release workflow will publish. This keeps
+    # packaging drift from being discovered only after a GitHub release.
+    name: Build and smoke-test distributions
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install packaging tools
+        run: python -m pip install --upgrade build twine
+
+      - name: Build and check distributions
+        run: |
+          python -m build
+          python -m twine check dist/*
+
+      - name: Verify wheel metadata and contents
+        run: python scripts/check_release_artifact.py dist/*.whl
+
+      - name: Smoke-test the built wheel
+        run: |
+          python -m venv .release-smoke
+          .release-smoke/bin/python -m pip install --no-deps dist/*.whl
+          .release-smoke/bin/bg3forge --version
+          .release-smoke/bin/python -c "from bg3forge import Game; print(Game.__name__)"
