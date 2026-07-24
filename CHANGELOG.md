@@ -38,6 +38,11 @@
   (pin `>=0.2,<0.3` while pre-1.0), freezing it into a standalone tool
   (the zero-dependency core makes this clean), the public-surface /
   API-stability policy, and the request to credit downstream.
+* `scripts/build_data_release.py` now reports ten numbered stages with
+  elapsed time and row counts instead of appearing idle while it loads,
+  validates, and compresses retail data. Interactive validation also shows
+  the current pak on a self-overwriting detail line; progress is written to
+  stderr so normal output remains automation-friendly.
 
 ### Mod validation
 
