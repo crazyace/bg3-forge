@@ -100,10 +100,10 @@ def parse_stats_document(text: str, source: str | None = None) -> StatsDocument:
 
     A quoted value whose closing ``"`` lands on a later physical line
     (retail occasionally wraps a long value, e.g. a two-line
-    ``TooltipStatusApply``) is joined back into one logical line: stats
-    values can't contain an unescaped ``"``, so an odd quote count means
-    the value is still open.  Without this the wrapped value — and only
-    that value — used to be silently dropped.
+    ``TooltipStatusApply``) is joined back into one logical line.  A
+    physical line is always parsed first: retail GustavX also contains a
+    valid directive with a stray extra terminal quote, and treating quote
+    parity alone as proof of a continuation swallowed every following entry.
     """
     document = StatsDocument()
     current: StatsEntry | None = None
@@ -118,17 +118,29 @@ def parse_stats_document(text: str, source: str | None = None) -> StatsDocument:
             continue
         if "//" in line:
             line = _strip_trailing_comment(line)
-        # Value wrapped across lines: append continuation lines until the
-        # quote count is even again (the closing quote arrives).  Joining
-        # without a separator collapses the wrap; the value is line-free,
-        # so it round-trips through the writer.
-        if line.count('"') % 2 == 1 and _STRUCTURAL_RE.match(line):
-            while index < total and line.count('"') % 2 == 1:
-                line += physical[index].strip()
-                index += 1
-            if "//" in line:
-                line = _strip_trailing_comment(line)
+        # Parse the physical line before considering continuation.  GustavX
+        # has a PassiveData value ending in a stray extra quote (`...)"`);
+        # it still matches the directive grammar and must not consume the
+        # next `new entry`.  Only a structural line that does not yet parse
+        # and has an open quote can be a wrapped value.
         match = _LINE_RE.match(line)
+        if (
+            match is None
+            and line.count('"') % 2 == 1
+            and _STRUCTURAL_RE.match(line)
+        ):
+            while index < total and match is None:
+                continuation = physical[index].strip()
+                # A new directive cannot close the previous value.  Stop so
+                # the original malformed line is reported rather than
+                # swallowing otherwise-valid entries.
+                if _STRUCTURAL_RE.match(continuation):
+                    break
+                line += continuation
+                index += 1
+                if "//" in line:
+                    line = _strip_trailing_comment(line)
+                match = _LINE_RE.match(line)
         if not match:
             # Unmodeled directives are fine; a *structural* line that
             # doesn't parse (stray trailing token, missing close quote)
@@ -241,7 +253,6 @@ class StatsCollection:
         # the earlier definition; resolution needs those older layers.
         self._layers: dict[str, list[StatsEntry]] = {}
         self.globals: dict[str, str] = {}  # key "Name","Value" constants
-        self._resolved_type_cache: dict[str, str] = {}
         for entry in entries:
             self.add(entry)
 
@@ -261,9 +272,6 @@ class StatsCollection:
         # Later definitions override earlier ones, mirroring pak priority.
         self._entries[entry.name] = entry
         self._layers.setdefault(entry.name, []).append(entry)
-        # A new base or patch layer can change the inherited type of this
-        # entry and anything that uses it.
-        self._resolved_type_cache.clear()
 
     def load_text(self, text: str, source: str | None = None) -> None:
         document = parse_stats_document(text, source)
@@ -280,43 +288,8 @@ class StatsCollection:
             self.load_file(path)
 
     def by_type(self, *types: str) -> list[StatsEntry]:
-        """Entries whose effective type matches one of the requested types.
-
-        Patch layers and derived entries may omit type and inherit it
-        through using. Looking only at the latest definition's raw type
-        drops those entries from every typed model collection.
-        """
         wanted = set(types)
-        return [
-            entry
-            for entry in self._entries.values()
-            if self.resolved_type(entry.name) in wanted
-        ]
-
-    def resolved_type(self, name: str) -> str:
-        """Return the nearest explicit type along the inheritance chain."""
-        if name in self._resolved_type_cache:
-            return self._resolved_type_cache[name]
-
-        seen_ids: set[int] = set()
-        cursor = self._entries.get(name)
-        while cursor is not None:
-            if id(cursor) in seen_ids:
-                raise StatsParseError(f"inheritance cycle at {cursor.name!r}")
-            seen_ids.add(id(cursor))
-            if cursor.type:
-                self._resolved_type_cache[name] = cursor.type
-                return cursor.type
-            target = cursor.using
-            if target is None:
-                break
-            if target == cursor.name:
-                cursor = self._previous_layer(cursor)
-            else:
-                cursor = self._entries.get(target)
-
-        self._resolved_type_cache[name] = ""
-        return ""
+        return [e for e in self._entries.values() if e.type in wanted]
 
     def resolved(self, name: str) -> dict[str, str]:
         """Effective key/value data for ``name`` with inheritance applied.
