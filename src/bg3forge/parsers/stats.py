@@ -96,15 +96,38 @@ class StatsDocument:
 
 
 def parse_stats_document(text: str, source: str | None = None) -> StatsDocument:
-    """Parse one stats .txt document into entries plus global constants."""
+    """Parse one stats .txt document into entries plus global constants.
+
+    A quoted value whose closing ``"`` lands on a later physical line
+    (retail occasionally wraps a long value, e.g. a two-line
+    ``TooltipStatusApply``) is joined back into one logical line: stats
+    values can't contain an unescaped ``"``, so an odd quote count means
+    the value is still open.  Without this the wrapped value — and only
+    that value — used to be silently dropped.
+    """
     document = StatsDocument()
     current: StatsEntry | None = None
-    for lineno, raw_line in enumerate(text.splitlines(), start=1):
-        line = raw_line.strip()
+    physical = text.splitlines()
+    index = 0
+    total = len(physical)
+    while index < total:
+        lineno = index + 1
+        line = physical[index].strip()
+        index += 1
         if not line or line.startswith("//"):
             continue
         if "//" in line:
             line = _strip_trailing_comment(line)
+        # Value wrapped across lines: append continuation lines until the
+        # quote count is even again (the closing quote arrives).  Joining
+        # without a separator collapses the wrap; the value is line-free,
+        # so it round-trips through the writer.
+        if line.count('"') % 2 == 1 and _STRUCTURAL_RE.match(line):
+            while index < total and line.count('"') % 2 == 1:
+                line += physical[index].strip()
+                index += 1
+            if "//" in line:
+                line = _strip_trailing_comment(line)
         match = _LINE_RE.match(line)
         if not match:
             # Unmodeled directives are fine; a *structural* line that

@@ -165,31 +165,14 @@
 
 ### Fixed (parsers)
 
-* The stats parser no longer silently drops malformed structural lines.
-  A `data`/`type`/`using`/`new entry`/`key` line that fails to parse —
-  a stray trailing token, a missing close quote — used to be discarded
-  with no trace; it now raises `StatsParseError` naming the line.
-  Genuinely unmodeled directives (`new itemcolor`, …) are still
-  tolerated. A trailing `// comment` outside quotes is stripped rather
-  than defeating the line match.
-* Goal scripts now honor `/* … */` block comments and trailing `//`
-  comments. Retail sources comment out rules and facts with both;
-  previously a block-commented `IF` inflated the rule count and
-  commented-out `QuestUpdate` calls contributed phantom quest refs.
-* `is_lsj` recognizes a UTF-8 BOM, so BOM-prefixed `.lsj` files are no
-  longer misrouted to the XML parser (`parse_lsj` already decoded with
-  `utf-8-sig`).
-* `RootTemplateIndex.resolved_tags` now follows engine per-property
-  inheritance: a template that defines its own `Tags` list *replaces*
-  its ancestor's rather than unioning with it, so items no longer report
-  tags the engine never applies. Templates without a `Tags` list still
-  inherit the nearest ancestor's.
-* The dialog parser captures `Jump` nodes' `jumptarget`, and
-  `Dialog.walk` follows it — traversal previously dead-ended at every
-  Jump.
-
-### Fixed (parsers)
-
+* The stats parser now reads values that wrap across physical lines.
+  Retail occasionally breaks a long quoted value onto a second line (the
+  closing `"` lands later — seen in GustavX's `TooltipStatusApply` and
+  `TargetCeiling`); the parser now joins the continuation, collapsing the
+  wrap. Previously *that value alone* was silently dropped (and, after
+  the strictness change below, surfaced as a parse failure on a full
+  retail sweep). A value whose quote never closes at all is still
+  reported, not swallowed.
 * The stats parser no longer silently drops malformed structural lines.
   A `data`/`type`/`using`/`new entry`/`key` line that fails to parse —
   a stray trailing token, a missing close quote — used to be discarded
