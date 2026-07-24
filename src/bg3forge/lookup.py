@@ -120,6 +120,7 @@ def lookup(game: Game, query: str) -> LookupResult:
             result.sections.append(_tag_section(tag))
 
     # 3. An exact stats/model name in any typed collection.
+    case_matches: list[tuple[str, object]] = []
     for label, attr in _KINDS:
         obj = getattr(game, attr).get(query)
         if obj is not None:
@@ -134,27 +135,19 @@ def lookup(game: Game, query: str) -> LookupResult:
         return result
 
     # 5. Correct capitalization when it identifies exactly one canonical
-    # name.  BG3 can contain distinct identifiers that differ only by case
-    # (for example Projectile_JUMP / Projectile_Jump), so an ambiguous
-    # case-insensitive match remains a choice rather than picking one.
-    case_matches: list[tuple[str, object]] = []
+    # typed model name.  Tag engine names remain exact because ordinary
+    # words frequently overlap them (for example "longsword").  BG3 can
+    # also contain model identifiers that differ only by case (for example
+    # Projectile_JUMP / Projectile_Jump), so ambiguity remains a choice.
     for label, attr in _KINDS:
         case_matches.extend(
             (label, obj)
             for obj in getattr(game, attr)
             if obj.name.casefold() == needle
         )
-    case_matches.extend(
-        ("tag", tag)
-        for tag in game.tags
-        if tag.name and tag.name.casefold() == needle
-    )
     if len(case_matches) == 1:
         label, obj = case_matches[0]
-        if label == "tag":
-            result.sections.append(_tag_section(obj))
-        else:
-            result.sections.append(_object_section(game, label, obj))
+        result.sections.append(_object_section(game, label, obj))
         return result
     if case_matches:
         result.total_matches = len(case_matches)
