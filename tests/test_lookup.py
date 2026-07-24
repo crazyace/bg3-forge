@@ -147,7 +147,62 @@ def test_lookup_ranks_and_reports_truncated_matches(tmp_path):
     assert len(result.suggestions) == 25            # capped for display
     assert any("Projectile_Fireball" in s for s in result.suggestions)  # ranked in
     report = format_report(result)
-    assert "41 matches" in report and "25 closest" in report
+    assert "41 matches" in report and "showing 25" in report
+    assert "bg3forge lookup Projectile_Fireball  # spell" in report
+
+
+def test_lookup_corrects_unambiguous_identifier_case(game):
+    result = lookup(game, "projectile_fireball")
+    section = _section(result, "spell: Projectile_Fireball")
+    assert result.found
+    assert section is not None
+    assert not result.suggestions
+
+
+def test_lookup_accepts_old_copied_suggestion_form(game):
+    result = lookup(game, "Projectile_Fireball - Fireball")
+    assert result.found
+    assert _section(result, "spell: Projectile_Fireball") is not None
+
+
+def test_lookup_suggestions_are_copy_ready(game):
+    from bg3forge.lookup import format_report
+
+    report = format_report(lookup(game, "longsword"))
+    assert "Run one of these commands:" in report
+    assert "bg3forge lookup WPN_Longsword" in report
+    assert "# item: Longsword" in report
+
+
+def test_lookup_does_not_guess_ambiguous_capitalization(tmp_path):
+    from bg3forge.pak import PakWriter
+
+    writer = PakWriter()
+    writer.add(
+        "Public/Mod/Stats/Generated/Data/Spells.txt",
+        (
+            'new entry "Projectile_JUMP"\ntype "SpellData"\n'
+            'new entry "Projectile_Jump"\ntype "SpellData"\n'
+        ).encode(),
+    )
+    writer.write(tmp_path / "Shared.pak")
+
+    game = Game(data_dir=tmp_path)
+    result = lookup(game, "projectile_jump")
+    assert not result.found
+    assert result.total_matches == 2
+    assert any("bg3forge lookup Projectile_JUMP" in s for s in result.suggestions)
+    assert any("bg3forge lookup Projectile_Jump" in s for s in result.suggestions)
+
+
+def test_lookup_cli_accepts_multiword_and_copied_queries(data_dir, capsys):
+    from bg3forge.cli.main import main
+
+    assert main([
+        "--data-dir", str(data_dir), "lookup",
+        "Projectile_Fireball", "-", "Fireball",
+    ]) == 0
+    assert "spell: Projectile_Fireball" in capsys.readouterr().out
 
 
 def test_lookup_cli_exit_codes(data_dir, capsys):
