@@ -290,6 +290,34 @@ def test_stats_by_type():
     assert stats.by_type("SpellData") == []
 
 
+def test_stats_by_type_inherits_omitted_type():
+    """Patch layers and derived entries inherit their type through using."""
+    stats = StatsCollection()
+    stats.load_text(
+        'new entry "BasePassive"\n'
+        'type "PassiveData"\n'
+        'data "Description" "base"'
+    )
+    # Exercise the cache before later definitions arrive.
+    assert stats.resolved_type("BasePassive") == "PassiveData"
+
+    stats.load_text(
+        'new entry "BasePassive"\n'
+        'using "BasePassive"\n'
+        'data "Description" "patched"\n'
+        'new entry "Patch8Passive"\n'
+        'using "BasePassive"\n'
+        'data "Description" "derived"'
+    )
+
+    assert stats.resolved_type("BasePassive") == "PassiveData"
+    assert stats.resolved_type("Patch8Passive") == "PassiveData"
+    assert [entry.name for entry in stats.by_type("PassiveData")] == [
+        "BasePassive",
+        "Patch8Passive",
+    ]
+
+
 # -- loca --------------------------------------------------------------------
 
 def test_loca_roundtrip():
