@@ -113,7 +113,11 @@ def build_parser() -> argparse.ArgumentParser:
         "lookup",
         help="resolve a name / UUID / handle to its data and cross-references",
     )
-    lookup.add_argument("query", help="a stats name, template/tag UUID, or h... handle")
+    lookup.add_argument(
+        "query",
+        nargs="+",
+        help="a stats/display name, template/tag UUID, or h... handle (quotes optional)",
+    )
 
     benchmark = sub.add_parser(
         "benchmark", help="time each pipeline stage against the game data"
@@ -352,7 +356,7 @@ def _dispatch(args) -> int:
 
         game = _open_game(args)
         try:
-            result = lookup(game, args.query)
+            result = lookup(game, " ".join(args.query))
         finally:
             game.close()
         print(format_report(result))
