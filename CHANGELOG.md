@@ -169,12 +169,6 @@
 
 ### Fixed (game graph)
 
-* Stats entries now inherit their effective `type` through `using`,
-  including self-using patch layers. Same-path stats files layer in pak
-  order instead of being treated as whole-file replacements; whole-resource
-  families retain last-wins semantics. This keeps Patch 8 subclass passives
-  such as `HexWarrior`, `StarryForm`, and `RakishAudacity` in the typed
-  game graph and preserves inherited item `stats_type` values.
 * Tag UUID joins are now case-insensitive, like every other UUID join in
   the graph: `TagRegistry` lookups, `items_with_tag`, and the tag
   reverse index all normalize to lowercase, so template attributes and
@@ -212,6 +206,13 @@
 
 ### Fixed (parsers)
 
+* Multiline stats detection no longer swallows valid entries after a line
+  with an extra terminal quote. Retail GustavX's `Passive.txt` contains
+  one such `Boosts` value; the quote-parity heuristic consumed the next
+  59 declarations, removing 49 effective passives and leaving 27
+  progression references unresolved. The parser now accepts a matching
+  physical directive first and never crosses a new structural directive
+  while looking for a multiline continuation.
 * The stats parser now reads values that wrap across physical lines.
   Retail occasionally breaks a long quoted value onto a second line (the
   closing `"` lands later — seen in GustavX's `TooltipStatusApply` and
@@ -294,19 +295,17 @@
   ``ValueError``) naming the offending field instead of corrupting the
   output.
 
-* A non-stats resource file re-shipped by a higher-priority archive
-  now overrides the base copy wholesale, as the engine loads it.
-  `_iter_files` previously yielded *every* copy of a matching archived
-  path from every pak, so the collections built by extension — quests,
-  objectives, markers, categories, treasure tables, atlases, equipment —
-  contained both the stale and the patched records after any patch or mod
-  override, and every reverse index built from them
-  (objectives-for-quest, quests-in-category, markers-by-id) returned
-  duplicates. Stats are deliberately excluded: their definitions layer
-  across packages even when archived paths match, including partial
-  self-using hotfix records. Other record-level layering across distinct
-  paths (`.loca` versions, progression UUIDs) is unchanged, and the lazy
-  indexes already used the same last-wins rule via `_locate_entries`.
+* A file re-shipped by a higher-priority archive now overrides the base
+  copy wholesale, as the engine loads it. `_iter_files` previously
+  yielded *every* copy of a matching archived path from every pak, so
+  the collections built by extension — quests, objectives, markers,
+  categories, treasure tables, atlases, equipment — contained both the
+  stale and the patched records after any patch or mod override, and
+  every reverse index built from them (objectives-for-quest,
+  quests-in-category, markers-by-id) returned duplicates. Record-level
+  layering across distinct paths (stats `using` chains, `.loca`
+  versions, progression UUIDs) is unchanged, and the lazy indexes
+  already used the same last-wins rule via `_locate_entries`.
 
 * LSPK v15/v16 archives (DOS2 DE, BG3 Early Access) are now actually
   readable. Both advertised versions were parsed with the v18 272-byte
