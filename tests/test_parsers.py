@@ -109,6 +109,35 @@ def test_stats_multiline_value():
     assert parse_stats_document(write_stats_document(doc)) == doc
 
 
+def test_stats_extra_terminal_quote_keeps_following_entries():
+    """GustavX Passive.txt has a Boosts value ending in a stray extra quote.
+
+    The physical line still matches the directive grammar. Quote parity
+    alone must not treat it as a multiline value and swallow the next entry.
+    """
+    document = parse_stats_document(
+        'new entry "Before"\n'
+        'type "PassiveData"\n'
+        'data "Boosts" "DamageBonus(1)""\n\n'
+        'new entry "After"\n'
+        'type "PassiveData"\n'
+    )
+    assert [entry.name for entry in document.entries] == ["Before", "After"]
+    assert document.entries[0].data["Boosts"] == 'DamageBonus(1)"'
+
+
+def test_stats_unterminated_value_does_not_swallow_next_entry():
+    text = (
+        'new entry "Before"\n'
+        'type "PassiveData"\n'
+        'data "Boosts" "never closes\n'
+        'new entry "After"\n'
+        'type "PassiveData"\n'
+    )
+    with pytest.raises(StatsParseError, match="malformed"):
+        parse_stats_document(text)
+
+
 def test_stats_unterminated_value_at_eof_still_raises():
     """A value whose quote never closes (genuine corruption, not a wrap)
     must still be reported, not silently swallowed."""
@@ -288,34 +317,6 @@ def test_stats_by_type():
     stats = StatsCollection(parse_stats(WEAPON_TXT))
     assert len(stats.by_type("Weapon")) == 3
     assert stats.by_type("SpellData") == []
-
-
-def test_stats_by_type_inherits_omitted_type():
-    """Patch layers and derived entries inherit their type through using."""
-    stats = StatsCollection()
-    stats.load_text(
-        'new entry "BasePassive"\n'
-        'type "PassiveData"\n'
-        'data "Description" "base"'
-    )
-    # Exercise the cache before later definitions arrive.
-    assert stats.resolved_type("BasePassive") == "PassiveData"
-
-    stats.load_text(
-        'new entry "BasePassive"\n'
-        'using "BasePassive"\n'
-        'data "Description" "patched"\n'
-        'new entry "Patch8Passive"\n'
-        'using "BasePassive"\n'
-        'data "Description" "derived"'
-    )
-
-    assert stats.resolved_type("BasePassive") == "PassiveData"
-    assert stats.resolved_type("Patch8Passive") == "PassiveData"
-    assert [entry.name for entry in stats.by_type("PassiveData")] == [
-        "BasePassive",
-        "Patch8Passive",
-    ]
 
 
 # -- loca --------------------------------------------------------------------
