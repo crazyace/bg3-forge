@@ -403,7 +403,7 @@ class Game:
     @cached_property
     def stats(self) -> StatsCollection:
         stats = StatsCollection()
-        for name, data in self._iter_files(_is_stats_file, layer_same_path=True):
+        for name, data in self._iter_files(_is_stats_file):
             try:
                 stats.load_text(data.decode("utf-8-sig", errors="replace"), source=name)
             except ValueError as exc:
@@ -885,7 +885,7 @@ class Game:
                 template_icon = fields.get("Icon")
             item = Item.from_stats(
                 entry.name,
-                self.stats.resolved_type(entry.name),
+                entry.type,
                 data,
                 display_name=display,
                 description=description,
@@ -1070,30 +1070,25 @@ class Game:
             self.localization.resolve(data.get("Description")),
         )
 
-    def _iter_files(self, predicate, *, layer_same_path: bool = False):
+    def _iter_files(self, predicate):
         """Yield (name, bytes) for archived/extracted files matching predicate.
 
-        Most resources use virtual-file semantics: a higher-priority archive
-        replaces an earlier copy of the same path wholesale. Stats are the
-        exception. Their loader consumes definitions from every package in
-        load order, and a patch can re-ship the same path with only a partial
-        self-``using`` layer. ``layer_same_path=True`` preserves those
-        earlier definitions while retaining whole-file replacement for
-        journals, templates, and other resource families.
+        Paks are visited in (priority, name) order — the engine's load
+        order — and a path shipped by several archives is overridden
+        *wholesale*: only the highest-priority copy is yielded, exactly
+        as the engine sees it.  (Without this, a patch pak re-shipping a
+        journal or stats file made every collection built by extension
+        contain both the stale and the patched records.)  Record-level
+        layering — stats ``using`` chains, ``.loca`` versions,
+        progression UUIDs — still applies across *distinct* paths, all
+        of which are yielded.  ``_locate_entries`` applies the same
+        last-wins rule for the lazy indexes.
         """
         if self.extracted_dir is not None:
             for rel, file in self._extracted_file_list():
                 if predicate(rel):
                     yield rel, file.read_bytes()
             return
-
-        if layer_same_path:
-            for reader in self._open_readers():
-                for entry in reader:
-                    if predicate(entry.name):
-                        yield entry.name, reader.read(entry)
-            return
-
         winners: dict[str, tuple[PakReader, object]] = {}
         for reader in self._open_readers():
             for entry in reader:
