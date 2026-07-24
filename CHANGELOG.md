@@ -38,6 +38,22 @@
   (pin `>=0.2,<0.3` while pre-1.0), freezing it into a standalone tool
   (the zero-dependency core makes this clean), the public-surface /
   API-stability policy, and the request to credit downstream.
+* `scripts/build_data_release.py` now reports ten numbered stages with
+  elapsed time and row counts instead of appearing idle while it loads,
+  validates, and compresses retail data. Interactive validation also shows
+  the current pak on a self-overwriting detail line; progress is written to
+  stderr so normal output remains automation-friendly.
+* Data releases now fail closed: unresolved progression passives,
+  progression spell lists, or spell-list spells are validation issues
+  rather than informational counters, and `build_data_release.py` exits
+  without writing a bundle when coverage is not clean. This prevents a
+  dangling relationship from coexisting with a misleading `OK` report
+  and healthy manifest.
+* Data-release builds use clean per-run staging and atomically publish the
+  final ZIP, preventing stale staging files or partial rebuilds from
+  contaminating a release artifact.
+* SQLite exports explicitly close their database connection after each
+  table, so Windows can immediately move or clean release-staging files.
 
 ### Mod validation
 
@@ -201,6 +217,13 @@
 
 ### Fixed (parsers)
 
+* Multiline stats detection no longer swallows valid entries after a line
+  with an extra terminal quote. Retail GustavX's `Passive.txt` contains
+  one such `Boosts` value; the quote-parity heuristic consumed the next
+  59 declarations, removing 49 effective passives and leaving 27
+  progression references unresolved. The parser now accepts a matching
+  physical directive first and never crosses a new structural directive
+  while looking for a multiline continuation.
 * The stats parser now reads values that wrap across physical lines.
   Retail occasionally breaks a long quoted value onto a second line (the
   closing `"` lands later — seen in GustavX's `TooltipStatusApply` and

@@ -204,10 +204,19 @@ def validate_data(
     counts["progression_passive_removals"] = sum(
         len(record.passives_removed) for record in progressions.values()
     )
-    counts["progression_passives_missing"] = sum(
-        name not in passive_names
+    missing_passives = [
+        name
         for record in progressions.values()
         for name in (*record.passives_added, *record.passives_removed)
+        if name not in passive_names
+    ]
+    counts["progression_passives_missing"] = len(missing_passives)
+    _record_missing_references(
+        report,
+        stage="progression-passives",
+        file="<progressions>",
+        values=missing_passives,
+        kind="passive",
     )
     counts["progression_spell_list_grants"] = sum(
         len(record.added_spell_list_ids) for record in progressions.values()
@@ -215,20 +224,65 @@ def validate_data(
     counts["progression_spell_list_choices"] = sum(
         len(record.selectable_spell_list_ids) for record in progressions.values()
     )
-    counts["progression_spell_lists_missing"] = sum(
-        uuid not in spell_lists
+    missing_progression_spell_lists = [
+        uuid
         for record in progressions.values()
         for uuid in (*record.added_spell_list_ids, *record.selectable_spell_list_ids)
+        if uuid not in spell_lists
+    ]
+    counts["progression_spell_lists_missing"] = len(missing_progression_spell_lists)
+    _record_missing_references(
+        report,
+        stage="progression-spell-lists",
+        file="<progressions>",
+        values=missing_progression_spell_lists,
+        kind="spell-list",
     )
     counts["spell_list_spells"] = sum(
         len(spell_list.spell_names) for spell_list in spell_lists.values()
     )
-    counts["spell_list_spells_missing"] = sum(
-        name not in spell_names
+    missing_spell_list_spells = [
+        name
         for spell_list in spell_lists.values()
         for name in spell_list.spell_names
+        if name not in spell_names
+    ]
+    counts["spell_list_spells_missing"] = len(missing_spell_list_spells)
+    _record_missing_references(
+        report,
+        stage="spell-list-spells",
+        file="<spell lists>",
+        values=missing_spell_list_spells,
+        kind="spell",
     )
     return report
+
+
+def _record_missing_references(
+    report: ValidationReport,
+    *,
+    stage: str,
+    file: str,
+    values: list[str],
+    kind: str,
+) -> None:
+    """Turn unresolved relationship counts into validation failures."""
+    if not values:
+        return
+    unique = sorted(set(values))
+    preview = ", ".join(unique[:20])
+    if len(unique) > 20:
+        preview += f", ... ({len(unique) - 20} more)"
+    report.issues.append(
+        ValidationIssue(
+            file=file,
+            stage=stage,
+            error=(
+                f"{len(values)} unresolved {kind} reference(s) across "
+                f"{len(unique)} unique value(s): {preview}"
+            ),
+        )
+    )
 
 
 def _validate_entry(
@@ -369,7 +423,7 @@ def format_report(report: ValidationReport, max_issues: int = 20) -> str:
     if report.ok:
         lines.append("OK: every recognized file parsed cleanly.")
     else:
-        lines.append(f"{len(report.issues)} file(s) failed to parse:")
+        lines.append(f"{len(report.issues)} validation issue(s):")
         for issue in report.issues[:max_issues]:
             lines.append(f"  [{issue.stage}] {issue.file}")
             lines.append(f"      {issue.error}")

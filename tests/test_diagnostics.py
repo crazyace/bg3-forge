@@ -115,7 +115,7 @@ def test_validate_reports_corrupt_files(tmp_path, data_dir):
     assert stages == {"loca", "resource"}
     assert report.counts["stats_files"] == 7  # the good file still counted
     text = format_validation(report)
-    assert "2 file(s) failed to parse" in text
+    assert "2 validation issue(s)" in text
     assert "broken.loca" in text
 
 
@@ -140,6 +140,11 @@ def test_validate_counts_unresolved_progression_references(data_dir):
     <attribute id="PassivesAdded" type="LSString" value="MissingPassive" />
     <attribute id="Selectors" type="LSString" value="AddSpells(eeeeeeee-0000-0000-0000-000000000003)" />
   </node>
+  <node id="Progression">
+    <attribute id="UUID" type="guid" value="eeeeeeee-0000-0000-0000-000000000005" />
+    <attribute id="TableUUID" type="guid" value="eeeeeeee-0000-0000-0000-000000000002" />
+    <attribute id="PassivesAdded" type="LSString" value="MissingPassive" />
+  </node>
 </children></node></region></save>
 """
     spell_lists = b"""\
@@ -156,10 +161,22 @@ def test_validate_counts_unresolved_progression_references(data_dir):
     writer.write(data_dir / "MissingProgressionRefs.pak")
 
     report = validate_data(data_dir)
-    assert report.ok  # inventory signal, not a format failure
-    assert report.counts["progression_passives_missing"] == 1
+    assert not report.ok
+    # Counts are unresolved references, while diagnostics also report unique
+    # names (the retail failure was 27 references across 25 passive names).
+    assert report.counts["progression_passives_missing"] == 2
     assert report.counts["progression_spell_lists_missing"] == 1
     assert report.counts["spell_list_spells_missing"] == 1
+    assert {issue.stage for issue in report.issues} == {
+        "progression-passives",
+        "progression-spell-lists",
+        "spell-list-spells",
+    }
+    text = format_validation(report)
+    assert "3 validation issue(s)" in text
+    assert "2 unresolved passive reference(s) across 1 unique value(s)" in text
+    assert "MissingPassive" in text
+    assert "MissingSpell" in text
 
 
 def test_validate_cross_checks_source_goals(tmp_path):
@@ -247,7 +264,7 @@ def test_validate_cli_exit_code_on_issues(data_dir, capsys):
     writer.add("Localization/English/broken.loca", b"XXXX")
     writer.write(data_dir / "Broken.pak")
     assert main(["--data-dir", str(data_dir), "validate"]) == 1
-    assert "failed to parse" in capsys.readouterr().out
+    assert "validation issue" in capsys.readouterr().out
 
 
 # -- benchmark ---------------------------------------------------------------
