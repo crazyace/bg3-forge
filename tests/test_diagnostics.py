@@ -115,7 +115,7 @@ def test_validate_reports_corrupt_files(tmp_path, data_dir):
     assert stages == {"loca", "resource"}
     assert report.counts["stats_files"] == 7  # the good file still counted
     text = format_validation(report)
-    assert "2 file(s) failed to parse" in text
+    assert "2 validation issue(s)" in text
     assert "broken.loca" in text
 
 
@@ -156,10 +156,19 @@ def test_validate_counts_unresolved_progression_references(data_dir):
     writer.write(data_dir / "MissingProgressionRefs.pak")
 
     report = validate_data(data_dir)
-    assert report.ok  # inventory signal, not a format failure
+    assert not report.ok
     assert report.counts["progression_passives_missing"] == 1
     assert report.counts["progression_spell_lists_missing"] == 1
     assert report.counts["spell_list_spells_missing"] == 1
+    assert {issue.stage for issue in report.issues} == {
+        "progression-passives",
+        "progression-spell-lists",
+        "spell-list-spells",
+    }
+    text = format_validation(report)
+    assert "3 validation issue(s)" in text
+    assert "MissingPassive" in text
+    assert "MissingSpell" in text
 
 
 def test_validate_cross_checks_source_goals(tmp_path):
