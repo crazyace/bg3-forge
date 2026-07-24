@@ -54,6 +54,29 @@ def test_lookup_character_ability_scores(game):
     assert "STR" in rows["ability scores"] and "CHA" in rows["ability scores"]
 
 
+def test_format_wraps_long_value_without_truncating():
+    """A long cross-reference list (e.g. 'learnable by' with a dozen
+    classes) is shown in full, wrapped and aligned under the value
+    column — not crammed onto one soft-wrapping line and cut off."""
+    from bg3forge.lookup import LookupResult, Section, format_report
+
+    classes = [f"Class{i:02d}School" for i in range(13)]
+    section = Section("spell: X")
+    section.add("type", "SpellData")
+    section.add("learnable by", ", ".join(classes))
+    report = format_report(LookupResult(query="X", sections=[section]))
+
+    # every class appears (nothing truncated), and there's no "(+N more)"
+    assert all(name in report for name in classes)
+    assert "more)" not in report
+    # continuation lines are indented to align under the value column
+    body = [ln for ln in report.splitlines() if ln.startswith("   ") and "Class" in ln]
+    assert body, "expected wrapped continuation lines"
+    indent = report.splitlines()
+    value_col = next(ln.index("SpellData") for ln in indent if "SpellData" in ln)
+    assert all(ln[:value_col].isspace() for ln in body)  # aligned under the column
+
+
 def test_names_dedupes_by_name():
     """Cross-reference lists collapse repeated names — a spell learnable
     across many levels resolves to the same class table per level, and the
