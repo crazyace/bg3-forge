@@ -885,7 +885,7 @@ class Game:
                 template_icon = fields.get("Icon")
             item = Item.from_stats(
                 entry.name,
-                entry.type,
+                self.stats.resolved_type(entry.name),
                 data,
                 display_name=display,
                 description=description,
