@@ -83,6 +83,39 @@ def test_stats_data_outside_block_raises():
         parse_stats('data "Damage" "1d4"')
 
 
+def test_stats_multiline_value():
+    """Retail wraps some long values across physical lines (the closing
+    quote lands on a later line). Both shapes seen in GustavX: a mid-value
+    newline between two ';'-separated calls, and a trailing newline."""
+    text = (
+        'new entry "S1"\ntype "SpellData"\n'
+        'data "TooltipStatusApply" "ApplyStatus(MANTLEOFMAJESTY, 100, 10);\n'
+        'ApplyStatus(COMMAND_HALT, 100, 1);"\n'
+        'data "Next" "kept"\n\n'
+        'new entry "S2"\ntype "SpellData"\n'
+        'data "TargetCeiling" "0.8\n"\n'
+        'data "TargetRadius" "RangedMainWeaponRange"\n'
+    )
+    doc = parse_stats_document(text)
+    s1, s2 = doc.entries
+    # the wrapped value is recovered, newline collapsed
+    assert s1.data["TooltipStatusApply"] == (
+        "ApplyStatus(MANTLEOFMAJESTY, 100, 10);ApplyStatus(COMMAND_HALT, 100, 1);"
+    )
+    assert s1.data["Next"] == "kept"          # parsing resumes correctly after
+    assert s2.data["TargetCeiling"] == "0.8"
+    assert s2.data["TargetRadius"] == "RangedMainWeaponRange"
+    # and the collapsed values round-trip through the writer (no newlines left)
+    assert parse_stats_document(write_stats_document(doc)) == doc
+
+
+def test_stats_unterminated_value_at_eof_still_raises():
+    """A value whose quote never closes (genuine corruption, not a wrap)
+    must still be reported, not silently swallowed."""
+    with pytest.raises(StatsParseError, match="malformed"):
+        parse_stats('new entry "X"\ntype "SpellData"\ndata "K" "never closes\n')
+
+
 def test_write_stats_roundtrips_document():
     """parse -> write -> parse is an identity at the data-model level."""
     document = parse_stats_document(WEAPON_TXT)
