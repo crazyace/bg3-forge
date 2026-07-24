@@ -8,7 +8,7 @@ design principle #5) measures optimization proposals against.
 
 | | |
 | --- | --- |
-| bg3forge | 0.1.0 (branch `main`, post-`044c97b`) |
+| bg3forge | 0.2.0 (PR #79 release gate) |
 | Python | 3.12.10 |
 | OS | Windows 11 (10.0.26200) |
 | Native LZ4 | yes |
@@ -22,6 +22,7 @@ design principle #5) measures optimization proposals against.
 Coverage
 --------
 paks                            30
+paks corrupt                     0
 pak parts skipped               22
 stats files                    136
 stats entries               16,593
@@ -44,7 +45,7 @@ quest markers                  542
 objectives                   1,335
 quest categories                14
 goals                          975
-goal quest refs                367
+goal quest refs                365
 progression files               10
 progressions                 1,073
 progression tables             144
@@ -58,6 +59,8 @@ spell list files                 3
 spell lists                    358
 spell list spells            3,293
 spell list spells missing         0
+class descriptions              70
+races                          156
 compiled stories                11
 story functions            182,780
 story databases            140,190
@@ -221,36 +224,61 @@ load-order overrides by archived path, so the benchmark parses the six
 effective logical stories. Both numbers are correct for their respective
 purposes.
 
-**0.2.0.dev0 typed-progression gate (same install):** the new progression
-stage adds 0.29 s and keeps peak RSS at 826 MB::
+**Final 0.2.0 release gate (same install, 2026-07-23):** the parser
+fix restores all 59 physical declarations after a malformed retail stats
+line, producing 16,132 effective stats, 1,827 passives, and zero unresolved
+progression-passive references. The full pipeline completes in **~11.2 s**
+with peak RSS at 828 MB::
 
-    Read pak indexes .........   1.82 s
-    Parse stats ..............   2.19 s
+    Read pak indexes .........   1.52 s
+    Parse stats ..............   1.90 s
     Parse localization .......   0.47 s
-    Parse root templates .....   2.48 s
+    Parse root templates .....   2.56 s
     Parse tags ...............   0.19 s
-    Parse atlases ............   0.49 s
+    Parse atlases ............   0.47 s
     Index dialogs ............   0.10 s
     Index timelines ..........   0.09 s
-    Parse quests .............   0.58 s
+    Parse quests .............   0.63 s
     Index goals ..............   0.10 s
-    Parse compiled stories ...  15.98 s
+    Parse compiled stories ...   4.43 s
     Parse progressions .......   0.29 s
     Build models .............   0.17 s
     Resolve relationships ....   0.02 s
     Export JSON ..............   0.29 s
 
+    pak entries .............. 1,041,877
+    stats entries ............   16,132
+    loca handles .............  232,876
+    root templates ...........   25,560
+    tags .....................    1,103
+    atlases ..................       11
+    dialogs indexed ..........    9,386
+    timelines indexed ........   32,427
+    quests ...................      167
+    objectives ...............    1,335
+    quest categories .........       14
+    goals indexed ............      946
+    compiled stories .........        6
+    story goals ..............    4,273
+    story databases ..........   73,340
+    story rules ..............  226,858
     progressions .............    1,004
     progression tables .......      144
     spell lists ..............      315
     progression passive grants       397
     progression spell grants .      558
     progression spell choices    11,587
+    items ....................    3,139
+    spells ...................    4,687
+    passives .................    1,827
+    statuses .................    4,631
+    characters ...............    1,550
+    equipment sets ...........      738
 
 The benchmark's 558 automatic grants and 11,587 choices count resolved
 spell entries after expanding referenced lists; the validation counters
 count the 240 `AddSpells` and 294 `SelectSpells` list references themselves.
-This typed-progression gate is the current reference for optimization PRs.
+This 0.2.0 release gate is the current reference for optimization PRs.
 
 Per the roadmap, no further optimization is planned until a real
 consumer needs one; any proposal should beat these numbers on
