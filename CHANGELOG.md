@@ -23,6 +23,11 @@
     many levels lists each class once, not once per level record),
     are shown in full for any realistic query, and wrap aligned under
     the value column instead of cramming onto one line and cutting off.
+  * Exact identifiers resolve case-insensitively when the spelling is
+    unambiguous; case-only collisions remain explicit choices. Suggestions
+    are copy-ready `bg3forge lookup ...` commands with display names in
+    trailing shell comments, and the CLI accepts unquoted multi-word queries
+    plus the older copied `Identifier - Display Name` form.
 
 ### Packaging
 
