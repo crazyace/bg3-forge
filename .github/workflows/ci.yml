@@ -26,7 +26,14 @@ jobs:
         run: python -m pip install -e ".[all,dev]"
 
       - name: Test
+        if: matrix.os != 'ubuntu-latest' || matrix.python-version != '3.12'
         run: python -m pytest -q
+
+      - name: Test with branch coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        run: |
+          python -m coverage run -m pytest -q
+          python -m coverage report
 
   test-no-deps:
     # The core library must work with zero optional runtime dependencies

@@ -61,6 +61,12 @@ spell reference stops the command with a non-zero exit status before a new
 bundle is written. On an interactive terminal, the long archive sweep also
 shows the pak currently being checked.
 
+Every invocation builds in a new temporary staging directory and atomically
+replaces the named ZIP only after validation and compression succeed. Files
+left by an older run cannot leak into a later bundle. If a rebuild fails and
+a same-named bundle already exists, that known-good bundle is left unchanged
+and the error states that no new bundle was published.
+
 ## What's in the bundle
 
 | Path | Form |

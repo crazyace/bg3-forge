@@ -140,6 +140,11 @@ def test_validate_counts_unresolved_progression_references(data_dir):
     <attribute id="PassivesAdded" type="LSString" value="MissingPassive" />
     <attribute id="Selectors" type="LSString" value="AddSpells(eeeeeeee-0000-0000-0000-000000000003)" />
   </node>
+  <node id="Progression">
+    <attribute id="UUID" type="guid" value="eeeeeeee-0000-0000-0000-000000000005" />
+    <attribute id="TableUUID" type="guid" value="eeeeeeee-0000-0000-0000-000000000002" />
+    <attribute id="PassivesAdded" type="LSString" value="MissingPassive" />
+  </node>
 </children></node></region></save>
 """
     spell_lists = b"""\
@@ -157,7 +162,9 @@ def test_validate_counts_unresolved_progression_references(data_dir):
 
     report = validate_data(data_dir)
     assert not report.ok
-    assert report.counts["progression_passives_missing"] == 1
+    # Counts are unresolved references, while diagnostics also report unique
+    # names (the retail failure was 27 references across 25 passive names).
+    assert report.counts["progression_passives_missing"] == 2
     assert report.counts["progression_spell_lists_missing"] == 1
     assert report.counts["spell_list_spells_missing"] == 1
     assert {issue.stage for issue in report.issues} == {
@@ -167,6 +174,7 @@ def test_validate_counts_unresolved_progression_references(data_dir):
     }
     text = format_validation(report)
     assert "3 validation issue(s)" in text
+    assert "2 unresolved passive reference(s) across 1 unique value(s)" in text
     assert "MissingPassive" in text
     assert "MissingSpell" in text
 

@@ -33,7 +33,7 @@ zstd = ["zstandard>=0.21"]   # zstd-compressed pak entries
 icons = ["Pillow>=10.0"]     # DDS atlas decoding / PNG / WebP export
 yaml = ["PyYAML>=6.0"]       # YAML exporter
 all = ["lz4>=4.0", "zstandard>=0.21", "Pillow>=10.0", "PyYAML>=6.0"]
-dev = ["pytest>=7.0", "lz4>=4.0"]
+dev = ["pytest>=7.0", "coverage[toml]>=7.0", "lz4>=4.0"]
 
 [project.scripts]
 bg3forge = "bg3forge.cli.main:main"
@@ -54,3 +54,17 @@ bg3forge = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["src/bg3forge", "scripts"]
+# These maintainer tools are exercised against built wheels or a retail
+# installation rather than imported by the unit suite.
+omit = [
+    "scripts/check_release_artifact.py",
+    "scripts/wiring_survey.py",
+]
+
+[tool.coverage.report]
+fail_under = 88
+show_missing = true

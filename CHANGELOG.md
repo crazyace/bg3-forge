@@ -49,6 +49,9 @@
   without writing a bundle when coverage is not clean. This prevents a
   dangling relationship from coexisting with a misleading `OK` report
   and healthy manifest.
+* Data-release builds use clean per-run staging and atomically publish the
+  final ZIP, preventing stale staging files or partial rebuilds from
+  contaminating a release artifact.
 
 ### Mod validation
 
