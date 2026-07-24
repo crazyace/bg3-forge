@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import closing
 import re
 import sqlite3
 from pathlib import Path
@@ -34,22 +35,29 @@ def export_sqlite(
     records, columns = normalize(objects)
     table_sql = f'"{_ident(table)}"'
     column_idents = [_ident(c) for c in columns]
-    with sqlite3.connect(path) as conn:
-        if replace:
-            conn.execute(f"DROP TABLE IF EXISTS {table_sql}")
-        if not columns:
-            conn.execute(f"CREATE TABLE IF NOT EXISTS {table_sql} (id INTEGER PRIMARY KEY)")
-            return path
-        column_defs = ", ".join(f'"{c}"' for c in column_idents)
-        conn.execute(f"CREATE TABLE IF NOT EXISTS {table_sql} ({column_defs})")
-        placeholders = ", ".join("?" for _ in columns)
-        conn.executemany(
-            f"INSERT INTO {table_sql} VALUES ({placeholders})",
-            [
-                tuple(_scalar(record.get(column)) for column in columns)
-                for record in records
-            ],
-        )
+    # A sqlite3 connection's context manager commits/rolls back but does not
+    # close the connection.  Explicitly close it so Windows can immediately
+    # move or remove an exported database (release staging depends on this).
+    with closing(sqlite3.connect(path)) as conn:
+        with conn:
+            if replace:
+                conn.execute(f"DROP TABLE IF EXISTS {table_sql}")
+            if not columns:
+                conn.execute(
+                    f"CREATE TABLE IF NOT EXISTS {table_sql} "
+                    "(id INTEGER PRIMARY KEY)"
+                )
+                return path
+            column_defs = ", ".join(f'"{c}"' for c in column_idents)
+            conn.execute(f"CREATE TABLE IF NOT EXISTS {table_sql} ({column_defs})")
+            placeholders = ", ".join("?" for _ in columns)
+            conn.executemany(
+                f"INSERT INTO {table_sql} VALUES ({placeholders})",
+                [
+                    tuple(_scalar(record.get(column)) for column in columns)
+                    for record in records
+                ],
+            )
     return path
 
 

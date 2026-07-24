@@ -77,6 +77,18 @@ def test_export_sqlite_empty(tmp_path):
         assert conn.execute('SELECT COUNT(*) FROM "nothing"').fetchone()[0] == 0
 
 
+def test_export_sqlite_closes_connection(tmp_path, spells):
+    """An exported database must be immediately movable on Windows.
+
+    ``sqlite3.Connection.__exit__`` commits but does not close; relying on
+    garbage collection left release-staging databases locked in CI.
+    """
+    path = export_sqlite(spells, tmp_path / "bg3.db", table="spells")
+    moved = tmp_path / "moved.db"
+    path.replace(moved)
+    assert moved.exists()
+
+
 def test_export_markdown(tmp_path, spells):
     path = export_markdown(spells, tmp_path / "spells.md", title="Spells",
                            columns=["name", "display_name", "level"])

@@ -52,6 +52,8 @@
 * Data-release builds use clean per-run staging and atomically publish the
   final ZIP, preventing stale staging files or partial rebuilds from
   contaminating a release artifact.
+* SQLite exports explicitly close their database connection after each
+  table, so Windows can immediately move or clean release-staging files.
 
 ### Mod validation
 
