@@ -545,13 +545,14 @@ The library and the parsers are mature; the focus now is on getting
 BG3 Forge's *output* to the people who need it, most of whom don't write
 Python:
 
-* 🔜 **Data exports per patch** — the resolved item/spell/passive/status/
-  character datasets published as downloadable SQLite + CSV bundles on
-  each release, so wiki editors, planner sites, and spreadsheet
-  theorycrafters can consume Forge's data without running anything.
-  Generated locally from a real install (see
-  [docs/data-release.md](docs/data-release.md)) and attached to the
-  GitHub release; the tool is what regenerates them each patch.
+* 🔜 **A definitive data export** — the resolved item/spell/passive/status/
+  character datasets published as downloadable SQLite + CSV bundles, so
+  wiki editors, planner sites, and spreadsheet theorycrafters can consume
+  Forge's data without running anything. Generated locally from a real
+  install (see [docs/data-release.md](docs/data-release.md)) and attached
+  to the GitHub release. Patch 8 was the game's final patch, so this is a
+  *stable* dataset with a long shelf life — not a snapshot a future patch
+  will invalidate.
 * ✅ **`bg3forge lint`** — point it at *your own* mod `.pak` and get its
   internal consistency checked: is the `meta.lsx` module manifest present
   and its `Folder` consistent (the #1 "mod doesn't show up" bug, and it
@@ -561,9 +562,6 @@ Python:
   chains and equip references (passives/statuses/unlocked spells) resolve
   against the base game. Catches the mistakes that ship broken mods,
   before upload.
-* 🔮 **Cross-patch data diff** — record-level "what changed between Patch
-  N and N+1" (stats added/removed/changed, renamed boosts), the thing
-  that silently breaks mods.
 * ✅ **`bg3forge lookup <query>`** — resolve a stats name, a template/tag
   UUID, or an `h…` localization handle to its display name, description,
   UUID, icon, and cross-references (what an item grants; which items or
