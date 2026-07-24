@@ -95,6 +95,7 @@ def test_whole_resources_override_but_same_path_stats_layer(tmp_path):
     # and inherit the omitted type so every typed model remains present.
     assert len(game.items) == item_count
     assert game.stats.resolved_type("WPN_Longsword") == "Weapon"
+    assert game.items["WPN_Longsword"].stats_type == "Weapon"
     assert game.stats.resolved("WPN_Longsword")["Damage"] == "2d6"
     assert game.stats.resolved("WPN_Longsword_Magic")["Damage"] == "2d6"
     assert game.items["WPN_Longsword_Magic"].rarity == "Rare"
