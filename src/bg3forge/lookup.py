@@ -76,9 +76,32 @@ def _names(objects, limit: int = _MAX_LIST) -> str:
     return ", ".join(shown) + suffix
 
 
+def _normalize_query(query: str) -> str:
+    """Clean forgiving CLI-style input without changing canonical names.
+
+    Suggestion rows used to render as ``Identifier — Display Name``; users
+    naturally copied the whole row back into the command.  Accept that form
+    (and the ASCII-hyphen equivalent) when the left side is one identifier.
+    """
+    query = query.strip()
+    for separator in (" — ", " - "):
+        identifier, marker, _display = query.partition(separator)
+        if marker and identifier and not any(ch.isspace() for ch in identifier):
+            return identifier
+    return query
+
+
+def _suggestion(label: str, obj) -> str:
+    """A shell-ready suggestion; the human label is a trailing comment."""
+    detail = f"{label}: {obj.display_name}" if obj.display_name else label
+    return f"bg3forge lookup {obj.name}  # {detail}"
+
+
 def lookup(game: Game, query: str) -> LookupResult:
     """Resolve ``query`` against the game graph."""
+    query = _normalize_query(query)
     result = LookupResult(query=query)
+    needle = query.casefold()
 
     # 1. A localization handle → its text.
     if query.startswith("h") and query in game.localization:
@@ -110,11 +133,38 @@ def lookup(game: Game, query: str) -> LookupResult:
     if result.sections:
         return result
 
-    # 5. Nothing exact — offer ranked substring suggestions.  Collect *all*
+    # 5. Correct capitalization when it identifies exactly one canonical
+    # name.  BG3 can contain distinct identifiers that differ only by case
+    # (for example Projectile_JUMP / Projectile_Jump), so an ambiguous
+    # case-insensitive match remains a choice rather than picking one.
+    case_matches: list[tuple[str, object]] = []
+    for label, attr in _KINDS:
+        case_matches.extend(
+            (label, obj)
+            for obj in getattr(game, attr)
+            if obj.name.casefold() == needle
+        )
+    case_matches.extend(
+        ("tag", tag)
+        for tag in game.tags
+        if tag.name and tag.name.casefold() == needle
+    )
+    if len(case_matches) == 1:
+        label, obj = case_matches[0]
+        if label == "tag":
+            result.sections.append(_tag_section(obj))
+        else:
+            result.sections.append(_object_section(game, label, obj))
+        return result
+    if case_matches:
+        result.total_matches = len(case_matches)
+        result.suggestions.extend(_suggestion(label, obj) for label, obj in case_matches)
+        return result
+
+    # 6. Nothing exact — offer ranked substring suggestions.  Collect *all*
     # matches (so the count is honest), then rank: a hit in the stats name
     # beats a display-name-only hit, a prefix beats a mid-string hit, and a
-    # shorter name is a closer match; ties break alphabetically.
-    needle = query.lower()
+    # shorter name is ranked earlier; ties break alphabetically.
     matches: list[tuple[str, object]] = []
     for label, attr in _KINDS:
         for obj in getattr(game, attr).find(query):
@@ -122,18 +172,17 @@ def lookup(game: Game, query: str) -> LookupResult:
     result.total_matches = len(matches)
 
     def rank(entry: tuple[str, object]) -> tuple:
-        name = entry[1].name.lower()
+        name = entry[1].name.casefold()
         in_name = needle in name
         return (
             0 if in_name else 1,               # name hit before display-only
             0 if name.startswith(needle) else 1,  # prefix before mid-string
             len(entry[1].name),                # shorter name = closer
-            entry[1].name.lower(),
+            entry[1].name.casefold(),
         )
 
     for label, obj in sorted(matches, key=rank)[:_MAX_SUGGESTIONS]:
-        display = f" — {obj.display_name}" if obj.display_name else ""
-        result.suggestions.append(f"{label:9} {obj.name}{display}")
+        result.suggestions.append(_suggestion(label, obj))
     return result
 
 
@@ -277,11 +326,14 @@ def format_report(result: LookupResult) -> str:
         shown = len(result.suggestions)
         if result.total_matches > shown:
             lines.append(
-                f"No exact match for {result.query!r}. "
-                f"{result.total_matches} matches — {shown} closest "
-                "(narrow the query to see more):"
+                f"{result.total_matches} matches for {result.query!r}; showing {shown}."
+            )
+            lines.append(
+                "Add more of the internal name, or search by the in-game name "
+                "(for example: bg3forge lookup Fireball)."
             )
         else:
-            lines.append(f"No exact match for {result.query!r}. Did you mean:")
+            lines.append(f"No exact match for {result.query!r}.")
+        lines.append("Run one of these commands:")
         lines.extend(f"  {s}" for s in result.suggestions)
     return "\n".join(lines).rstrip()
