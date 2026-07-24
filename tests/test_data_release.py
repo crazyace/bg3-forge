@@ -7,6 +7,7 @@ produces a well-formed, reproducible bundle.
 """
 
 import importlib.util
+import io
 import json
 import sqlite3
 import zipfile
@@ -22,11 +23,19 @@ def _load_script():
     return module
 
 
-def test_build_data_release_bundle(tmp_path, data_dir):
+def test_build_data_release_bundle(tmp_path, data_dir, capsys):
     mod = _load_script()
     out = tmp_path / "dist"
     code = mod.main(["--data-dir", str(data_dir), "--output", str(out), "--label", "testfix"])
     assert code == 0
+
+    captured = capsys.readouterr()
+    assert "Building BG3 Forge data release" in captured.err
+    assert "[ 1/10] Exporting items..." in captured.err
+    assert "[ 9/10] Validating source archives..." in captured.err
+    assert "[10/10] Writing release bundle..." in captured.err
+    assert "done — 3 rows" in captured.err
+    assert "wrote" in captured.out
 
     bundle = out / "bg3forge-data-testfix.zip"
     assert bundle.exists()
@@ -63,3 +72,23 @@ def test_build_data_release_is_reproducible(tmp_path, data_dir):
         mod.main(["--data-dir", str(data_dir), "--output", str(out), "--label", "x"])
         hashes.append((out / "bg3forge-data-x.zip").read_bytes())
     assert hashes[0] == hashes[1]  # same install -> byte-identical bundle
+
+
+class _TTYBuffer(io.StringIO):
+    def isatty(self):
+        return True
+
+
+def test_build_data_release_live_progress_detail():
+    mod = _load_script()
+    stream = _TTYBuffer()
+    progress = mod._Progress(1, stream=stream)
+
+    progress.start("Validating source archives")
+    progress.update("[1/2] Shared.pak")
+    progress.finish("2 paks, 0 issues")
+
+    output = stream.getvalue()
+    assert "[1/1] Validating source archives..." in output
+    assert "\r  [1/2] Shared.pak" in output
+    assert "done — 2 paks, 0 issues" in output
