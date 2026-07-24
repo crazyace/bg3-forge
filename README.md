@@ -1,645 +1,484 @@
 # BG3 Forge
 
-BG3 Forge is an open-source data and mod-authoring toolkit for Baldur's
-Gate 3. It reads an installed copy of the game into a connected,
-developer-friendly model, then uses the same foundations to generate,
-package, and validate mods.
+BG3 Forge is an open-source toolkit for reading Baldur's Gate 3 game data,
+finding the records a mod needs, validating mods before release, and building
+new content programmatically.
 
-## Why?
+> [!IMPORTANT]
+> **BG3 Forge is a development tool, not an in-game mod.** Do not install it
+> with BG3 Mod Manager or Vortex. Mod authors run Forge from PowerShell or
+> Python; players install the `.pak` files those authors create.
 
-Building anything on top of BG3 data today means scraping community wikis
-(incomplete, unversioned, rate-limited) or hand-rolling a pipeline of
-unpacking tools, format converters, and one-off scripts — and redoing it
-after every game patch.
+Forge reads the original data from **your own installed copy** of the game and
+turns it into a connected, typed model. It does not depend on a community wiki,
+does not modify the game installation, and ships no Larian assets.
 
-BG3 Forge replaces that with a reproducible, offline pipeline that reads
-the original data directly from **your installed copy** of the game: pak
-archives, stats, localization, templates, and icons in, clean datasets and
-a typed Python API out. Same input, byte-identical output, every time.
+[Quick start](#quick-start) ·
+[Common tasks](#common-tasks) ·
+[Mod authoring](#mod-authoring) ·
+[Python API](#python-api) ·
+[Data releases](#resolved-data-releases) ·
+[Contributing](#development)
 
-**Library first, CLI second.** Every feature is implemented as a reusable
-Python module; the `bg3forge` command is a thin layer of glue on top. Other
-projects can import the library directly instead of invoking external
-scripts.
+## Who is it for?
 
-## What this gives the community
+| You want to… | Start with |
+| --- | --- |
+| Find a stats name, UUID, localization handle, or related record | `bg3forge lookup` |
+| Check a `.pak` before uploading it to Nexus Mods | `bg3forge lint` |
+| Build armor, weapons, consumables, passives, statuses, or spells | [`Mod`](#mod-authoring) |
+| Add a spell to a class's real level-up lists | [`add_class_spell`](#add-a-class-spell) |
+| Export items, spells, or other resolved datasets | `bg3forge export` |
+| Build a browser, planner, bot, database, or GUI | [`Game`](#python-api) |
+| Use the data without installing Python | [Download a release bundle](#resolved-data-releases) |
 
-* **Find answers in the installed game.** `bg3forge lookup` resolves names,
-  UUIDs, localization handles, and the relationships between items, spells,
-  passives, statuses, characters, classes, and progressions.
-* **Catch broken mods before upload.** `bg3forge lint` checks a mod's manifest,
-  formats, UUIDs, localization, and — when an install is available — its
-  references to base-game content.
-* **Build new content programmatically.** The `Mod` API creates armor,
-  weapons, consumables, passives, statuses, spells, and class spell-list
-  additions, then packages them into a loadable `.pak`.
-* **Power other community tools.** The typed Python API and deterministic
-  exporters provide a reusable engine for GUIs, planners, databases, bots,
-  and mod-authoring pipelines.
-* **Publish resolved data for non-Python users.** Release tooling produces
-  patch-labeled SQLite, JSON, and CSV bundles for wiki editors,
-  theorycrafters, and tool authors.
+BG3 Forge complements
+[LSLib](https://github.com/Norbyte/lslib),
+[BG3 Modders Multitool](https://github.com/ShinyHobo/BG3-Modders-Multitool),
+[BG3 Mod Manager](https://github.com/LaughingLeader/BG3ModManager),
+[Script Extender](https://github.com/Norbyte/bg3se), and the
+[BG3 Community Library](https://github.com/BG3-Community-Library-Team/BG3-Community-Library).
+It is the programmatic data and authoring layer alongside them, not a
+replacement for them.
 
-Forge complements LSLib, BG3 Modders Multitool, BG3 Mod Manager, Script
-Extender, and the BG3 Community Library. It is the programmatic data and
-authoring layer alongside them, not a replacement for them.
+## Quick start
 
-## What it looks like
+BG3 Forge supports Python 3.10–3.13. Python 3.12 is a good default on Windows.
 
-BG3 Forge doesn't just unpack files — it *understands* the data. Values
-are resolved across sources (stats inheritance, RootTemplates,
-localization, atlases) so you never need to know where they came from:
+### Windows PowerShell
+
+From your project folder:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install "bg3forge[all]==0.2.0"
+bg3forge doctor
+```
+
+If PowerShell blocks virtual-environment activation, allow it for the current
+window and try again:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+### Linux and macOS
+
+```console
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install "bg3forge[all]==0.2.0"
+bg3forge doctor
+```
+
+`doctor` confirms that Python, optional features, the game installation,
+archives, version metadata, and localization are ready. If Forge cannot locate
+the game automatically, point it at the installation:
+
+```powershell
+bg3forge --game-path "E:\SteamLibrary\steamapps\common\Baldurs Gate 3" doctor
+```
+
+You can also set the path once for the current PowerShell window:
+
+```powershell
+$env:BG3_PATH = "E:\SteamLibrary\steamapps\common\Baldurs Gate 3"
+bg3forge doctor
+```
+
+## Common tasks
+
+### Look up game data
+
+Search by internal name, display name, UUID, or localization handle:
+
+```powershell
+bg3forge lookup Projectile_Fireball_4
+bg3forge lookup "Fireball"
+bg3forge lookup WPN_Longsword
+```
+
+Names are matched case-insensitively when the result is unambiguous. Partial
+queries return ranked suggestions and the true match count, so a broad search
+never silently hides how much it found. Multi-word display names may be quoted
+as usual.
+
+Lookup results connect the graph instead of showing an isolated row:
+
+- items show stats, templates, tags, passives, statuses, and unlocked spells;
+- spells show items and progressions that grant them;
+- passives and statuses show what grants or applies them;
+- characters show their stat block, passives, tags, and equipment; and
+- classes, races, progressions, and spell lists retain their distinct
+  grant-versus-selection relationships.
+
+### Check a mod before uploading it
+
+Run the internal checks without a game installation:
+
+```powershell
+bg3forge lint "D:\Mods\MyMod.pak"
+```
+
+Point Forge at BG3 to also resolve references against the base game:
+
+```powershell
+bg3forge --game-path "E:\SteamLibrary\steamapps\common\Baldurs Gate 3" lint "D:\Mods\MyMod.pak"
+```
+
+`lint` checks the module manifest, folder consistency, supported resource
+formats, UUIDs, localization handles, inheritance chains, and references to
+passives, statuses, and spells. It is intended to catch the common “the mod
+doesn't appear” and “the item loads but part of it is broken” failures before
+they reach Nexus users.
+
+### Export resolved data
+
+Export every public dataset in one format:
+
+```powershell
+bg3forge export json -o export
+bg3forge export csv -o export
+bg3forge export sqlite -o export
+```
+
+Or export one dataset:
+
+```powershell
+bg3forge items -f csv -o items.csv
+bg3forge spells -f json -o spells.json
+bg3forge spell-lists -f json -o spell-lists.json
+```
+
+Supported formats are JSON, CSV, SQLite, Markdown, and YAML. YAML requires the
+`yaml` extra.
+
+### Inspect or extract archives
+
+```powershell
+bg3forge list "E:\SteamLibrary\steamapps\common\Baldurs Gate 3\Data\Shared.pak"
+bg3forge search "journal"
+bg3forge search "*/Stats/*" --dirs
+bg3forge unpack -p "*/Stats/*" -o extracted
+bg3forge convert Weapons.lsf Weapons.lsx
+bg3forge patches --update
+```
+
+### Diagnose and validate an installation
+
+```powershell
+bg3forge doctor
+bg3forge validate
+bg3forge benchmark
+```
+
+`validate` parses every recognized file and reports coverage and failures.
+`benchmark` runs the complete connected-data pipeline with stage timings and
+peak memory use.
+
+## Installation choices
+
+The core library has no required dependencies. It includes a pure-Python LZ4
+block codec, so the basic package installs anywhere supported Python does.
+Extras provide speedups or feature-specific integrations:
+
+| Install | Enables |
+| --- | --- |
+| `bg3forge` | Dependency-free core |
+| `bg3forge[lz4]` | Native-speed LZ4; recommended for full game archives |
+| `bg3forge[zstd]` | Zstandard-compressed archive entries |
+| `bg3forge[icons]` | DDS decoding and PNG/WebP icon export |
+| `bg3forge[yaml]` | YAML export |
+| `bg3forge[all]` | Every optional runtime feature |
+
+For a command-line installation, `[all]` is the easiest choice. Projects
+embedding Forge can depend on the core and add only the extras they use:
+
+```toml
+dependencies = ["bg3forge>=0.2,<0.3"]
+```
+
+BG3 Forge is pre-1.0: minor versions may evolve the public API, while patch
+releases within the same minor line will not intentionally break it.
+
+## Python API
+
+`Game` auto-locates the installation and loads each collection only when it is
+first accessed:
 
 ```python
 from bg3forge import Game
 
-game = Game()  # auto-locates the install (or pass path= / data_dir=)
+game = Game()
+fireball = game.spells["Projectile_Fireball"]
 
-sword = game.items["WPN_Longsword"]  # or any magic item's stats name
-sword.display_name      # localized name, via RootTemplate + .loca
-sword.description       # localized description
-sword.icon              # atlas icon name
-sword.rarity            # from stats, `using` inheritance applied
-sword.requirements      # ["Str 13"]
-sword.tags              # [Tag(...)] named, localized, from the template chain
-sword.owner_templates   # RootTemplates whose Stats point at this entry
-sword.passives          # [Passive(...)] granted on equip
-sword.statuses          # [Status(...)] applied on equip
-sword.spells            # [Spell(...)] unlocked by the item's boosts
-
-# ...and the graph works backwards, too:
-game.passives["ExtraAttack"].items      # items granting a passive
-game.spells["Projectile_Fireball"].items  # items unlocking a spell
-game.statuses["BURNING"].items          # items applying a status
-game.tags["LONGSWORD"].items            # items carrying a tag (by name or UUID)
-game.spells["Shout_Rage"].progressions  # class/level progressions that grant it
-game.classes["Wizard"].spell_list       # the pool wizards learn/transcribe from
-game.races["Elf"].subraces              # the race tree (High Elf, Wood Elf, ...)
-
-# Dialogs are indexed, not eagerly parsed (there are ~9,400 of them):
-game.dialogs.find("Karlach")            # search archived paths — free
-dialog = game.dialogs.load(path)        # parses just this one file
-game.dialogs.lines(path)                # (speaker, localized text) pairs
-game.timelines.for_dialog(dialog)       # the cinematic staging the dialog
-
-# Quests join the graph too:
-quest = game.quests["PLA_ZhentShipment"]
-quest.title                             # localized quest title
-quest.steps[0].description              # localized journal entry
-quest.goals                             # Osiris goal scripts driving the quest
-quest.category.display_name             # journal section, localized
-quest.objectives[0].markers             # objective -> map marker join
-game.quest_markers                      # localized map markers
-
-# Compiled Osiris stories are large, so they parse one file at a time:
-story_path = game.story.paths[0]
-story = game.story.load(story_path)
-story.header.version                    # "1.15"
-story.goals[0].name                     # compiled goal metadata
-story.databases[0].name                 # database name/signature metadata
-game.uncompiled_goals()                 # source goals absent from all compiled stories
-
-# ...and so do characters:
-goblin = game.characters["GOB_Warrior_Melee"]
-goblin.display_name                     # localized, via its template
-goblin.strength, goblin.vitality        # stat block with `using` inheritance
-goblin.passives                         # [Passive(...)]
-goblin.equipment_items                  # loadout resolved into Item models
-game.passives["SavageAttacks"].characters  # reverse: who has this passive
-
-game.items.find("longsword")   # search by name / display name
-for spell in game.spells:
-    print(f"[{spell.level}] {spell.display_name}: {spell.damage}")
+print(fireball.display_name)
+print(fireball.level)
+print(fireball.damage)
 ```
 
-Everything resolves **lazily**: constructing `Game()` reads nothing,
-collections load on first access, and each relationship is resolved once
-and cached on the instance. You only pay for the data you actually touch.
-
-And it doesn't only *read* the game — Forge writes mods back into it. A
-`Mod` composes the same models into a loadable `.pak`, retail-verified in
-a Patch 8 game all the way from equip boosts to custom spells appearing
-in the class level-up picker:
+Models are connected across stats, templates, localization, tags, atlases,
+progressions, spell lists, and equipment:
 
 ```python
-from bg3forge import Mod
+sword = game.items["WPN_Longsword"]
 
-mod = Mod("MyArmors", author="you")
-mod.new_armor(
-    "ARM_Sunforged",
-    armor_class=21,
-    stats_using="_Armor",                 # inherit stats from a base entry
-    parent_template="<base-template-uuid>",  # reuse an existing item's visuals
-    display_name="Sunforged Plate",       # a localization handle is minted for you
-    boosts=["Ability(Strength,2)"],       # applied on equip
-)
-mod.build("MyArmors.pak")
+print(sword.display_name)
+print(sword.owner_templates)
+print(sword.passives)
+print(sword.statuses)
+print(sword.spells)
+
+print(game.passives["ExtraAttack"].items)
+print(game.spells["Projectile_Fireball"].progressions)
+print(game.classes["Wizard"].spell_list)
+print(game.races["Elf"].subraces)
 ```
 
-See [Mod authoring](#mod-authoring) below for the full API.
+Collections support iteration, exact lookup, tolerant lookup, and search:
 
-And from the command line:
+```python
+for spell in game.spells.find("fire"):
+    print(spell.name, spell.display_name)
 
-```console
-$ bg3forge export json -o export
-exported 12842 items
-exported 4051 spells
-exported 1876 passives
-exported 2410 statuses
+maybe_item = game.items.get("WPN_Maybe", default=None)
+print(maybe_item)
 ```
 
-(Counts are illustrative — they depend on your game version.)
+Large resources stay lazy. Dialogs and compiled Osiris stories are indexed
+first and parsed individually on demand:
 
-```console
-$ bg3forge list Shared.pak
-$ bg3forge search "journal"   # find archived paths across all paks — fast
-$ bg3forge unpack -p "*/Stats/*" -o extracted
-$ bg3forge spells -f json -o spells.json
-$ bg3forge items -f csv -o items.csv
-$ bg3forge export sqlite -o export
-$ bg3forge icons Icons_Items.lsx Icons_Items.dds -o icons -f webp
-$ bg3forge convert Weapons.lsf Weapons.lsx
-$ bg3forge patches --update
-$ bg3forge doctor       # diagnose the install and environment
-$ bg3forge validate     # parse everything, report any file that fails
-$ bg3forge lint MyMod.pak                        # check your own mod's consistency
-$ bg3forge --data-dir "…/Data" lint MyMod.pak    # …and resolve its base-game references
-$ bg3forge lookup WPN_Longsword                  # resolve a name/UUID/handle + cross-refs
-$ bg3forge benchmark    # repeatable stage timings + peak RSS
+```python
+dialog_paths = game.dialogs.find("Karlach")
+for dialog_path in dialog_paths[:1]:
+    dialog = game.dialogs.load(dialog_path)
+    lines = game.dialogs.lines(dialog_path)
+    print(len(lines))
+
+for story_path in game.story.paths[:1]:
+    story = game.story.load(story_path)
+    print(story.header.version)
 ```
 
-`doctor` answers "is it my setup or the tool?" before anything else:
+Forward and reverse relationships are cached per `Game` instance. Raw resolved
+stats remain available through `object.data` when a typed model does not yet
+surface a field.
 
-```console
-$ bg3forge doctor
-✓ Python — 3.11.15
-✓ Native LZ4 — available
-✓ BG3 installation — /home/you/.steam/steam/steamapps/common/Baldurs Gate 3
-✓ Pak archives — 34 readable (v18), 12 part files
-✓ Shared.pak — present
-✓ Game data version — 4.1.1.4859133 (module GustavDev)
-✓ English localization — present
+## Mod authoring
 
-Warnings
---------
-None
-```
+The `Mod` API creates deterministic project identifiers, writes BG3 resource
+files, lays out the module correctly, and packages the result as a `.pak`.
+Forge writes only to the output path you choose.
 
-## Installation
-
-```console
-pip install bg3forge            # core: zero dependencies
-pip install "bg3forge[all]"     # native LZ4, zstd, icon pipeline, YAML
-```
-
-> **Version note:** BG3 Forge 0.2.0 includes the mod-authoring layer,
-> progression/class/race graph, mod linting, resolved-data releases, and
-> forgiving lookup workflow documented here. Development on `main` may move
-> ahead after release; pin `bg3forge>=0.2,<0.3` for the stable 0.2 API.
-
-The core library has **no required dependencies** — it includes a
-pure-Python LZ4 block codec, so it installs and runs anywhere Python does.
-Every extra is either a *speedup* or *feature-specific*; none is required
-for correctness, so you only add what you use.
-
-| Extra   | Enables                                        |
-| ------- | ---------------------------------------------- |
-| `lz4`   | native-speed LZ4 (pure-Python fallback works, just slower) |
-| `zstd`  | reading zstd-compressed pak entries            |
-| `icons` | DDS atlas decoding, PNG/WebP icon export (Pillow) |
-| `yaml`  | YAML exporter (PyYAML)                          |
-
-**Which should I install?**
-
-* **Embedding bg3forge in your own project** → bare `bg3forge`, then add
-  only the extras your code path needs. The zero-dependency core keeps you
-  from forcing native packages (Pillow, lz4, …) onto *your* users, and it
-  installs in minimal or locked-down environments where compiled wheels
-  aren't available.
-* **CLI, unpacking the full game** → `bg3forge[lz4]` at minimum; native
-  LZ4 is a large speedup over ~150 GB of archives.
-* **Working with icons** → add `[icons]` (Pillow).
-* **Want everything in one command** → `[all]`.
-
-The extras (`lz4`, `zstd`, `icons`) are native/compiled packages, so a
-smaller install also means less to build, less to audit, and fewer places
-an install can fail.
-
-## Embedding BG3 Forge
-
-BG3 Forge is built to be built *on*. If you're making a mod-planning
-site, a data browser, a Discord bot, a GUI over the game data, or your
-own authoring pipeline, embed the library instead of shelling out to the
-CLI — every command is a thin wrapper over an importable module.
-
-**As a dependency.** The zero-dependency core makes Forge safe to depend
-on: it won't force native packages (Pillow, lz4, …) onto *your* users,
-and it installs anywhere Python does. Add only the extras your code path
-needs.
-
-```toml
-# pyproject.toml
-dependencies = ["bg3forge>=0.2,<0.3"]        # pin the minor while pre-1.0
-```
-
-**Bundled into a standalone tool.** Because the core has no compiled
-dependencies, Forge freezes cleanly into a single executable
-(PyInstaller, etc.) — nothing fragile to match against your users'
-machines. Ship a GUI or CLI with the game-data engine baked in.
-
-**Typed.** The package ships a `py.typed` marker (PEP 561), so your type
-checker sees Forge's annotations — `game.find_files(...)` resolves to
-`dict[str, Path]`, not `Any`.
-
-**API stability.** Pre-1.0, the public API may change at *minor*
-versions (0.2 → 0.3); patch releases won't break it. Pin `>=0.2,<0.3` and
-watch the changelog. Everything exported from `bg3forge` (and the
-documented `bg3forge.lint` / `bg3forge.validate` / `bg3forge.doctor`
-entry points) is public surface; names with a leading underscore are not.
-
-**A favor.** If you ship something built on BG3 Forge, a credit and a
-link back are appreciated — and please keep the LSLib credit in the chain
-(see [Acknowledgements](#acknowledgements)). If you hit a rough edge in
-the API, open an issue; consumer feedback is how the surface gets better.
-
-## Features
-
-### Asset extraction (`bg3forge.pak`)
-
-* Read LSPK `.pak` archives directly (v15/v16/v18, multi-part archives,
-  LZ4/zlib/zstd entries) — `PakReader`
-* Incremental extraction with a content-hash manifest: re-runs only write
-  files whose archived bytes changed — `Extractor`
-* Automatic patch detection via data-directory fingerprint snapshots —
-  `PatchDetector`
-* Selective extraction with glob patterns (`-p "*/Stats/*"`)
-* `PakWriter` for building archives (fixtures, repacking)
-
-### Game data parsing (`bg3forge.parsers`)
-
-* **Stats** `.txt` (weapons, armor, objects, spells, passives, statuses,
-  interrupts) with full `using` inheritance resolution — `StatsCollection`
-* **Localization** `.loca` binary archives with handle→text lookup and
-  version precedence — `Localization`
-* **LSX** node trees (XML) — `parse_lsx` / `write_lsx`
-* **LSF** node trees (binary, versions 1–7 incl. current BG3 keyed-node
-  output; zlib/LZ4-frame/zstd section compression) — `parse_lsf` /
-  `write_lsf`
-* **LSJ** node trees (JSON, e.g. editor-side dialogs) — `parse_lsj`.
-  All three serializations parse into the *same* document structure,
-  and `parse_resource` sniffs the format, so downstream code never
-  cares which one the game shipped
-* **RootTemplates** (`.lsx` or `.lsf`) with `ParentTemplateId`
-  inheritance — `RootTemplateIndex` (see *Mod authoring* for building new
-  ones); `game.item_templates.by_treasure_table("TUT_Chest_Potions")` finds
-  the containers that fill from a treasure table (and their spawn UUIDs)
-* **Progressions** (class/race level tables) and referenced spell lists —
-  `parse_progressions` / `parse_spell_lists`
-* **Class & race descriptions** — `game.classes` / `game.races`: the
-  origin joins (learnable spell pools, `ParentGuid` class/race trees,
-  progression-table links) — `parse_class_descriptions` / `parse_races`
-* **Treasure tables** — `parse_treasure_tables`
-* **Tag registry** (`Tags/*.lsx|.lsf`) — UUID/name lookup with categories
-  and localized display strings — `TagRegistry`
-* **Dialogs** (`Story/DialogsBinary/**.lsf`) — node graphs with
-  constructors, speakers, flow edges, and text handles — `parse_dialog`
-* **Quest journal** (`Story/Journal/`) — quest catalog with steps,
-  rewards, objectives, categories, localized titles/descriptions, and
-  map markers —
-  `parse_quests` / `parse_markers`
-* **Osiris goal scripts** (`Story/RawFiles/Goals/*.txt`) — metadata
-  level: sections, rule counts, and which quests/steps each goal's
-  logic touches — `parse_goal`
-* **Compiled Osiris stories** (`Story/story.div.osi`, versions 1.13–1.15)
-  — metadata-level traversal of headers, types, functions, databases,
-  goals, and rules — `parse_osiris`
-* **Equipment sets** (`Stats/Generated/Equipment.txt`) — character
-  loadouts with weapon sets and slot groups — `parse_equipment_sets`
-* `bg3forge convert` converts `.lsf` ↔ `.lsx` from the command line — no
-  lslib/divine required
-
-### Mod authoring
-
-The inverse of everything above: generate a mod programmatically. A `Mod`
-mints stable UUIDs and localization handles, lays files out under the
-folder convention BG3 expects, and packs a `.pak` — writing only to the
-output path you choose, never to your install.
+### Build an item
 
 ```python
 from bg3forge import Mod
 
 mod = Mod("SunforgedArmors", author="you")
-mod.new_armor(
+template_uuid = mod.new_armor(
     "ARM_Sunforged_Plate",
     armor_class=21,
-    stats_using="_Armor",                 # inherit stats from a base entry
-    parent_template="<base-template-uuid>",  # reuse an existing item's visuals
-    display_name="Sunforged Plate",       # localized; a handle is minted for you
+    stats_using="_Armor",
+    parent_template="<base-template-uuid>",
+    display_name="Sunforged Plate",
     description="Warm to the touch.",
     icon="Item_Plate_Body",
-    boosts=["Ability(Strength,2)"],       # applied on equip
-    grants_spells=["Target_Fireball"],    # added as UnlockSpell(...)
-    treasure="TUT_Chest_Potions",         # drops from the tutorial chest
+    boosts=["Ability(Strength,2)"],
+    treasure="TUT_Chest_Potions",
 )
-status = mod.new_status("SUN_BLESSING",   # a custom status...
-    boosts=["Ability(Strength,2)"], display_name="Sun's Blessing")
-mod.new_potion("OBJ_Sunforged_Brew",      # ...applied by drinking this
-    status=status, treasure="TUT_Chest_Potions")
-spell = mod.new_spell("Projectile_Sunbolt",  # a custom spell cloned from
-    using="Projectile_FireBolt",             # a retail base (visuals/sounds
-    display_name="Sunbolt",                  # inherit; effects override)
-    spell_success=["DealDamage(2d10,Fire,Magical)"])
-mod.new_scroll("OBJ_Scroll_Sunbolt",      # ...cast from a scroll by anyone
-    spell=spell)                          # (wizards can also Learn it once the
-mod.build("SunforgedArmors.pak")          # spell joins their list — see below)
+
+print(template_uuid)
+print(mod.build("SunforgedArmors.pak"))
 ```
 
-(Also available: `new_weapon`, `new_elixir`, `new_passive`, and
-`place_in_treasure` — each one keyword-level sugar over the same
-pipeline.)
-
-To make a custom spell a real *class spell* — offered in the level-up
-picker, prepared lists, and wizard transcription — bridge the read and
-write sides with `add_class_spell`. It reads the class's current spell
-lists from your installed game and ships them back extended, skipping
-lists of the wrong level (`level=0` targets the cantrip lists):
+`parent_template` reuses an existing item's visuals. Find a suitable template
+directly from the installed game:
 
 ```python
-from bg3forge import Game, Mod, add_class_spell
+plate = game.items["ARM_Body_Plate"]
+parent_template = plate.owner_templates[0].map_key
 
-game, mod = Game(), Mod("SunstepForBards")
-spell = mod.new_spell("Target_Sunstep", using="Target_MistyStep",
-    display_name="Sunstep", icon="Spell_Conjuration_DimensionDoor")
-add_class_spell(game, mod, "Bard", spell, level=2)
-mod.build("SunstepForBards.pak")
+print(parent_template)
 ```
 
-Rebuilding the same mod reproduces byte-identical identifiers (UUID5 from
-the mod name). Under the hood it composes the write primitives:
+The generated `SunforgedArmors.pak` is the file to test in BG3 and eventually
+upload to Nexus Mods. BG3 Forge itself remains a development dependency.
 
-* **Stats content** — `write_stats` / `write_stats_document`
-* **Item templates** — `build_root_template_node` /
-  `build_templates_document` (with `ParentTemplateId` to reuse visuals,
-  and `on_use` consume/cast actions for consumables)
-* **Module manifest** — `build_meta_document` (+ `parse_meta`)
-* **Spell lists** — `build_spell_list_node` / `build_spell_lists_document`
-  (behind `replace_spell_list` / `add_class_spell`)
-* **Version64** — `pack_version64` / `unpack_version64`
-* plus the existing `.loca` writer and `PakWriter`
+The high-level API also provides:
 
-**Retail-verified in a Patch 8 game:** items drop from base-game chests
-with resolved stats, text, and icons; equip boosts, custom passives, and
-custom statuses apply; potions and scrolls consume and cast; a custom
-spell cast from its scroll; a wizard *learned* a custom spell from its
-scroll (transcribe dialog, gold cost, spellbook cast); and custom spells
-appeared in the class level-up picker — a leveled spell for a Sorcerer
-and a cantrip — chosen and cast like any base-game spell. See
-[`docs/mod-authoring.md`](docs/mod-authoring.md) for the load-test steps
-and [`docs/baseline.md`](docs/baseline.md) for the verified results.
+- `new_weapon`
+- `new_potion`
+- `new_elixir`
+- `new_scroll`
+- `new_passive`
+- `new_status`
+- `new_spell`
+- `place_in_treasure`
 
-### Icon pipeline (`bg3forge.assets`)
+### Add a class spell
 
-* Parse texture atlas definitions (`IconUVList` LSX)
-* Slice icons out of DDS atlases, preserving original quality
-* Export individual PNG or WebP files
-* Automatically match icons on items/spells to the atlas containing them —
-  `match_icons`
-
-### Data export (`bg3forge.exporters`)
-
-JSON, SQLite, CSV, Markdown, and YAML — all deterministic: identical
-inputs produce byte-identical exports.
+`add_class_spell` reads the class's real spell lists and writes compatible
+replacements with the custom spell added. It handles cantrip lists separately
+from leveled spell lists:
 
 ```python
-from bg3forge.exporters import export_sqlite
-export_sqlite(game.spells, "bg3.db", table="spells")
-```
+from bg3forge import add_class_spell
 
-### High-level API
-
-`Game` ties it all together: it reads stats, localization, root templates,
-tags, atlases, and treasure tables straight out of the installed `.pak`
-archives (no extraction step needed) or from a previously extracted tree,
-and joins them into typed models (`Item`, `Spell`, `Passive`, `Status`,
-`Tag`, `ClassDescription`, `Race`) with resolved inheritance and
-localized display text. Dialogs are
-exposed through a lazy `DialogIndex` (`game.dialogs`) that lists from the
-pak indexes and parses per file on demand.
-
-Collections support list iteration, name lookup, and search:
-
-```python
-game = Game(path="/path/to/Baldurs Gate 3")     # or data_dir= / extracted_dir=
-game = Game(language="German")                   # localization language
-
-game.spells["Projectile_Fireball"]               # lookup by stats name
-game.items.find("amulet")                        # search names + display names
-game.items.get("WPN_Maybe", default=None)        # tolerant lookup
-game.item_templates                               # RootTemplates + placed global items
-levels = game.progressions.by_table(table_uuid)   # ordered level records
-levels[0].passives                                # resolved Passive models
-levels[0].spells                                  # automatic AddSpells grants
-levels[0].selectable_spells                       # SelectSpells choices
-game.export_icons(                                # read atlases from paks, write WebP
-    {item.icon for item in game.items if item.icon}, "assets/icons"
+spell_mod = Mod("SunstepForBards", author="you")
+sunstep = spell_mod.new_spell(
+    "Target_Sunstep",
+    using="Target_MistyStep",
+    display_name="Sunstep",
+    icon="Spell_Conjuration_DimensionDoor",
 )
+
+add_class_spell(game, spell_mod, "Bard", sunstep, level=2)
+print(spell_mod.build("SunstepForBards.pak"))
 ```
 
-`game.item_templates` mirrors the runtime's item-template view. It includes
-stable story-facing objects from `Mods/*/{Globals,Levels}/*/Items` and resolves
-their `TemplateName` references back through the RootTemplate inheritance
-chain. Use `game.templates` when only canonical RootTemplates are wanted.
+Authoring has been retail-verified in Patch 8 for armor, weapons, potions,
+elixirs, scrolls, passives, statuses, custom spells, wizard transcription,
+treasure placement, and class level-up selection. See the
+[mod-authoring guide](docs/mod-authoring.md) for the repeatable in-game test
+procedure and [retail baseline](docs/baseline.md)
+for the results.
 
-Models form a relationship graph rather than isolated records. Forward
-edges resolve an object's references (`item.passives`, `item.spells`,
-`item.statuses`, `item.owner_templates`, `item.tags`); reverse edges
-answer "who references me?" (`passive.items`, `spell.items`,
-`status.items`, `passive.progressions`, `spell.progressions`, backed by
-one-pass indexes built on first use). Progression spell grants and choices
-stay distinct: ``AddSpells`` feeds ``progression.spells`` while
-``SelectSpells`` feeds ``progression.selectable_spells``. All
-edges resolve lazily and are cached per instance — treat them as
-read-only snapshots. The raw resolved stats stay available via
-`obj.data` when you need a field the typed model doesn't surface.
+## Resolved data releases
 
-The install is auto-located via `$BG3_PATH` and well-known Steam/GOG paths
-on Windows, macOS, and Linux.
+GitHub releases can include a patch-labeled bundle such as
+`bg3forge-data-4.8.700.7143220.zip`. It contains:
 
-## Goals
+| Path | Contents |
+| --- | --- |
+| `bg3forge-data.sqlite` | All datasets as browsable SQLite tables |
+| `json/<dataset>.json` | Nested JSON records |
+| `csv/<dataset>.csv` | Flat CSV tables |
+| `MANIFEST.json` | Forge version, game version, row counts, and validation provenance |
 
-* Work completely offline
-* Never depend on community wikis
-* Stay compatible with new BG3 patches (patch detection + incremental extraction)
-* Produce deterministic exports
-* Make BG3 data easy to consume for websites, tools, and mods
-* Pay for complexity only when the data demands it — see the
-  [design principles](CONTRIBUTING.md#design-principles)
+This is intended for wiki editors, theorycrafters, spreadsheet users, planner
+sites, Discord bots, and other consumers that want resolved data without
+running Python. The bundle is deterministic and contains no textures, models,
+audio, or other Larian assets.
 
-## Project layout
+Download bundles from
+[GitHub Releases](https://github.com/crazyace/bg3-forge/releases).
+The format and regeneration procedure are documented in
+[`docs/data-release.md`](docs/data-release.md).
 
-```
-src/bg3forge/
-├── pak/            # LSPK reader/writer, incremental extractor, patch detection
-├── parsers/        # stats, loca, lsx, lsf, lsj, osiris, roottemplates,
-│                   # tags, dialogs, progressions, spell lists, classes,
-│                   # races, treasure
-├── assets/         # texture atlases, icon extraction
-├── exporters/      # json, sqlite, csv, markdown, yaml
-├── cli/            # thin argparse front-end
-├── models.py       # typed domain models (Item, Spell, Passive, Status)
-├── game.py         # Game facade, relationship graph, DialogIndex
-├── locate.py       # install discovery
-├── doctor.py       # install/environment diagnostics
-├── validate.py     # format-coverage sweep
-└── benchmark.py    # repeatable pipeline measurements
-```
+## Retail validation snapshot
 
-## Roadmap
+Version 0.2.0 was validated against the English Steam build
+`4.8.700.7143220`:
 
-* ✅ PAK reader/writer (LSPK v15–v18, multi-part, incremental extraction)
-* ✅ Patch detection
-* ✅ Stats parser with `using` inheritance
-* ✅ Localization (`.loca`) parser
-* ✅ LSX parser/writer
-* ✅ LSF (binary) parser/writer + `bg3forge convert`
-* ✅ RootTemplate parser with parent-template inheritance
-* ✅ Placed item templates with `TemplateName` → RootTemplate inheritance
-* ✅ Atlas definitions + icon extraction (PNG/WebP)
-* ✅ Progressions and treasure tables
-* ✅ JSON / SQLite / CSV / Markdown / YAML exporters
-* ✅ Typed Python API with cross-source resolution
-* ✅ Relationship graph (forward + reverse edges, lazy + cached)
-* ✅ `bg3forge doctor` — install/environment diagnostics with game
-  version detection
-* ✅ `bg3forge validate` — format coverage sweep with per-file failures
-* ✅ `bg3forge benchmark` — repeatable stage timings and peak RSS
-* ✅ Validated against a full retail install — every recognized file
-  parses cleanly; see [docs/baseline.md](docs/baseline.md) for the
-  numbers (~14.6 s for the full pipeline, 826 MB peak)
-* ✅ Tag registry (`game.tags`) — tag UUIDs resolve to named, localized
-  `Tag` objects, with the reverse `tag.items` edge
-* ✅ Dialog metadata (`game.dialogs`) — lazy indexed access to dialog
-  graphs: speakers, flow edges, localized lines
-* ✅ Timeline (cinematic) index (`game.timelines`) with dialog↔timeline
-  linkage; internals unmodeled so far
-* ✅ LSJ (JSON) resource format — the third serialization, covering
-  editor-side dialogs
-* ✅ Quest journal (`game.quests`, `game.quest_markers`,
-  `game.objectives`, `game.quest_categories`) — the complete journal
-  layer: localized quests, steps, objectives (with marker links),
-  categories, and quest↔goal cross-links
-* ✅ Osiris goal metadata (`game.goals`) — lazy index over the shipped
-  quest-logic source, with quest references extracted
-* ✅ Compiled Osiris metadata (`game.story`) — lazy `story.div.osi`
-  index with goal/database/function signatures, rule counts, validation,
-  and source↔compiled goal cross-checking
-* ✅ Characters (`game.characters`) — NPC stat blocks joined to
-  templates: abilities, passives, tags, and equipment resolved to items
-* ✅ Equipment sets (`game.equipment`)
-* ✅ First real consumer integration — item, passive, status, template,
-  and icon datasets generated entirely through BG3 Forge; the integration
-  drove placed-template coverage and direct in-pak icon export
-* ✅ PyPI release — [0.1.0 is available](https://pypi.org/project/bg3forge/0.1.0/)
-* ✅ Typed progression graph (`game.progressions`) — classes/races → level
-  records → granted `AddSpells` and selectable `SelectSpells`, resolved
-  spell lists and passives, with reverse links on `Spell`/`Passive`
-* ✅ Class & race origin joins (`game.classes`, `game.races`) — learnable
-  spell pools, prepared-vs-selection flags, the `ParentGuid` race tree,
-  and tag links; **retail-verified** against all 70 class and 156 race
-  records
-* ✅ Mod authoring — a `Mod` capstone assembles stats, RootTemplate
-  (`_merged.lsf`), `meta.lsx`, localization, treasure tables, and spell
-  lists into a `.pak`: armor, weapons, consumables (potions/elixirs/
-  scrolls), and custom passives, statuses, and spells — deliverable as
-  equipment grants, castable scrolls, wizard-transcribable scrolls, and
-  class level-up choices down to cantrips; **retail-verified in a Patch 8
-  game** for every delivery path
-* ⏳ Virtual texture (GTS/GTP) atlas support
-* ⏳ GR2 model metadata
-* ⏳ Full Osiris rule decompilation — compiled-story *metadata* (goals,
-  databases, function signatures, rule counts) is exposed; reconstructing
-  executable rule *logic* back to readable source is a separate, much
-  larger project with no current consumer — read the shipped `.txt`
-  goals (`game.goals`) for logic today
+| Check | Result |
+| --- | ---: |
+| Readable primary pak archives | 30 |
+| Corrupt pak archives | 0 |
+| Resolved stats entries | 16,132 |
+| Items | 3,139 |
+| Spells | 4,687 |
+| Passives | 1,827 |
+| Statuses | 4,631 |
+| Characters | 1,550 |
+| Progressions | 1,004 |
+| Spell lists | 315 |
+| Missing progression passive references | 0 |
+| Missing progression spell-list references | 0 |
+| Missing spell-list spell references | 0 |
 
-### Where this is going — community direction
+Every recognized file parsed cleanly. The complete connected pipeline finished
+in approximately 11.2 seconds with 828 MB peak RSS on the release machine.
+These numbers describe that installation and patch; other versions may differ.
+See [`docs/baseline.md`](docs/baseline.md) for the complete coverage report and
+benchmark history.
 
-The library and the parsers are mature; the focus now is on getting
-BG3 Forge's *output* to the people who need it, most of whom don't write
-Python:
+## Capabilities
 
-* 🔜 **A definitive data export** — the resolved item/spell/passive/status/
-  character datasets published as downloadable SQLite + CSV bundles, so
-  wiki editors, planner sites, and spreadsheet theorycrafters can consume
-  Forge's data without running anything. Generated locally from a real
-  install (see [docs/data-release.md](docs/data-release.md)) and attached
-  to the GitHub release. Patch 8 was the game's final patch, so this is a
-  *stable* dataset with a long shelf life — not a snapshot a future patch
-  will invalidate.
-* ✅ **`bg3forge lint`** — point it at *your own* mod `.pak` and get its
-  internal consistency checked: is the `meta.lsx` module manifest present
-  and its `Folder` consistent (the #1 "mod doesn't show up" bug, and it
-  applies to *any* mod — assets and scripts included), does everything
-  parse, are UUIDs well-formed, do `DisplayName` handles have `.loca`
-  entries, and — with `--data-dir` pointing at an install — do `using`
-  chains and equip references (passives/statuses/unlocked spells) resolve
-  against the base game. Catches the mistakes that ship broken mods,
-  before upload.
-* ✅ **`bg3forge lookup <query>`** — resolve a stats name, a template/tag
-  UUID, or an `h…` localization handle to its display name, description,
-  UUID, icon, and cross-references (what an item grants; which items or
-  progressions grant a spell/passive/status), the lookup modders do
-  constantly. A partial name returns ranked suggestions.
+### Archives and resources
+
+- LSPK v15, v16, and v18 archives, including multi-part archives
+- LZ4, zlib, and zstd entries
+- incremental extraction with content-hash manifests
+- LSX, LSF v1–v7, and LSJ parsing into one document model
+- LSF ↔ LSX conversion
+- pak writing for generated mods
+
+### Connected game data
+
+- stats with `using` inheritance and retail load-order layering
+- localization and RootTemplate inheritance
+- tags, texture atlases, treasure tables, and equipment sets
+- items, spells, passives, statuses, and characters
+- progressions, classes, races, and spell lists
+- quests, journal steps, objectives, categories, and map markers
+- lazy dialog and cinematic-timeline indexes
+- source goals and compiled Osiris metadata
+- forward and reverse references across the model graph
+
+### Tooling
+
+- deterministic JSON, CSV, SQLite, Markdown, and YAML exports
+- DDS atlas slicing to PNG or WebP
+- install diagnostics and full-format validation
+- mod linting with optional base-game reference checks
+- deterministic mod authoring and packaging
+- a typed package with a PEP 561 `py.typed` marker
+
+For the detailed design and future format work, see
+[`docs/plan.md`](docs/plan.md).
 
 ## Development
 
+Clone the repository and install the development dependencies:
+
 ```console
-pip install -e ".[dev]"
-pytest
+git clone https://github.com/crazyace/bg3-forge.git
+cd bg3-forge
+python -m venv .venv
+python -m pip install -e ".[dev]"
+python -m pytest
 ```
 
-The test suite builds real LSPK/`.loca`/LSF fixtures in memory, so it
-runs without a game install. See [CONTRIBUTING.md](CONTRIBUTING.md) for
-setup, style, and pull-request guidelines, and
-[docs/retail-testing.md](docs/retail-testing.md) for running the
-validation sweep against a real install.
+The unit suite builds real LSPK, `.loca`, LSF, and mod fixtures in memory, so it
+does not require an installed copy of BG3. Retail-only verification is
+documented separately:
+
+- [Contributing and design principles](CONTRIBUTING.md)
+- [Retail testing](docs/retail-testing.md)
+- [Release checklist](docs/release-checklist.md)
+- [Changelog](CHANGELOG.md)
 
 ## Acknowledgements
 
-BG3 Forge stands on a decade of community reverse-engineering work, and
-some debts deserve naming:
+BG3 Forge stands on years of community reverse-engineering work:
 
-* **[LSLib](https://github.com/Norbyte/lslib)** by **Norbyte** — the
-  reference implementation for Larian's file formats. BG3 Forge is an
-  independent implementation (no LSLib code is used), but our LSPK, LSF,
-  and compiled-Osiris struct layouts follow LSLib's serializers and are
-  verified against them; where the two disagree, LSLib is presumed
-  right. If you need GR2 models, granular editing, or the widest format
-  coverage, use LSLib — it is the standard for a reason.
-* **[bg3.wiki](https://bg3.wiki/wiki/Modding:PAK_files)** and the wider
-  modding community — the documentation of formats, conventions, and
-  folder layouts that makes independent implementations possible at all.
-* The ecosystem this fits into:
-  **[BG3 Modders Multitool](https://github.com/ShinyHobo/BG3-Modders-Multitool)**
-  (ShinyHobo),
-  **[BG3 Mod Manager](https://github.com/LaughingLeader/BG3ModManager)**
-  (LaughingLeader),
-  **[Script Extender](https://github.com/Norbyte/bg3se)** (Norbyte), and
-  the **[BG3 Community Library](https://github.com/BG3-Community-Library-Team/BG3-Community-Library)**.
-  Forge complements these — it is the data layer for reading the game
-  and generating content programmatically, not a replacement for any of
-  them.
-* **Larian Studios** — for the game, and for shipping it in formats a
-  determined community could learn to read.
+- **[LSLib](https://github.com/Norbyte/lslib)** by **Norbyte** is the
+  reference implementation for Larian's formats. BG3 Forge is an independent
+  implementation and uses no LSLib code, but its binary layouts are informed
+  by and verified against LSLib.
+- **[bg3.wiki](https://bg3.wiki/wiki/Modding:PAK_files)** and the wider BG3
+  modding community documented the formats, conventions, and folder layouts
+  that make independent tooling possible.
+- The maintainers of BG3 Modders Multitool, BG3 Mod Manager, Script Extender,
+  and the BG3 Community Library built the ecosystem Forge is intended to
+  support.
+- **Larian Studios** created Baldur's Gate 3 and shipped it in formats the
+  community could learn to understand.
 
-If you build something on BG3 Forge, a credit and a link back are
-appreciated (and please keep the LSLib credit alongside it).
+If you build something on BG3 Forge, a credit and link back are appreciated.
+Please preserve the LSLib credit in that chain.
 
 ## Legal
 
-BG3 Forge reads data from **your own legally purchased copy** of Baldur's
-Gate 3. It ships no game assets and is not affiliated with Larian Studios.
+BG3 Forge reads data from your own legally purchased copy of Baldur's Gate 3.
+It ships no game assets and is not affiliated with or endorsed by Larian
+Studios.
 
 ## License
 
-MIT
+[MIT](LICENSE)
