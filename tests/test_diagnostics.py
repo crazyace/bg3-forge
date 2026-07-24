@@ -256,7 +256,7 @@ def test_validate_cli_exit_code_on_issues(data_dir, capsys):
     writer.add("Localization/English/broken.loca", b"XXXX")
     writer.write(data_dir / "Broken.pak")
     assert main(["--data-dir", str(data_dir), "validate"]) == 1
-    assert "failed to parse" in capsys.readouterr().out
+    assert "validation issue" in capsys.readouterr().out
 
 
 # -- benchmark ---------------------------------------------------------------
