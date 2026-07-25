@@ -20,6 +20,8 @@ does not modify the game installation, and ships no Larian assets.
 [Data releases](#resolved-data-releases) ·
 [Contributing](#development)
 
+[![PyPI Downloads](https://img.shields.io/pepy/dt/bg3forge?logo=pypi&logoColor=white)](https://pepy.tech/project/bg3forge)
+
 ## Who is it for?
 
 | You want to… | Start with |
