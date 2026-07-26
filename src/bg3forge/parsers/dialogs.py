@@ -117,6 +117,9 @@ class Dialog:
     source: str | None = None      # archived path the dialog came from
     speakers: list[Speaker] = field(default_factory=list)
     nodes: list[DialogNode] = field(default_factory=list)
+    #: UUIDs the region's ``RootNodes`` list declares as entry points.
+    #: Retail marks roots here as well as (or instead of) per-node.
+    root_uuids: list[str] = field(default_factory=list)
     _by_uuid: dict[str, DialogNode] = field(default_factory=dict, repr=False)
     _group_index: dict[str, list[DialogNode]] | None = field(default=None, repr=False)
 
@@ -164,7 +167,17 @@ class Dialog:
 
     @property
     def roots(self) -> list[DialogNode]:
-        return [node for node in self.nodes if node.is_root]
+        """Declared entry points: the region's ``RootNodes`` list plus
+        any node carrying ``Root``.
+
+        Retail uses both.  Reading only the per-node attribute leaves
+        every branch that hangs off a list-declared root looking
+        unreachable.
+        """
+        declared = set(self.root_uuids)
+        return [
+            node for node in self.nodes if node.is_root or node.uuid in declared
+        ]
 
     @property
     def entry_points(self) -> list[DialogNode]:
@@ -188,10 +201,11 @@ class Dialog:
         editor leftovers, or nodes only script can jump into.
         """
         linked = self._linked_uuids()
+        declared = set(self.root_uuids)
         return [
             node
             for node in self.nodes
-            if not node.is_root and node.uuid not in linked
+            if not node.is_root and node.uuid not in declared and node.uuid not in linked
         ]
 
     def _linked_uuids(self) -> set[str]:
@@ -266,6 +280,14 @@ def parse_dialog(document: LsxDocument, source: str | None = None) -> Dialog:
             if parsed is not None:
                 nodes.append(parsed)
 
+    # Each entry is its own <node id="RootNodes"> holding one UUID;
+    # find_all reaches them wherever the serializer nested the list.
+    root_uuids = []
+    for root_el in region.find_all("RootNodes"):
+        root_uuid = _get_ci(root_el, "RootNodes")
+        if root_uuid:
+            root_uuids.append(root_uuid)
+
     return Dialog(
         uuid=uuid,
         category=region.get("category", "") or "",
@@ -273,6 +295,7 @@ def parse_dialog(document: LsxDocument, source: str | None = None) -> Dialog:
         source=source,
         speakers=speakers,
         nodes=nodes,
+        root_uuids=root_uuids,
     )
 
 

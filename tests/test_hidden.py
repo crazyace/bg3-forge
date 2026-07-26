@@ -416,6 +416,30 @@ GROUP_LSX = """\
 """
 
 
+def test_region_root_nodes_list_declares_entry_points():
+    """Retail declares entry points in the region's RootNodes list as
+    well as (or instead of) the per-node Root attribute.  Reading only
+    the attribute left every branch below a list-declared root looking
+    unreachable -- the false-positive class behind the reported
+    Gale_InParty2 'cut' content.
+    """
+    lsx = GROUP_LSX.replace(
+        '<attribute id="Root" type="bool" value="True" />', ""
+    ).replace(
+        "<children><node id=\"nodes\">",
+        '<children>'
+        '<node id="RootNodes">'
+        '<attribute id="RootNodes" type="FixedString" value="start" />'
+        "</node>"
+        '<node id="nodes">',
+    )
+    dialog = parse_dialog(parse_lsx(lsx))
+    assert dialog.root_uuids == ["start"]
+    assert [node.uuid for node in dialog.roots] == ["start"]
+    assert [node.uuid for node in dialog.walk()] == ["start", "lead", "member", "below"]
+    assert dialog.orphans() == []
+
+
 def test_node_groups_are_flow_edges():
     """Nodes sharing a GroupID are alternatives played through the group
     leader; only the leader is linked from elsewhere.  Without that edge

@@ -48,6 +48,11 @@
   `FlagGroup`/`FlagRef` records on each node instead of discarding them,
   and node ids/attributes are matched case-insensitively so LSX, LSJ, and
   LSF forms of the same dialog parse identically.
+* Entry points are read from the region's `RootNodes` list, not only
+  from the per-node `Root` attribute. Retail dialogs declare roots both
+  ways, and reading one of them left every branch hanging off a
+  list-declared root looking unreachable — the false-positive class that
+  retail verification surfaced in `Gale_InParty2`.
 * Node groups are followed as flow edges. Nodes sharing a `GroupID` are
   alternatives played through the group leader, and only the leader is
   linked from elsewhere — so every non-leader member used to look
