@@ -37,6 +37,7 @@ from .models import (
 from .parsers.equipment import EquipmentSet, parse_equipment_sets
 from .pak.reader import PakReader, file_is_lspk
 from .parsers.localization import Localization
+from .parsers.lsx import LsxNode
 from .parsers.osiris import CompiledStory, parse_osiris
 from .parsers.progressions import (
     Progression,
@@ -351,6 +352,40 @@ def _is_editor_dialog_file(name: str) -> bool:
     return "/story/dialogs/" in lowered
 
 
+def _is_flag_registry_file(name: str) -> bool:
+    """Resources that name story flags; see ``Game.flag_names``."""
+    lowered = f"/{name.lower()}"
+    if not lowered.endswith((".lsx", ".lsf", ".lsj")):
+        return False
+    return any(
+        marker in lowered
+        for marker in ("/flags/", "/scriptflags/", "/dialogvariables/")
+    )
+
+
+#: Attribute ids a flag registry uses for the flag's UUID and its name.
+_FLAG_UUID_KEYS = ("UUID", "MapKey")
+_FLAG_NAME_KEYS = ("Name", "FlagName", "Label")
+
+
+def _collect_flag_names(node: LsxNode, names: dict[str, str]) -> None:
+    """Record every UUID/name pair in the subtree (depth-first)."""
+    uuid = _first_attribute(node, _FLAG_UUID_KEYS)
+    name = _first_attribute(node, _FLAG_NAME_KEYS)
+    if uuid and name:
+        names.setdefault(uuid.lower(), name)
+    for child in node.children:
+        _collect_flag_names(child, names)
+
+
+def _first_attribute(node: LsxNode, keys: tuple[str, ...]) -> str | None:
+    for key in keys:
+        value = node.get(key)
+        if value:
+            return value
+    return None
+
+
 class Game:
     """Entry point to parsed BG3 data.
 
@@ -573,6 +608,28 @@ class Game:
             )
             tag._link(self)
         return registry
+
+    @cached_property
+    def flag_names(self) -> dict[str, str]:
+        """Lowercased flag UUID -> authored flag name.
+
+        Story flags are referenced by UUID everywhere they matter
+        (dialog ``checkflags``, Osiris calls), but named only in the
+        registries under ``Flags/``, ``ScriptFlags/``, and
+        ``DialogVariables/``.  Those registries do not share one node
+        layout, so any node carrying both a UUID and a name counts —
+        the shape that has held across every registry variant.
+        """
+        names: dict[str, str] = {}
+        for file_name, data in self._iter_files(_is_flag_registry_file):
+            try:
+                document = parse_resource(data)
+            except ValueError as exc:
+                self.load_issues.append(LoadIssue(file=file_name, error=str(exc)))
+                continue
+            for region in document.regions.values():
+                _collect_flag_names(region, names)
+        return names
 
     def items_with_tag(self, tag_key: str) -> list[Item]:
         """Items whose template chain carries the tag (UUID or name)."""

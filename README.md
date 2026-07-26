@@ -31,6 +31,7 @@ does not modify the game installation, and ships no Larian assets.
 | Build armor, weapons, consumables, passives, statuses, or spells | [`Mod`](#mod-authoring) |
 | Add a spell to a class's real level-up lists | [`add_class_spell`](#add-a-class-spell) |
 | Export items, spells, or other resolved datasets | `bg3forge export` |
+| Hunt for flag-gated or unreachable dialog lines | [`bg3forge secrets`](#find-hidden-dialog-content) |
 | Build a browser, planner, bot, database, or GUI | [`Game`](#python-api) |
 | Use the data without installing Python | [Download a release bundle](#resolved-data-releases) |
 
@@ -159,6 +160,55 @@ bg3forge spell-lists -f json -o spell-lists.json
 Supported formats are JSON, CSV, SQLite, Markdown, and YAML. YAML requires the
 `yaml` extra.
 
+### Find hidden dialog content
+
+`secrets` ranks spoken lines by how many story flags must all be true before
+anyone hears them, and reports nodes normal dialog flow cannot reach at all:
+
+```powershell
+bg3forge secrets "Astarion" --min-gates 3
+bg3forge secrets --category Camp --kind unreachable
+bg3forge secrets --scope Global,Object --min-gates 6
+bg3forge secrets --json secrets.json
+```
+
+```text
+Mods/Gustav/Story/DialogsBinary/Act1/.../CHA_Astarion.lsf  [Companion]
+  gated x4     speaker 0  "You remember what happened at the tavern."
+               requires Global:ACT1_MetInTavern, Object:ORI_Astarion_Bitten
+               unless   not Global:ORI_Astarion_State_Ascended, (+7 more)
+  unreachable  speaker 1  "You never did answer my question."
+```
+
+`gated xN` means N distinct flags must be *made* true to reach the line — the
+*cheapest* path to it, so a branch that re-checks a flag its parent already
+checked counts once.
+
+Negated checks are listed under `unless` and do not count. Story flags start
+false, so `not FLAG` is satisfied until something sets it; retail greeting
+stacks carry a dozen of them purely to say "use this line when nothing more
+specific applies", which describes the *fallback* line rather than a hidden
+one. `--count-negated` weighs them equally if you want the old behavior.
+
+`unreachable` means no entry point reaches the node — either nothing links to
+it, or the link into the top of its branch is missing and the whole branch is
+stranded. Cut lines, editor leftovers, and nodes only Osiris script jumps into
+all look alike from the data side, so the finding claims only what the graph
+shows. Nodes another dialog enters through a `Nested Dialog` pointer are not
+counted — those pointers are only visible to a whole-tree sweep, so narrow the
+sweep for speed and widen it for confidence. Flag UUIDs are resolved to their authored names where a
+registry names them — story flags through the flag registries, `Tag:` scope
+through the tag registry (`Tag:ASTARION`, not a GUID).
+
+Retail mixes world state (`Global`, `Object`) with party-composition checks
+(`Tag`) and engine bookkeeping (`Script`) in one condition list, and the report
+prints the mix (`conditions by scope: Global 12,043, Tag 8,210, ...`). Use
+`--scope Global,Object` to rank on world state alone; excluded scopes leave
+both the count and the path search.
+
+A bare `bg3forge secrets` sweeps every dialog in the game, which takes a while
+on a retail install — pass a path substring to narrow it.
+
 ### Inspect or extract archives
 
 ```powershell
@@ -264,6 +314,18 @@ for dialog_path in dialog_paths[:1]:
 for story_path in game.story.paths[:1]:
     story = game.story.load(story_path)
     print(story.header.version)
+```
+
+Dialog nodes carry their `checkflags`/`setflags` conditions, and
+`bg3forge.hidden` turns them into ranked findings:
+
+```python
+from bg3forge.hidden import find_hidden, format_report
+
+report = find_hidden(game, match="Camp", min_gates=2)
+for line in report.lines[:5]:
+    print(line.gate_count, line.text, [c.label for c in line.conditions])
+print(format_report(report))
 ```
 
 Forward and reverse relationships are cached per `Game` instance. Raw resolved
@@ -418,7 +480,7 @@ benchmark history.
 - items, spells, passives, statuses, and characters
 - progressions, classes, races, and spell lists
 - quests, journal steps, objectives, categories, and map markers
-- lazy dialog and cinematic-timeline indexes
+- lazy dialog and cinematic-timeline indexes, with node flag conditions
 - source goals and compiled Osiris metadata
 - forward and reverse references across the model graph
 
@@ -427,6 +489,7 @@ benchmark history.
 - deterministic JSON, CSV, SQLite, Markdown, and YAML exports
 - DDS atlas slicing to PNG or WebP
 - install diagnostics and full-format validation
+- hidden-content discovery: flag-gated and unreachable dialog lines
 - mod linting with optional base-game reference checks
 - deterministic mod authoring and packaging
 - a typed package with a PEP 561 `py.typed` marker

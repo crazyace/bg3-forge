@@ -1,5 +1,78 @@
 # Changelog
 
+## Unreleased
+
+### Hidden content discovery
+
+* Added `bg3forge secrets` (and `bg3forge.hidden.find_hidden`) — find the
+  dialog lines the game almost never shows, ranked by how hard they are
+  to reach.
+  * **Gated lines** are ranked by the *minimum* number of story flags any
+    playthrough must satisfy to hear them. The count comes from a
+    cheapest-path search over the dialog graph, so conditions inherited
+    from ancestors are included and a branch that re-checks a flag its
+    parent already checked counts it once, not twice.
+  * **Negated checks do not count.** Story flags start false, so a
+    `not FLAG` check is satisfied until something sets it. Retail
+    greeting stacks gate the *default* line behind a dozen "no more
+    specific greeting fired" checks — counting those ranked the most
+    commonly heard line in a companion dialog as the most hidden one
+    (`Laezel_InParty2`: 22 conditions, 2 of them positive). Negated
+    conditions are still reported, under `unless`, and
+    `--count-negated` restores equal weighting.
+  * **Unreachable lines** — nodes no entry point reaches — are reported
+    separately. This covers a stranded branch, not just a stray node:
+    when the link into the top of a branch is missing, everything below
+    it is unreachable too. Cut content, editor leftovers, and
+    script-only entry points are indistinguishable in the data, so the
+    finding says what it can prove ("normal flow cannot reach this")
+    rather than guessing.
+  * Cross-file entry is accounted for: a node another dialog enters
+    through a `Nested Dialog` pointer is not reported as unreachable.
+    The pointers are collected during the sweep and applied as a
+    post-filter, and the report says how many findings they cleared.
+    Only a whole-tree sweep sees every pointer, so an unreachable
+    finding from a narrowed sweep is weaker evidence.
+  * Conditions read as `Global:ORI_Withers_Recruited` or
+    `not Global:GLO_Hostile`, with flag UUIDs resolved to authored names
+    through the new `Game.flag_names` registry index (`Flags/`,
+    `ScriptFlags/`, `DialogVariables/`).
+  * `Tag`-scope conditions are party-composition checks naming entries
+    in the *tag* registry, not story flags; they resolve through
+    `Game.tags` (`Tag:ASTARION`), which is only built if a Tag condition
+    actually appears in the sweep.
+  * Filters for path substring, `--category`, `--kind`, `--scope`, and
+    `--min-gates`; `--json` writes every finding through the standard
+    exporter for further processing. `--scope Global,Object` ranks on
+    world state alone, dropping party-composition and engine checks from
+    both the count and the path search, and the report prints the scope
+    mix so the filter can be chosen from evidence.
+  * A retail epilogue line can carry two dozen conditions, so the
+    console report wraps the `requires` block and caps it at the first
+    few with `(+N more)`; `--json` always carries the full set.
+* The dialog parser now models `checkflags`/`setflags` as typed
+  `FlagGroup`/`FlagRef` records on each node instead of discarding them,
+  and node ids/attributes are matched case-insensitively so LSX, LSJ, and
+  LSF forms of the same dialog parse identically.
+* Entry points are read from the region's `RootNodes` list, not only
+  from the per-node `Root` attribute. Retail dialogs declare roots both
+  ways, and reading one of them left every branch hanging off a
+  list-declared root looking unreachable — the false-positive class that
+  retail verification surfaced in `Gale_InParty2`.
+* Node groups are followed as flow edges. Nodes sharing a `GroupID` are
+  alternatives played through the group leader, and only the leader is
+  linked from elsewhere — so every non-leader member used to look
+  unreachable, along with every node below it. Retail verification
+  caught this reporting a reachable `Gale_InParty2` branch as cut
+  content. `Dialog.targets_of()` is now the one place flow edges are
+  derived; `DialogNode` also records `group_id`, `group_index`, and the
+  cross-file `nested_dialog_uuid` of `Nested Dialog` nodes.
+* `Dialog.entry_points` and `Dialog.orphans()` expose the graph's real
+  sources. `Dialog.walk()` now starts from the entry points, so a dialog
+  that marks no `Root` traverses from its sources instead of yielding
+  nothing (previously `lines()` fell back to unordered node order for
+  those files).
+
 ## 0.2.0 — 2026-07-23
 
 ### Lookup
