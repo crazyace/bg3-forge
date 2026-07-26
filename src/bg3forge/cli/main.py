@@ -137,7 +137,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     secrets.add_argument(
         "--kind", choices=("all",) + KINDS, default="all",
-        help="gated (behind flags), orphan (unreachable), or all (default)",
+        help="gated (behind flags), unreachable (no entry point reaches it), or all (default)",
     )
     secrets.add_argument(
         "--scope",
@@ -151,7 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     secrets.add_argument(
         "--min-gates", type=int, default=1,
-        help="minimum conditions on a line (default: 1; 0 keeps orphans with none)",
+        help="minimum conditions on a line (default: 1; 0 keeps unconditional unreachable lines)",
     )
     secrets.add_argument(
         "--limit", type=int, default=40, help="lines to print (default: 40)"

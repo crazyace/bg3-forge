@@ -20,8 +20,10 @@
     (`Laezel_InParty2`: 22 conditions, 2 of them positive). Negated
     conditions are still reported, under `unless`, and
     `--count-negated` restores equal weighting.
-  * **Orphan lines** — nodes nothing links to and no root flag marks —
-    are reported separately: cut content, editor leftovers, and
+  * **Unreachable lines** — nodes no entry point reaches — are reported
+    separately. This covers a stranded branch, not just a stray node:
+    when the link into the top of a branch is missing, everything below
+    it is unreachable too. Cut content, editor leftovers, and
     script-only entry points are indistinguishable in the data, so the
     finding says what it can prove ("normal flow cannot reach this")
     rather than guessing.
@@ -46,6 +48,14 @@
   `FlagGroup`/`FlagRef` records on each node instead of discarding them,
   and node ids/attributes are matched case-insensitively so LSX, LSJ, and
   LSF forms of the same dialog parse identically.
+* Node groups are followed as flow edges. Nodes sharing a `GroupID` are
+  alternatives played through the group leader, and only the leader is
+  linked from elsewhere — so every non-leader member used to look
+  unreachable, along with every node below it. Retail verification
+  caught this reporting a reachable `Gale_InParty2` branch as cut
+  content. `Dialog.targets_of()` is now the one place flow edges are
+  derived; `DialogNode` also records `group_id`, `group_index`, and the
+  cross-file `nested_dialog_uuid` of `Nested Dialog` nodes.
 * `Dialog.entry_points` and `Dialog.orphans()` expose the graph's real
   sources. `Dialog.walk()` now starts from the entry points, so a dialog
   that marks no `Root` traverses from its sources instead of yielding

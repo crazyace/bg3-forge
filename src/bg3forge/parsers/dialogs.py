@@ -91,6 +91,9 @@ class DialogNode:
     jump_target: str | None = None  # Jump nodes: the node jumped to
     check_flags: list[FlagGroup] = field(default_factory=list)  # conditions to enter
     set_flags: list[FlagGroup] = field(default_factory=list)    # written when played
+    group_id: str | None = None    # nodes sharing one form a group of alternatives
+    group_index: int = 0           # position in that group; 0 is the leader
+    nested_dialog_uuid: str | None = None  # 'Nested Dialog': another dialog file
 
     @property
     def checks(self) -> list[tuple[str, FlagRef]]:
@@ -115,12 +118,49 @@ class Dialog:
     speakers: list[Speaker] = field(default_factory=list)
     nodes: list[DialogNode] = field(default_factory=list)
     _by_uuid: dict[str, DialogNode] = field(default_factory=dict, repr=False)
+    _group_index: dict[str, list[DialogNode]] | None = field(default=None, repr=False)
 
     def __post_init__(self):
         self._by_uuid = {node.uuid: node for node in self.nodes}
 
     def node(self, uuid: str) -> DialogNode | None:
         return self._by_uuid.get(uuid)
+
+    def targets_of(self, node: DialogNode) -> list[str]:
+        """Flow edges out of ``node``, including its node group.
+
+        Nodes sharing a ``GroupID`` are one group of alternative lines:
+        only the leader is linked from elsewhere, and the rest are played
+        through it.  Without this edge every non-leader member looks
+        unreachable, and so does everything hanging below it.
+        """
+        targets = list(node.targets)
+        if node.group_id and self._is_group_leader(node):
+            for member in self._groups.get(node.group_id, ()):
+                if member.uuid != node.uuid and member.uuid not in targets:
+                    targets.append(member.uuid)
+        return targets
+
+    def _is_group_leader(self, node: DialogNode) -> bool:
+        """The member other nodes link to: the one named by the GroupID,
+        or failing that the lowest GroupIndex."""
+        members = self._groups.get(node.group_id or "", ())
+        named = [member for member in members if member.uuid == node.group_id]
+        if named:
+            return node.uuid == named[0].uuid
+        return bool(members) and node.uuid == members[0].uuid
+
+    @property
+    def _groups(self) -> dict[str, list[DialogNode]]:
+        if self._group_index is None:
+            groups: dict[str, list[DialogNode]] = {}
+            for node in self.nodes:
+                if node.group_id:
+                    groups.setdefault(node.group_id, []).append(node)
+            for members in groups.values():
+                members.sort(key=lambda member: (member.group_index, member.uuid))
+            self._group_index = groups
+        return self._group_index
 
     @property
     def roots(self) -> list[DialogNode]:
@@ -158,7 +198,7 @@ class Dialog:
         """Every node UUID some other node links to."""
         linked: set[str] = set()
         for node in self.nodes:
-            linked.update(node.targets)
+            linked.update(self.targets_of(node))
         return linked
 
     def text_handles(self) -> list[tuple[str, int]]:
@@ -184,7 +224,7 @@ class Dialog:
                 continue
             seen.add(node.uuid)
             yield node
-            for target_uuid in reversed(node.targets):
+            for target_uuid in reversed(self.targets_of(node)):
                 stack.append(self._by_uuid.get(target_uuid))
 
 
@@ -271,6 +311,9 @@ def _parse_node(node_el: LsxNode) -> DialogNode | None:
         jump_target=node_el.get("jumptarget"),
         check_flags=_parse_flag_wrapper(node_el, "checkflags"),
         set_flags=_parse_flag_wrapper(node_el, "setflags"),
+        group_id=node_el.get("GroupID"),
+        group_index=_int_or_none(node_el.get("GroupIndex")) or 0,
+        nested_dialog_uuid=node_el.get("NestedDialogNodeUUID"),
     )
 
 

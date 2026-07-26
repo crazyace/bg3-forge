@@ -336,7 +336,7 @@ def test_analyze_dialog_counts_the_cheapest_condition_path():
     assert by_node["negated"].conditions[0].label == f"not Global:{HOSTILE_FLAG}"
 
     # unreachable nodes are reported even with no conditions of their own
-    assert by_node["cut"].kind == "orphan" and by_node["cut"].gate_count == 0
+    assert by_node["cut"].kind == "unreachable" and by_node["cut"].gate_count == 0
     assert by_node["gated"].kind == "gated"
 
     # most-gated first, orphans ahead of equally-gated lines
@@ -351,7 +351,7 @@ def test_dangling_links_do_not_break_the_search():
     # "deep" is now linked by nothing, so it becomes an orphan carrying
     # only its own three checks -- the inherited one is gone with the edge.
     by_node = {line.node: line for line in lines}
-    assert by_node["deep"].kind == "orphan" and by_node["deep"].gate_count == 3
+    assert by_node["deep"].kind == "unreachable" and by_node["deep"].gate_count == 3
     assert str(by_node["gated"].conditions[0]) == f"Global:{MET_FLAG}"
 
 
@@ -384,6 +384,78 @@ def test_scope_filter_counts_only_the_scopes_asked_for(secrets_dir):
     )
     assert scope_counts(world_only) == {"Global": 4, "Object": 1}
     assert scope_counts(find_hidden(game))["Tag"] == 1
+
+
+GROUP_LSX = """\
+<save><region id="dialog"><node id="dialog">
+  <attribute id="UUID" type="FixedString" value="d1" />
+  <children><node id="nodes"><children>
+    <node id="node">
+      <attribute id="UUID" type="FixedString" value="start" />
+      <attribute id="Root" type="bool" value="True" />
+      <children><node id="children"><children>
+        <node id="child"><attribute id="UUID" type="FixedString" value="lead" /></node>
+      </children></node></children>
+    </node>
+    <node id="node">
+      <attribute id="UUID" type="FixedString" value="lead" />
+      <attribute id="GroupID" type="FixedString" value="lead" />
+      <attribute id="GroupIndex" type="int32" value="0" />
+    </node>
+    <node id="node">
+      <attribute id="UUID" type="FixedString" value="member" />
+      <attribute id="GroupID" type="FixedString" value="lead" />
+      <attribute id="GroupIndex" type="int32" value="1" />
+      <children><node id="children"><children>
+        <node id="child"><attribute id="UUID" type="FixedString" value="below" /></node>
+      </children></node></children>
+    </node>
+    <node id="node"><attribute id="UUID" type="FixedString" value="below" /></node>
+  </children></node></children>
+</node></region></save>
+"""
+
+
+def test_node_groups_are_flow_edges():
+    """Nodes sharing a GroupID are alternatives played through the group
+    leader; only the leader is linked from elsewhere.  Without that edge
+    every non-leader member looked unreachable -- and so did everything
+    below it, which is how a reachable retail branch (Gale_InParty2) was
+    reported as cut content.
+    """
+    dialog = parse_dialog(parse_lsx(GROUP_LSX))
+    assert dialog.targets_of(dialog.node("lead")) == ["member"]
+    assert dialog.targets_of(dialog.node("member")) == ["below"]  # not back to lead
+    assert [node.uuid for node in dialog.walk()] == ["start", "lead", "member", "below"]
+    assert dialog.orphans() == []
+
+
+def test_group_leader_falls_back_to_lowest_index():
+    """Not every group names its leader in the GroupID; the lowest
+    GroupIndex carries the group when none does."""
+    lsx = GROUP_LSX.replace('value="lead" />\n      <attribute id="GroupIndex"',
+                            'value="grp" />\n      <attribute id="GroupIndex"')
+    lsx = lsx.replace('<attribute id="GroupID" type="FixedString" value="lead" />\n'
+                      '      <attribute id="GroupIndex" type="int32" value="1" />',
+                      '<attribute id="GroupID" type="FixedString" value="grp" />\n'
+                      '      <attribute id="GroupIndex" type="int32" value="1" />')
+    dialog = parse_dialog(parse_lsx(lsx))
+    assert dialog.targets_of(dialog.node("lead")) == ["member"]
+    assert dialog.orphans() == []
+
+
+def test_nested_dialog_pointer_is_recorded():
+    """'Nested Dialog' nodes point into another dialog file; the link is
+    kept even though it leaves this graph."""
+    lsx = GROUP_LSX.replace(
+        '<node id="node"><attribute id="UUID" type="FixedString" value="below" /></node>',
+        '<node id="node"><attribute id="UUID" type="FixedString" value="below" />'
+        '<attribute id="constructor" type="FixedString" value="Nested Dialog" />'
+        '<attribute id="NestedDialogNodeUUID" type="guid" value="other-dialog" /></node>',
+    )
+    node = parse_dialog(parse_lsx(lsx)).node("below")
+    assert node.nested_dialog_uuid == "other-dialog"
+    assert node.targets == []  # a cross-file link, not an edge in this graph
 
 
 def test_negated_checks_do_not_make_a_fallback_line_look_hidden():
@@ -460,7 +532,7 @@ def test_find_hidden_filters(secrets_dir):
     game = Game(data_dir=secrets_dir)
     assert [line.node for line in find_hidden(game, min_gates=2).lines] == ["deep"]
     assert [line.node for line in find_hidden(
-        game, min_gates=0, kinds=("orphan",)
+        game, min_gates=0, kinds=("unreachable",)
     ).lines] == ["cut"]
     assert find_hidden(game, match="nothing-matches").lines == []
     assert find_hidden(game, category="Camp").dialogs_matched == 0
@@ -510,9 +582,9 @@ def test_report_formatting(secrets_dir):
     assert text.isascii()
     assert "scanned 1 dialog(s); 3 node(s) carry conditions; found 4 line(s)" in text
     assert f"{DIALOG_PATH}  [Companion]" in text
-    assert 'gated x3  speaker 0  "I dreamt of you."' in text
+    assert 'gated x3     speaker 0  "I dreamt of you."' in text
     assert "requires Global:COMP_MetInTavern, Object:COMP_TrustsYou" in text
-    assert 'orphan    speaker 0  "The tadpole sings to me."' in text
+    assert 'unreachable  speaker 0  "The tadpole sings to me."' in text
 
     assert "... and 3 more" in format_report(find_hidden(game, min_gates=0), limit=1)
     assert "nothing matched" in format_report(find_hidden(game, min_gates=99))
@@ -550,7 +622,7 @@ def test_secrets_cli_kind_and_match(secrets_dir, capsys):
 
     assert main([
         "--data-dir", str(secrets_dir), "secrets", "COMP_Secret",
-        "--kind", "orphan", "--min-gates", "0", "--no-progress",
+        "--kind", "unreachable", "--min-gates", "0", "--no-progress",
     ]) == 0
     assert "The tadpole sings to me." in capsys.readouterr().out
 

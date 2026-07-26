@@ -167,17 +167,17 @@ anyone hears them, and reports nodes normal dialog flow cannot reach at all:
 
 ```powershell
 bg3forge secrets "Astarion" --min-gates 3
-bg3forge secrets --category Camp --kind orphan
+bg3forge secrets --category Camp --kind unreachable
 bg3forge secrets --scope Global,Object --min-gates 6
 bg3forge secrets --json secrets.json
 ```
 
 ```text
 Mods/Gustav/Story/DialogsBinary/Act1/.../CHA_Astarion.lsf  [Companion]
-  gated x4  speaker 0  "You remember what happened at the tavern."
-            requires Global:ACT1_MetInTavern, Object:ORI_Astarion_Bitten, ...
-            unless   not Global:ORI_Astarion_State_Ascended, (+7 more)
-  orphan    speaker 1  "You never did answer my question."
+  gated x4     speaker 0  "You remember what happened at the tavern."
+               requires Global:ACT1_MetInTavern, Object:ORI_Astarion_Bitten
+               unless   not Global:ORI_Astarion_State_Ascended, (+7 more)
+  unreachable  speaker 1  "You never did answer my question."
 ```
 
 `gated xN` means N distinct flags must be *made* true to reach the line — the
@@ -190,9 +190,11 @@ stacks carry a dozen of them purely to say "use this line when nothing more
 specific applies", which describes the *fallback* line rather than a hidden
 one. `--count-negated` weighs them equally if you want the old behavior.
 
-`orphan` means no node links to it and no root marks it: cut lines,
-editor leftovers, and nodes only Osiris script can jump into all look alike
-from the data side. Flag UUIDs are resolved to their authored names where a
+`unreachable` means no entry point reaches the node — either nothing links to
+it, or the link into the top of its branch is missing and the whole branch is
+stranded. Cut lines, editor leftovers, and nodes only Osiris script jumps into
+all look alike from the data side, so the finding claims only what the graph
+shows. Flag UUIDs are resolved to their authored names where a
 registry names them — story flags through the flag registries, `Tag:` scope
 through the tag registry (`Tag:ASTARION`, not a GUID).
 

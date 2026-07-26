@@ -10,8 +10,10 @@ answers that with a cheapest-path search from the dialog's entry points,
 where a node costs the number of flags guarding it: the result is the
 *minimum* set of conditions any playthrough must satisfy to reach it.
 
-*Orphaning* — a node nothing links to and no root flag marks.  Normal
-flow cannot reach it at all: cut lines, editor leftovers, and nodes that
+*Unreachability* — no entry point reaches the node at all.  That covers
+more than a stray node: a whole branch is unreachable when the link into
+its top is missing, so the finding is "normal flow cannot get here",
+not "nothing points at this".  Cut lines, editor leftovers, and nodes
 only Osiris script jumps into look the same from the data side.
 
 Flag UUIDs are resolved to their authored names through
@@ -38,7 +40,7 @@ from .game import Game, LoadIssue
 from .parsers.dialogs import Dialog, DialogNode, FlagRef
 
 #: Node kinds a scan can report.
-KINDS = ("gated", "orphan")
+KINDS = ("gated", "unreachable")
 
 _WHITESPACE_RE = re.compile(r"\s+")
 
@@ -73,7 +75,7 @@ class HiddenLine:
     speaker: int | None
     handle: str
     text: str
-    kind: str                   # "gated" or "orphan"
+    kind: str                   # "gated" or "unreachable"
     conditions: tuple[Condition, ...] = ()
     #: Conditions that actually have to be *made* true to reach the line
     #: (see :func:`analyze_dialog` on why negated checks are free).
@@ -214,7 +216,7 @@ def analyze_dialog(
     lines: list[HiddenLine] = []
     for node in dialog.nodes:
         gates = conditions.get(node.uuid, ())
-        kind = "gated" if node.uuid in reachable else "orphan"
+        kind = "gated" if node.uuid in reachable else "unreachable"
         if kind == "gated" and not gates:
             continue  # plain, unconditional line: nothing hidden about it
         for handle, _version in node.text_handles:
@@ -300,7 +302,7 @@ def _cheapest_conditions(
     whether a node is reachable in play is decided separately.
     """
     sources = {node.uuid for node in dialog.entry_points}
-    sources.update(node.uuid for node in dialog.orphans())
+    sources.update(node.uuid for node in dialog.orphans())  # describe cut branches too
 
     best: dict[str, tuple[Condition, ...]] = {}
     # (cost, node uuid, insertion order, conditions) — the counter keeps
@@ -323,7 +325,7 @@ def _cheapest_conditions(
         node = dialog.node(uuid)
         if node is None:
             continue
-        for target_uuid in node.targets:
+        for target_uuid in dialog.targets_of(node):
             if target_uuid in best:
                 continue
             target = dialog.node(target_uuid)
@@ -373,8 +375,14 @@ def _merge(
 
 
 def _rank(line: HiddenLine) -> tuple:
-    """Most conditions first, orphans ahead of equally-gated lines."""
-    return (-line.gate_count, line.kind != "orphan", line.dialog, line.node, line.handle)
+    """Most conditions first, unreachable lines ahead of equally-gated ones."""
+    return (
+        -line.gate_count,
+        line.kind != "unreachable",
+        line.dialog,
+        line.node,
+        line.handle,
+    )
 
 
 def to_records(report: HiddenReport) -> list[dict]:
@@ -444,9 +452,11 @@ def format_report(
             category = f"  [{line.category}]" if line.category else ""
             lines.append("")
             lines.append(f"{line.dialog}{category}")
-        tag = "orphan" if line.kind == "orphan" else f"gated x{line.gate_count}"
+        tag = (
+            "unreachable" if line.kind == "unreachable" else f"gated x{line.gate_count}"
+        )
         speaker = "speaker ?" if line.speaker is None else f"speaker {line.speaker}"
-        lines.append(f"  {tag:<10}{speaker:<11}{_quote(line.text, width)}")
+        lines.append(f"  {tag:<13}{speaker:<11}{_quote(line.text, width)}")
         lines.extend(_requires(line, width, max_conditions))
     remaining = len(report.lines) - len(shown)
     if remaining > 0:
@@ -472,7 +482,7 @@ def _requires(line: HiddenLine, width: int, max_conditions: int) -> list[str]:
         remaining = len(conditions) - len(shown)
         if remaining > 0:
             shown.append(f"(+{remaining:,} more)")
-        indent = " " * 12
+        indent = " " * 15
         block.extend(
             textwrap.wrap(
                 f"{label:<9}" + ", ".join(shown),
