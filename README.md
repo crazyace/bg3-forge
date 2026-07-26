@@ -194,7 +194,9 @@ one. `--count-negated` weighs them equally if you want the old behavior.
 it, or the link into the top of its branch is missing and the whole branch is
 stranded. Cut lines, editor leftovers, and nodes only Osiris script jumps into
 all look alike from the data side, so the finding claims only what the graph
-shows. Flag UUIDs are resolved to their authored names where a
+shows. Nodes another dialog enters through a `Nested Dialog` pointer are not
+counted — those pointers are only visible to a whole-tree sweep, so narrow the
+sweep for speed and widen it for confidence. Flag UUIDs are resolved to their authored names where a
 registry names them — story flags through the flag registries, `Tag:` scope
 through the tag registry (`Tag:ASTARION`, not a GUID).
 

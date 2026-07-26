@@ -600,6 +600,45 @@ def test_long_lines_are_truncated_to_the_console_width(secrets_dir):
     assert '"word word word word word wo..."' in body
 
 
+def test_nested_dialog_entry_clears_an_unreachable_finding(tmp_path):
+    """A node with no incoming edge in its own file is still reachable if
+    another dialog enters it through a Nested Dialog pointer.  Only a
+    whole-tree sweep can see that, so the check is a post-filter."""
+    entering = """\
+<save><region id="dialog"><node id="dialog">
+  <attribute id="UUID" type="FixedString" value="d2" />
+  <children><node id="nodes"><children>
+    <node id="node">
+      <attribute id="UUID" type="FixedString" value="opener" />
+      <attribute id="Root" type="bool" value="True" />
+      <attribute id="constructor" type="FixedString" value="Nested Dialog" />
+      <!-- retail types this 'guid'; the fixture's node ids are not UUIDs,
+           and the parser reads the value either way -->
+      <attribute id="NestedDialogNodeUUID" type="FixedString" value="cut" />
+    </node>
+  </children></node></children>
+</node></region></save>
+"""
+    writer = PakWriter()
+    writer.add(DIALOG_PATH, write_lsf(parse_lsx(DIALOG_LSX), version=6))
+    writer.add("Localization/English/english.loca", write_loca(LOCA))
+    (tmp_path / "alone").mkdir()
+    alone = Game(data_dir=writer.write(tmp_path / "alone" / "A.pak").parent)
+    assert [line.node for line in find_hidden(alone, min_gates=0).lines if
+            line.kind == "unreachable"] == ["cut"]
+
+    writer.add(
+        "Mods/Shared/Story/DialogsBinary/Companion/COMP_Entry.lsf",
+        write_lsf(parse_lsx(entering), version=6),
+    )
+    (tmp_path / "both").mkdir()
+    together = Game(data_dir=writer.write(tmp_path / "both" / "B.pak").parent)
+    report = find_hidden(together, min_gates=0)
+    assert report.nested_entries == 1
+    assert not [line for line in report.lines if line.kind == "unreachable"]
+    assert "entered from another dialog" in format_report(report)
+
+
 def test_report_formatting(secrets_dir):
     game = Game(data_dir=secrets_dir)
     text = format_report(find_hidden(game, min_gates=0))

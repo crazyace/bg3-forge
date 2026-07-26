@@ -27,6 +27,12 @@
     script-only entry points are indistinguishable in the data, so the
     finding says what it can prove ("normal flow cannot reach this")
     rather than guessing.
+  * Cross-file entry is accounted for: a node another dialog enters
+    through a `Nested Dialog` pointer is not reported as unreachable.
+    The pointers are collected during the sweep and applied as a
+    post-filter, and the report says how many findings they cleared.
+    Only a whole-tree sweep sees every pointer, so an unreachable
+    finding from a narrowed sweep is weaker evidence.
   * Conditions read as `Global:ORI_Withers_Recruited` or
     `not Global:GLO_Hostile`, with flag UUIDs resolved to authored names
     through the new `Game.flag_names` registry index (`Flags/`,

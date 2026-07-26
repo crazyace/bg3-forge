@@ -102,6 +102,9 @@ class HiddenReport:
     #: that "no gated lines" is distinguishable from "no conditions were
     #: read at all" on a game build whose dialogs are shaped differently.
     gated_nodes: int = 0
+    #: Unreachable findings dropped because another dialog enters them
+    #: through a ``Nested Dialog`` node.
+    nested_entries: int = 0
     failures: list[LoadIssue] = field(default_factory=list)
 
     @property
@@ -129,6 +132,10 @@ def find_hidden(
     files.  Results are sorted most-gated first and are fully
     deterministic for a given install.
 
+    A narrowed sweep cannot rule out cross-file entry: ``Nested Dialog``
+    pointers are only known for the dialogs actually scanned, so an
+    unreachable finding is strongest when the whole tree was swept.
+
     ``scopes`` restricts which flag scopes count as gating.  Retail
     dialogs mix world state (``Global``, ``Object``) with party-
     composition checks (``Tag``) and engine bookkeeping (``Script``);
@@ -146,6 +153,10 @@ def find_hidden(
     if paths is None:
         paths = game.dialogs.find(match) if match else game.dialogs.paths
     report = HiddenReport()
+    # Nodes some other dialog enters through a 'Nested Dialog' pointer.
+    # Collected as we go and applied at the end, so a node reached only
+    # from another file is not reported as unreachable.
+    nested_targets: set[str] = set()
     names = game_names(game)
     localization = game.localization
 
@@ -162,6 +173,11 @@ def find_hidden(
             continue
         report.dialogs_matched += 1
         report.gated_nodes += sum(1 for node in dialog.nodes if node.check_flags)
+        nested_targets.update(
+            node.nested_dialog_uuid
+            for node in dialog.nodes
+            if node.nested_dialog_uuid
+        )
         report.lines.extend(
             line
             for line in analyze_dialog(
@@ -174,6 +190,15 @@ def find_hidden(
             )
             if line.kind in wanted_kinds and line.gate_count >= min_gates
         )
+
+    if nested_targets:
+        kept = [
+            line
+            for line in report.lines
+            if line.kind != "unreachable" or line.node not in nested_targets
+        ]
+        report.nested_entries = len(report.lines) - len(kept)
+        report.lines = kept
 
     report.lines.sort(key=_rank)
     return report
@@ -435,6 +460,11 @@ def format_report(
         f"{report.gated_nodes:,} node(s) carry conditions; "
         f"found {len(report.lines):,} line(s)"
     )
+    if report.nested_entries:
+        lines.append(
+            f"{report.nested_entries:,} line(s) dropped: entered from another "
+            "dialog through a Nested Dialog node"
+        )
     counts = scope_counts(report)
     if counts:
         summary = ", ".join(f"{scope} {count:,}" for scope, count in counts.items())
