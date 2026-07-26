@@ -7,6 +7,7 @@ import pytest
 
 from bg3forge import Game
 from bg3forge.hidden import (
+    HiddenReport,
     analyze_dialog,
     find_hidden,
     format_report,
@@ -339,7 +340,7 @@ def test_analyze_dialog_counts_the_cheapest_condition_path():
     assert by_node["gated"].kind == "gated"
 
     # most-gated first, orphans ahead of equally-gated lines
-    assert [line.node for line in lines] == ["deep", "negated", "gated", "cut"]
+    assert [line.node for line in lines] == ["deep", "gated", "negated", "cut"]
 
 
 def test_dangling_links_do_not_break_the_search():
@@ -372,8 +373,10 @@ def test_scope_filter_counts_only_the_scopes_asked_for(secrets_dir):
     game = Game(data_dir=secrets_dir)
     world_only = find_hidden(game, scopes=("Global", "Object"))
     by_node = {line.node: line for line in world_only.lines}
-    # "negated" is gated by one Global and one Tag check; only the Global counts
-    assert by_node["negated"].gate_count == 1
+    # "negated" is gated by one negated Global and one Tag check: the Tag is
+    # filtered out by scope, and a negated check is satisfied by default
+    assert by_node["negated"].gate_count == 0
+    assert by_node["negated"].conditions and not by_node["negated"].required
     assert all(
         condition.scope in ("Global", "Object")
         for line in world_only.lines
@@ -381,6 +384,48 @@ def test_scope_filter_counts_only_the_scopes_asked_for(secrets_dir):
     )
     assert scope_counts(world_only) == {"Global": 4, "Object": 1}
     assert scope_counts(find_hidden(game))["Tag"] == 1
+
+
+def test_negated_checks_do_not_make_a_fallback_line_look_hidden():
+    """Retail greeting stacks gate the *default* line behind a dozen
+    'not <some other greeting fired>' checks.  Counting those made the
+    most commonly heard line in a companion dialog rank as the most
+    hidden one (observed on Laezel_InParty2: 22 conditions, 2 positive).
+    """
+    excluded = [(f"Global", f"eeee0000-0000-0000-0000-00000000g{i:02d}", "False")
+                for i in range(12)]
+    lsx = SECRET_DIALOG_LSX.format(
+        greeting_text=_text("hbbbb0000-0000-0000-0000-0000000000t1"),
+        gated_text=_text("hbbbb0000-0000-0000-0000-0000000000t2"),
+        deep_text=_text("hbbbb0000-0000-0000-0000-0000000000t3"),
+        negated_text=_text("hbbbb0000-0000-0000-0000-0000000000t4"),
+        cut_text=_text("hbbbb0000-0000-0000-0000-0000000000t5"),
+        checks_one=_flags(*excluded, ("Global", MET_FLAG, "True")),
+        checks_three="",
+        checks_negated="",
+    )
+    dialog = parse_dialog(parse_lsx(lsx))
+    fallback = {
+        line.node: line
+        for line in analyze_dialog(dialog, resolve=lambda handle: "text")
+    }["gated"]
+    assert len(fallback.conditions) == 13
+    assert fallback.gate_count == 1              # only the positive check counts
+    assert len(fallback.excluded) == 12
+
+    with_negated = {
+        line.node: line
+        for line in analyze_dialog(
+            dialog, resolve=lambda handle: "text", count_negated=True
+        )
+    }["gated"]
+    assert with_negated.gate_count == 13
+
+    body = format_report(
+        HiddenReport(lines=[fallback], dialogs_scanned=1), max_conditions=3
+    )
+    assert "requires Global:" in body
+    assert "unless   not Global:" in body and "(+9 more)" in body
 
 
 def test_analyze_dialog_skips_unresolved_handles():
@@ -399,7 +444,7 @@ def test_find_hidden_end_to_end(secrets_dir):
     report = find_hidden(game, min_gates=0)
     assert report.ok and report.dialogs_scanned == 1
     assert [(line.node, line.gate_count) for line in report.lines] == [
-        ("deep", 3), ("negated", 2), ("gated", 1), ("cut", 0),
+        ("deep", 3), ("gated", 1), ("negated", 1), ("cut", 0),
     ]
     deep = report.lines[0]
     assert deep.dialog == DIALOG_PATH and deep.category == "Companion"
@@ -413,9 +458,7 @@ def test_find_hidden_end_to_end(secrets_dir):
 
 def test_find_hidden_filters(secrets_dir):
     game = Game(data_dir=secrets_dir)
-    assert [line.node for line in find_hidden(game, min_gates=2).lines] == [
-        "deep", "negated",
-    ]
+    assert [line.node for line in find_hidden(game, min_gates=2).lines] == ["deep"]
     assert [line.node for line in find_hidden(
         game, min_gates=0, kinds=("orphan",)
     ).lines] == ["cut"]
@@ -488,7 +531,7 @@ def test_secrets_cli(secrets_dir, capsys, tmp_path):
 
     records = json.loads(out_json.read_text())
     assert [record["node"] for record in records] == [
-        "deep", "negated", "gated", "cut",
+        "deep", "gated", "negated", "cut",
     ]
     assert records[0]["conditions"] == [
         "Global:COMP_MetInTavern",

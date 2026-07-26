@@ -12,6 +12,14 @@
     cheapest-path search over the dialog graph, so conditions inherited
     from ancestors are included and a branch that re-checks a flag its
     parent already checked counts it once, not twice.
+  * **Negated checks do not count.** Story flags start false, so a
+    `not FLAG` check is satisfied until something sets it. Retail
+    greeting stacks gate the *default* line behind a dozen "no more
+    specific greeting fired" checks — counting those ranked the most
+    commonly heard line in a companion dialog as the most hidden one
+    (`Laezel_InParty2`: 22 conditions, 2 of them positive). Negated
+    conditions are still reported, under `unless`, and
+    `--count-negated` restores equal weighting.
   * **Orphan lines** — nodes nothing links to and no root flag marks —
     are reported separately: cut content, editor leftovers, and
     script-only entry points are indistinguishable in the data, so the

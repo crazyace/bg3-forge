@@ -145,6 +145,11 @@ def build_parser() -> argparse.ArgumentParser:
         "(e.g. Global,Object to ignore party-composition and engine checks)",
     )
     secrets.add_argument(
+        "--count-negated", action="store_true",
+        help="count 'not FLAG' checks as gates too (they are satisfied by "
+        "default, so they are excluded from the count unless you ask)",
+    )
+    secrets.add_argument(
         "--min-gates", type=int, default=1,
         help="minimum conditions on a line (default: 1; 0 keeps orphans with none)",
     )
@@ -434,6 +439,7 @@ def _dispatch(args) -> int:
                 category=args.category,
                 kinds=KINDS if args.kind == "all" else (args.kind,),
                 scopes=_split_scopes(args.scope),
+                count_negated=args.count_negated,
                 min_gates=args.min_gates,
                 progress=progress,
             )

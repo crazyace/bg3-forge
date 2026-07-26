@@ -75,10 +75,20 @@ class HiddenLine:
     text: str
     kind: str                   # "gated" or "orphan"
     conditions: tuple[Condition, ...] = ()
+    #: Conditions that actually have to be *made* true to reach the line
+    #: (see :func:`analyze_dialog` on why negated checks are free).
+    gate_count: int = 0
 
     @property
-    def gate_count(self) -> int:
-        return len(self.conditions)
+    def required(self) -> tuple[Condition, ...]:
+        """Flags an playthrough must set before this line can play."""
+        return tuple(condition for condition in self.conditions if condition.value)
+
+    @property
+    def excluded(self) -> tuple[Condition, ...]:
+        """Flags that must *not* be set — satisfied unless something
+        happened, so they narrow a branch without hiding it."""
+        return tuple(condition for condition in self.conditions if not condition.value)
 
 
 @dataclass
@@ -105,6 +115,7 @@ def find_hidden(
     category: str | None = None,
     kinds: Iterable[str] = KINDS,
     scopes: Iterable[str] | None = None,
+    count_negated: bool = False,
     min_gates: int = 0,
     progress: Callable[[str], None] | None = None,
 ) -> HiddenReport:
@@ -156,6 +167,7 @@ def find_hidden(
                 names=names,
                 resolve=localization.resolve,
                 scopes=wanted_scopes,
+                count_negated=count_negated,
                 path=path,
             )
             if line.kind in wanted_kinds and line.gate_count >= min_gates
@@ -171,6 +183,7 @@ def analyze_dialog(
     names: Mapping[str, str] | Callable[[str, str], str | None] | None = None,
     resolve: Callable[[str | None], str | None] | None = None,
     scopes: Iterable[str] | None = None,
+    count_negated: bool = False,
     path: str | None = None,
 ) -> list[HiddenLine]:
     """Every gated or orphaned spoken line in one dialog.
@@ -183,9 +196,18 @@ def analyze_dialog(
     resolves to nothing are skipped, since an untranslated handle says
     nothing about the content.  Without a resolver the raw handle is
     reported.  ``scopes``, when given, limits which flag scopes gate.
+
+    Negated checks (``not FLAG``) do not count toward the gate total by
+    default.  Story flags start false, so a ``not`` check is satisfied
+    until something sets it: retail greeting stacks list a dozen of them
+    to say "use this line when nothing more specific applies", which
+    describes the *fallback* line, not a hidden one.  Pass
+    ``count_negated=True`` to weigh them equally anyway.
     """
     wanted_scopes = {scope.lower() for scope in scopes} if scopes else None
-    conditions = _cheapest_conditions(dialog, _resolver(names), wanted_scopes)
+    conditions = _cheapest_conditions(
+        dialog, _resolver(names), wanted_scopes, count_negated
+    )
     reachable = {node.uuid for node in dialog.walk()}
     source = path or dialog.source or dialog.uuid
 
@@ -210,6 +232,7 @@ def analyze_dialog(
                     text=_WHITESPACE_RE.sub(" ", text).strip(),
                     kind=kind,
                     conditions=gates,
+                    gate_count=_cost(gates, count_negated),
                 )
             )
     lines.sort(key=_rank)
@@ -256,10 +279,18 @@ def _resolver(
     return lambda scope, uuid: names.get(uuid.lower())
 
 
+def _cost(conditions: tuple[Condition, ...], count_negated: bool) -> int:
+    """How many of these conditions someone has to bring about."""
+    if count_negated:
+        return len(conditions)
+    return sum(1 for condition in conditions if condition.value)
+
+
 def _cheapest_conditions(
     dialog: Dialog,
     names: Callable[[str, str], str | None],
     scopes: set[str] | None,
+    count_negated: bool = False,
 ) -> dict[str, tuple[Condition, ...]]:
     """node UUID -> the smallest condition set that reaches it.
 
@@ -281,7 +312,7 @@ def _cheapest_conditions(
         if node is None:
             continue
         gates = _conditions(node, names, scopes)
-        heapq.heappush(heap, (len(gates), uuid, counter, gates))
+        heapq.heappush(heap, (_cost(gates, count_negated), uuid, counter, gates))
         counter += 1
 
     while heap:
@@ -299,7 +330,9 @@ def _cheapest_conditions(
             if target is None:
                 continue
             merged = _merge(gates, _conditions(target, names, scopes))
-            heapq.heappush(heap, (len(merged), target_uuid, counter, merged))
+            heapq.heappush(
+                heap, (_cost(merged, count_negated), target_uuid, counter, merged)
+            )
             counter += 1
     return best
 
@@ -358,6 +391,8 @@ def to_records(report: HiddenReport) -> list[dict]:
             "kind": line.kind,
             "gate_count": line.gate_count,
             "conditions": [condition.label for condition in line.conditions],
+            "requires": [condition.label for condition in line.required],
+            "unless": [condition.label for condition in line.excluded],
         }
         for line in report.lines
     ]
@@ -421,29 +456,34 @@ def format_report(
 
 
 def _requires(line: HiddenLine, width: int, max_conditions: int) -> list[str]:
-    """The ``requires`` block, wrapped and capped.
+    """The condition block: what must be true, then what must not be.
 
-    A retail epilogue line can carry two dozen conditions; printed as
-    one line that is a wall of text nobody reads, so show the first few
-    and say how many were held back.  The full set is always in
-    ``--json``.
+    Split because the two are not equally interesting.  A retail
+    greeting stack carries twenty ``not`` checks that merely say "no
+    more specific line applies"; printing them first buried the two
+    positive conditions that actually describe the branch.  Each side is
+    wrapped and capped; ``--json`` always carries the full set.
     """
-    if not line.conditions:
-        return []
-    shown = [condition.label for condition in line.conditions[:max_conditions]]
-    remaining = len(line.conditions) - len(shown)
-    if remaining > 0:
-        shown.append(f"(+{remaining:,} more)")
-    indent = " " * 12
-    wrapped = textwrap.wrap(
-        "requires " + ", ".join(shown),
-        width=max(40, width),
-        initial_indent=indent,
-        subsequent_indent=indent + " " * 9,
-        break_long_words=False,
-        break_on_hyphens=False,
-    )
-    return wrapped
+    block: list[str] = []
+    for label, conditions in (("requires", line.required), ("unless", line.excluded)):
+        if not conditions:
+            continue
+        shown = [condition.label for condition in conditions[:max_conditions]]
+        remaining = len(conditions) - len(shown)
+        if remaining > 0:
+            shown.append(f"(+{remaining:,} more)")
+        indent = " " * 12
+        block.extend(
+            textwrap.wrap(
+                f"{label:<9}" + ", ".join(shown),
+                width=max(40, width),
+                initial_indent=indent,
+                subsequent_indent=indent + " " * 9,
+                break_long_words=False,
+                break_on_hyphens=False,
+            )
+        )
+    return block
 
 
 def _failures(report: HiddenReport) -> list[str]:
