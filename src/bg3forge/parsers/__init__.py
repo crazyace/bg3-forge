@@ -45,7 +45,15 @@ from .roottemplates import (
     parse_root_templates,
 )
 from .tags import Tag, TagRegistry, parse_tags
-from .dialogs import Dialog, DialogError, DialogNode, Speaker, parse_dialog
+from .dialogs import (
+    Dialog,
+    DialogError,
+    DialogNode,
+    FlagGroup,
+    FlagRef,
+    Speaker,
+    parse_dialog,
+)
 from .journal import (
     Marker,
     Objective,
@@ -140,6 +148,8 @@ __all__ = [
     "Dialog",
     "DialogError",
     "DialogNode",
+    "FlagGroup",
+    "FlagRef",
     "Speaker",
     "parse_dialog",
     "Marker",

@@ -24,11 +24,22 @@ with speaker slots and localized text handles::
                   <node id="TaggedTexts">... TagText handles ...</node>
                   <node id="children">
                     <children><node id="child"><attribute id="UUID" .../></node></children>
+                  </node>
+                  <node id="checkflags">           (also: setflags)
+                    <children>
+                      <node id="flaggroup">
+                        <attribute id="type" type="FixedString" value="Global" />
+                        <children>
+                          <node id="flag">
+                            <attribute id="UUID" type="FixedString" value="..." />
+                            <attribute id="value" type="bool" value="True" />
+                  ...
 
 This module models the *metadata* level — structure, speakers, flow
-edges, and text handles — not scripting (flag checks/sets are kept as
-raw counts only).  Localization joins are the caller's job; see
-:meth:`bg3forge.game.DialogIndex` for the lazy, per-file access layer.
+edges, text handles, and the flag conditions that gate each node — not
+the wider scripting layer.  Localization joins are the caller's job; see
+:meth:`bg3forge.game.DialogIndex` for the lazy, per-file access layer,
+and :mod:`bg3forge.hidden` for the analysis built on the flag model.
 """
 
 from __future__ import annotations
@@ -49,6 +60,25 @@ class Speaker:
     list_value: str | None = None  # raw speaker list (guids)
 
 
+@dataclass(frozen=True)
+class FlagRef:
+    """One flag inside a group: the flag's UUID and the value it must
+    hold (checks) or is given (sets)."""
+
+    uuid: str
+    value: bool = True
+    paramval: int | None = None  # per-flag parameter (party member index, ...)
+
+
+@dataclass(frozen=True)
+class FlagGroup:
+    """A ``flaggroup`` — flags of one scope (Global, Object, Local,
+    Dialog, Tag, Script, User, Quest, ...)."""
+
+    type: str
+    flags: tuple[FlagRef, ...] = ()
+
+
 @dataclass
 class DialogNode:
     uuid: str
@@ -59,6 +89,21 @@ class DialogNode:
     text_handles: list[tuple[str, int]] = field(default_factory=list)  # (handle, version)
     child_uuids: list[str] = field(default_factory=list)
     jump_target: str | None = None  # Jump nodes: the node jumped to
+    check_flags: list[FlagGroup] = field(default_factory=list)  # conditions to enter
+    set_flags: list[FlagGroup] = field(default_factory=list)    # written when played
+
+    @property
+    def checks(self) -> list[tuple[str, FlagRef]]:
+        """(group type, flag) for every condition guarding this node."""
+        return [(group.type, flag) for group in self.check_flags for flag in group.flags]
+
+    @property
+    def targets(self) -> list[str]:
+        """Node UUIDs this one can hand control to (children + jump)."""
+        targets = list(self.child_uuids)
+        if self.jump_target:
+            targets.append(self.jump_target)
+        return targets
 
 
 @dataclass
@@ -81,6 +126,41 @@ class Dialog:
     def roots(self) -> list[DialogNode]:
         return [node for node in self.nodes if node.is_root]
 
+    @property
+    def entry_points(self) -> list[DialogNode]:
+        """Where playback can begin: the flagged roots, or — when a
+        dialog marks none — every node nothing else links to.
+
+        Retail dialogs are not uniform about ``Root``; falling back to
+        the graph's own sources keeps traversal working instead of
+        reporting an entire file as unreachable.
+        """
+        roots = self.roots
+        if roots:
+            return roots
+        linked = self._linked_uuids()
+        return [node for node in self.nodes if node.uuid not in linked]
+
+    def orphans(self) -> list[DialogNode]:
+        """Nodes no other node links to and no root flag marks.
+
+        Normal dialog flow cannot reach these; they are cut lines,
+        editor leftovers, or nodes only script can jump into.
+        """
+        linked = self._linked_uuids()
+        return [
+            node
+            for node in self.nodes
+            if not node.is_root and node.uuid not in linked
+        ]
+
+    def _linked_uuids(self) -> set[str]:
+        """Every node UUID some other node links to."""
+        linked: set[str] = set()
+        for node in self.nodes:
+            linked.update(node.targets)
+        return linked
+
     def text_handles(self) -> list[tuple[str, int]]:
         """Every (handle, version) spoken anywhere in the dialog."""
         handles = []
@@ -93,8 +173,10 @@ class Dialog:
 
         Flow edges are child links plus Jump nodes' ``jumptarget`` —
         without the latter, traversal dead-ends at every Jump.
+        Traversal starts from :attr:`entry_points`, so dialogs that mark
+        no root still walk from their graph sources.
         """
-        stack = [start] if start else list(reversed(self.roots))
+        stack = [start] if start else list(reversed(self.entry_points))
         seen: set[str] = set()
         while stack:
             node = stack.pop()
@@ -102,10 +184,7 @@ class Dialog:
                 continue
             seen.add(node.uuid)
             yield node
-            targets = list(node.child_uuids)
-            if node.jump_target:
-                targets.append(node.jump_target)
-            for target_uuid in reversed(targets):
+            for target_uuid in reversed(node.targets):
                 stack.append(self._by_uuid.get(target_uuid))
 
 
@@ -190,7 +269,61 @@ def _parse_node(node_el: LsxNode) -> DialogNode | None:
         text_handles=text_handles,
         child_uuids=child_uuids,
         jump_target=node_el.get("jumptarget"),
+        check_flags=_parse_flag_wrapper(node_el, "checkflags"),
+        set_flags=_parse_flag_wrapper(node_el, "setflags"),
     )
+
+
+def _parse_flag_wrapper(node_el: LsxNode, wrapper_id: str) -> list[FlagGroup]:
+    """The ``checkflags``/``setflags`` wrapper as typed flag groups.
+
+    Node ids and attribute ids are matched case-insensitively: the same
+    document reaches us as LSX, LSJ, or LSF, and the three
+    serializations do not agree on casing.
+    """
+    groups: list[FlagGroup] = []
+    for wrapper in node_el.children:
+        if wrapper.id.lower() != wrapper_id:
+            continue
+        for group_el in wrapper.children:
+            if group_el.id.lower() != "flaggroup":
+                continue
+            flags = []
+            for flag_el in group_el.children:
+                if flag_el.id.lower() != "flag":
+                    continue
+                flag_uuid = _get_ci(flag_el, "UUID")
+                if not flag_uuid:
+                    continue
+                flags.append(
+                    FlagRef(
+                        uuid=flag_uuid,
+                        value=_truthy(_get_ci(flag_el, "value")),
+                        paramval=_int_or_none(_get_ci(flag_el, "paramval")),
+                    )
+                )
+            groups.append(
+                FlagGroup(type=_get_ci(group_el, "type") or "", flags=tuple(flags))
+            )
+    return groups
+
+
+def _get_ci(node_el: LsxNode, attribute_id: str) -> str | None:
+    value = node_el.get(attribute_id)
+    if value is not None:
+        return value
+    wanted = attribute_id.lower()
+    for name, attr in node_el.attributes.items():
+        if name.lower() == wanted:
+            return attr.text
+    return None
+
+
+def _int_or_none(value: str | None) -> int | None:
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
 
 
 def _truthy(value: str | None) -> bool:

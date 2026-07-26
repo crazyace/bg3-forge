@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+### Hidden content discovery
+
+* Added `bg3forge secrets` (and `bg3forge.hidden.find_hidden`) — find the
+  dialog lines the game almost never shows, ranked by how hard they are
+  to reach.
+  * **Gated lines** are ranked by the *minimum* number of story flags any
+    playthrough must satisfy to hear them. The count comes from a
+    cheapest-path search over the dialog graph, so conditions inherited
+    from ancestors are included and a branch that re-checks a flag its
+    parent already checked counts it once, not twice.
+  * **Orphan lines** — nodes nothing links to and no root flag marks —
+    are reported separately: cut content, editor leftovers, and
+    script-only entry points are indistinguishable in the data, so the
+    finding says what it can prove ("normal flow cannot reach this")
+    rather than guessing.
+  * Conditions read as `Global:ORI_Withers_Recruited` or
+    `not Global:GLO_Hostile`, with flag UUIDs resolved to authored names
+    through the new `Game.flag_names` registry index (`Flags/`,
+    `ScriptFlags/`, `DialogVariables/`).
+  * Filters for path substring, `--category`, `--kind`, and
+    `--min-gates`; `--json` writes every finding through the standard
+    exporter for further processing.
+* The dialog parser now models `checkflags`/`setflags` as typed
+  `FlagGroup`/`FlagRef` records on each node instead of discarding them,
+  and node ids/attributes are matched case-insensitively so LSX, LSJ, and
+  LSF forms of the same dialog parse identically.
+* `Dialog.entry_points` and `Dialog.orphans()` expose the graph's real
+  sources. `Dialog.walk()` now starts from the entry points, so a dialog
+  that marks no `Root` traverses from its sources instead of yielding
+  nothing (previously `lines()` fell back to unordered node order for
+  those files).
+
 ## 0.2.0 — 2026-07-23
 
 ### Lookup

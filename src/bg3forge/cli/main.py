@@ -15,6 +15,7 @@ from pathlib import Path
 from .. import __version__
 from ..exporters import FORMATS, export_json
 from ..game import Game, GameNotFoundError
+from ..hidden import KINDS
 from ..pak.extractor import Extractor
 from ..pak.patches import PatchDetector
 from ..pak.reader import PakReader, file_is_lspk
@@ -117,6 +118,37 @@ def build_parser() -> argparse.ArgumentParser:
         "query",
         nargs="+",
         help="a stats/display name, template/tag UUID, or h... handle (quotes optional)",
+    )
+
+    secrets = sub.add_parser(
+        "secrets",
+        help="find dialog lines hidden behind flag conditions, plus unreachable ones",
+        description="Ranks spoken lines by how many story flags must hold before "
+        "anyone hears them, and reports nodes normal dialog flow cannot reach at "
+        'all. Narrow the sweep with a match, e.g. bg3forge secrets "Astarion".',
+    )
+    secrets.add_argument(
+        "match",
+        nargs="?",
+        help="case-insensitive substring of the dialog path (default: every dialog)",
+    )
+    secrets.add_argument(
+        "--category", help="only dialogs of this category (Camp, Companion, ...)"
+    )
+    secrets.add_argument(
+        "--kind", choices=("all",) + KINDS, default="all",
+        help="gated (behind flags), orphan (unreachable), or all (default)",
+    )
+    secrets.add_argument(
+        "--min-gates", type=int, default=1,
+        help="minimum conditions on a line (default: 1; 0 keeps orphans with none)",
+    )
+    secrets.add_argument(
+        "--limit", type=int, default=40, help="lines to print (default: 40)"
+    )
+    secrets.add_argument("--json", type=Path, help="also write every result here")
+    secrets.add_argument(
+        "--no-progress", action="store_true", help="disable the live progress line"
     )
 
     benchmark = sub.add_parser(
@@ -377,6 +409,30 @@ def _dispatch(args) -> int:
                 progress.clear()
         print(format_report(report, max_issues=args.max_issues))
         return 0 if report.ok else 1
+
+    if args.command == "secrets":
+        from ..hidden import find_hidden, format_report, to_records
+
+        game = _open_game(args)
+        progress = None if args.no_progress else _console_progress()
+        try:
+            report = find_hidden(
+                game,
+                match=args.match,
+                category=args.category,
+                kinds=KINDS if args.kind == "all" else (args.kind,),
+                min_gates=args.min_gates,
+                progress=progress,
+            )
+        finally:
+            if progress:
+                progress.clear()
+            game.close()
+        print(format_report(report, limit=args.limit))
+        if args.json:
+            export_json(to_records(report), args.json)
+            print(f"wrote {len(report.lines)} line(s) to {args.json}")
+        return 0 if report.lines else 1
 
     if args.command == "benchmark":
         from ..benchmark import format_report, run_benchmark

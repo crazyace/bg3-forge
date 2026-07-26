@@ -110,6 +110,38 @@ Those four artifacts are the baseline the contributor policy
 against — and the validate issues list, if any, is the highest-priority
 bug list the project can have.
 
+## Hidden-content sweep (dialog flag model)
+
+`bg3forge secrets` reads the `checkflags`/`setflags` groups on dialog
+nodes. Unlike stats or localization, that shape cannot be verified from
+the synthetic fixtures alone — the unit suite proves the parser handles
+the schema as documented, not that retail uses exactly that schema. One
+retail run settles it:
+
+```powershell
+bg3forge secrets --min-gates 0 --limit 5 --no-progress *> secrets-smoke.txt
+bg3forge secrets --min-gates 4 --json secrets.json *> secrets.txt
+```
+
+The summary line is the check that matters:
+
+```text
+scanned 21,431 dialog(s); 96,204 node(s) carry conditions; found 812 line(s)
+```
+
+* **`node(s) carry conditions` is zero** — the flag model does not match
+  this build. That is a bug report worth filing with one `.lsf` dialog
+  converted to LSX (`bg3forge convert <dialog>.lsf out.lsx`) so the real
+  node layout is visible.
+* **Conditions print as bare UUIDs** — the flag registries live
+  somewhere `Game.flag_names` does not look; capture the output of
+  `bg3forge search "flags" --dirs` alongside.
+* **Everything resolves to names** — the model holds; `secrets.json` is
+  then a genuine catalog of the game's most heavily gated lines.
+
+A full sweep parses every dialog in the game, so expect it to run for
+several minutes; pass a path substring to keep it quick.
+
 ## Wiring survey (authoring assumptions)
 
 `python scripts/wiring_survey.py` sweeps every RootTemplate in the install
