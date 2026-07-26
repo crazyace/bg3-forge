@@ -6,7 +6,14 @@ from dataclasses import replace
 import pytest
 
 from bg3forge import Game
-from bg3forge.hidden import analyze_dialog, find_hidden, format_report, to_records
+from bg3forge.hidden import (
+    analyze_dialog,
+    find_hidden,
+    format_report,
+    game_names,
+    scope_counts,
+    to_records,
+)
 from bg3forge.parsers import parse_dialog, parse_lsx
 from bg3forge.parsers.lsf import write_lsf
 from bg3forge.parsers.localization import LocaEntry, write_loca
@@ -138,6 +145,7 @@ MET_FLAG = "aaaa1111-0000-0000-0000-0000000000f1"
 TRUST_FLAG = "aaaa1111-0000-0000-0000-0000000000f2"
 NIGHT_FLAG = "aaaa1111-0000-0000-0000-0000000000f3"
 HOSTILE_FLAG = "aaaa1111-0000-0000-0000-0000000000f4"
+TAG_UUID = "cccc2222-0000-0000-0000-0000000000a1"
 
 DIALOG_LSX = SECRET_DIALOG_LSX.format(
     greeting_text=_text("hbbbb0000-0000-0000-0000-0000000000t1"),
@@ -152,7 +160,10 @@ DIALOG_LSX = SECRET_DIALOG_LSX.format(
         ("Object", TRUST_FLAG, "True"),
         ("Global", NIGHT_FLAG, "True"),
     ),
-    checks_negated=_flags(("Global", HOSTILE_FLAG, "False")),
+    # a world-state check and a party-composition check on one node
+    checks_negated=_flags(
+        ("Global", HOSTILE_FLAG, "False"), ("Tag", TAG_UUID, "True")
+    ),
 )
 
 # A registry naming three of the four flags; the fourth stays a UUID.
@@ -179,6 +190,18 @@ FLAGS_LSX = f"""\
 </save>
 """
 
+# Tag registry entry, the other half of the name resolution story.
+TAGS_LSX = f"""\
+<save>
+  <region id="Tags">
+    <node id="Tags">
+      <attribute id="UUID" type="guid" value="{TAG_UUID}" />
+      <attribute id="Name" type="FixedString" value="ASTARION" />
+    </node>
+  </region>
+</save>
+"""
+
 LOCA = [
     LocaEntry("hbbbb0000-0000-0000-0000-0000000000t1", 1, "Well met."),
     LocaEntry("hbbbb0000-0000-0000-0000-0000000000t2", 1, "You again."),
@@ -196,6 +219,7 @@ def secrets_dir(tmp_path):
     writer = PakWriter()
     writer.add(DIALOG_PATH, write_lsf(parse_lsx(DIALOG_LSX), version=6))
     writer.add("Mods/Shared/Story/Flags/Companion.lsx", FLAGS_LSX.encode())
+    writer.add(f"Public/Shared/Tags/{TAG_UUID}.lsx", TAGS_LSX.encode())
     writer.add("Localization/English/english.loca", write_loca(LOCA))
     return writer.write(tmp_path / "Secrets.pak").parent
 
@@ -210,8 +234,9 @@ def test_parse_dialog_reads_flag_conditions():
     assert (scope, flag.uuid, flag.value, flag.paramval) == ("Global", MET_FLAG, True, 0)
 
     negated = dialog.node("negated")
-    (_scope, hostile), = negated.checks
+    (_scope, hostile), (tag_scope, tag) = negated.checks
     assert hostile.uuid == HOSTILE_FLAG and hostile.value is False
+    assert (tag_scope, tag.uuid) == ("Tag", TAG_UUID)
 
     assert dialog.node("greeting").checks == []
     assert dialog.node("greeting").set_flags == []
@@ -284,7 +309,7 @@ def test_analyze_dialog_counts_the_cheapest_condition_path():
     dialog = parse_dialog(parse_lsx(DIALOG_LSX))
     lines = analyze_dialog(
         dialog,
-        flag_names={MET_FLAG: "COMP_MetInTavern", TRUST_FLAG: "COMP_TrustsYou"},
+        names={MET_FLAG: "COMP_MetInTavern", TRUST_FLAG: "COMP_TrustsYou"},
         resolve=lambda handle: {"hbbbb0000-0000-0000-0000-0000000000t2": "You again."}.get(
             handle, "text"
         ),
@@ -314,7 +339,7 @@ def test_analyze_dialog_counts_the_cheapest_condition_path():
     assert by_node["gated"].kind == "gated"
 
     # most-gated first, orphans ahead of equally-gated lines
-    assert [line.node for line in lines] == ["deep", "gated", "negated", "cut"]
+    assert [line.node for line in lines] == ["deep", "negated", "gated", "cut"]
 
 
 def test_dangling_links_do_not_break_the_search():
@@ -327,6 +352,35 @@ def test_dangling_links_do_not_break_the_search():
     by_node = {line.node: line for line in lines}
     assert by_node["deep"].kind == "orphan" and by_node["deep"].gate_count == 3
     assert str(by_node["gated"].conditions[0]) == f"Global:{MET_FLAG}"
+
+
+def test_tag_scope_resolves_through_the_tag_registry(secrets_dir):
+    """Tag-scope conditions name entries in the tag registry, not story
+    flags; retail prints a wall of GUIDs unless both are consulted."""
+    game = Game(data_dir=secrets_dir)
+    lookup = game_names(game)
+    assert lookup("Tag", TAG_UUID.upper()) == "ASTARION"
+    assert lookup("Global", MET_FLAG) == "COMP_MetInTavern"
+    # a Tag UUID no registry knows falls through rather than inventing one
+    assert lookup("Tag", HOSTILE_FLAG) is None
+
+    tagged = [line for line in find_hidden(game).lines if line.node == "negated"][0]
+    assert tagged.conditions[-1].label == "Tag:ASTARION"
+
+
+def test_scope_filter_counts_only_the_scopes_asked_for(secrets_dir):
+    game = Game(data_dir=secrets_dir)
+    world_only = find_hidden(game, scopes=("Global", "Object"))
+    by_node = {line.node: line for line in world_only.lines}
+    # "negated" is gated by one Global and one Tag check; only the Global counts
+    assert by_node["negated"].gate_count == 1
+    assert all(
+        condition.scope in ("Global", "Object")
+        for line in world_only.lines
+        for condition in line.conditions
+    )
+    assert scope_counts(world_only) == {"Global": 4, "Object": 1}
+    assert scope_counts(find_hidden(game))["Tag"] == 1
 
 
 def test_analyze_dialog_skips_unresolved_handles():
@@ -345,7 +399,7 @@ def test_find_hidden_end_to_end(secrets_dir):
     report = find_hidden(game, min_gates=0)
     assert report.ok and report.dialogs_scanned == 1
     assert [(line.node, line.gate_count) for line in report.lines] == [
-        ("deep", 3), ("gated", 1), ("negated", 1), ("cut", 0),
+        ("deep", 3), ("negated", 2), ("gated", 1), ("cut", 0),
     ]
     deep = report.lines[0]
     assert deep.dialog == DIALOG_PATH and deep.category == "Companion"
@@ -359,7 +413,9 @@ def test_find_hidden_end_to_end(secrets_dir):
 
 def test_find_hidden_filters(secrets_dir):
     game = Game(data_dir=secrets_dir)
-    assert [line.node for line in find_hidden(game, min_gates=2).lines] == ["deep"]
+    assert [line.node for line in find_hidden(game, min_gates=2).lines] == [
+        "deep", "negated",
+    ]
     assert [line.node for line in find_hidden(
         game, min_gates=0, kinds=("orphan",)
     ).lines] == ["cut"]
@@ -431,7 +487,9 @@ def test_secrets_cli(secrets_dir, capsys, tmp_path):
     assert "Hidden dialog content" in out and "gated x3" in out
 
     records = json.loads(out_json.read_text())
-    assert [record["node"] for record in records] == ["deep", "gated", "negated", "cut"]
+    assert [record["node"] for record in records] == [
+        "deep", "negated", "gated", "cut",
+    ]
     assert records[0]["conditions"] == [
         "Global:COMP_MetInTavern",
         "Object:COMP_TrustsYou",

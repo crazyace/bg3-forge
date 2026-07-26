@@ -21,9 +21,19 @@
     `not Global:GLO_Hostile`, with flag UUIDs resolved to authored names
     through the new `Game.flag_names` registry index (`Flags/`,
     `ScriptFlags/`, `DialogVariables/`).
-  * Filters for path substring, `--category`, `--kind`, and
+  * `Tag`-scope conditions are party-composition checks naming entries
+    in the *tag* registry, not story flags; they resolve through
+    `Game.tags` (`Tag:ASTARION`), which is only built if a Tag condition
+    actually appears in the sweep.
+  * Filters for path substring, `--category`, `--kind`, `--scope`, and
     `--min-gates`; `--json` writes every finding through the standard
-    exporter for further processing.
+    exporter for further processing. `--scope Global,Object` ranks on
+    world state alone, dropping party-composition and engine checks from
+    both the count and the path search, and the report prints the scope
+    mix so the filter can be chosen from evidence.
+  * A retail epilogue line can carry two dozen conditions, so the
+    console report wraps the `requires` block and caps it at the first
+    few with `(+N more)`; `--json` always carries the full set.
 * The dialog parser now models `checkflags`/`setflags` as typed
   `FlagGroup`/`FlagRef` records on each node instead of discarding them,
   and node ids/attributes are matched case-insensitively so LSX, LSJ, and

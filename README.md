@@ -168,6 +168,7 @@ anyone hears them, and reports nodes normal dialog flow cannot reach at all:
 ```powershell
 bg3forge secrets "Astarion" --min-gates 3
 bg3forge secrets --category Camp --kind orphan
+bg3forge secrets --scope Global,Object --min-gates 6
 bg3forge secrets --json secrets.json
 ```
 
@@ -183,7 +184,14 @@ path to it, so a branch that re-checks a flag its parent already checked counts
 once. `orphan` means no node links to it and no root marks it: cut lines,
 editor leftovers, and nodes only Osiris script can jump into all look alike
 from the data side. Flag UUIDs are resolved to their authored names where a
-registry names them.
+registry names them — story flags through the flag registries, `Tag:` scope
+through the tag registry (`Tag:ASTARION`, not a GUID).
+
+Retail mixes world state (`Global`, `Object`) with party-composition checks
+(`Tag`) and engine bookkeeping (`Script`) in one condition list, and the report
+prints the mix (`conditions by scope: Global 12,043, Tag 8,210, ...`). Use
+`--scope Global,Object` to rank on world state alone; excluded scopes leave
+both the count and the path search.
 
 A bare `bg3forge secrets` sweeps every dialog in the game, which takes a while
 on a retail install — pass a path substring to narrow it.

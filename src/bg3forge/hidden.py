@@ -30,8 +30,9 @@ from __future__ import annotations
 
 import heapq
 import re
+import textwrap
 from dataclasses import dataclass, field
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Iterable, Mapping, Sequence
 
 from .game import Game, LoadIssue
 from .parsers.dialogs import Dialog, DialogNode, FlagRef
@@ -103,6 +104,7 @@ def find_hidden(
     match: str | None = None,
     category: str | None = None,
     kinds: Iterable[str] = KINDS,
+    scopes: Iterable[str] | None = None,
     min_gates: int = 0,
     progress: Callable[[str], None] | None = None,
 ) -> HiddenReport:
@@ -113,16 +115,25 @@ def find_hidden(
     otherwise, which on a retail install means tens of thousands of
     files.  Results are sorted most-gated first and are fully
     deterministic for a given install.
+
+    ``scopes`` restricts which flag scopes count as gating.  Retail
+    dialogs mix world state (``Global``, ``Object``) with party-
+    composition checks (``Tag``) and engine bookkeeping (``Script``);
+    ranking by world state alone is often the more interesting question,
+    and conditions in excluded scopes are dropped from both the count
+    and the search.
     """
     wanted_kinds = {kind.lower() for kind in kinds}
     unknown = wanted_kinds - set(KINDS)
     if unknown:
         raise ValueError(f"unknown kind(s): {', '.join(sorted(unknown))}")
 
+    wanted_scopes = {scope.lower() for scope in scopes} if scopes else None
+
     if paths is None:
         paths = game.dialogs.find(match) if match else game.dialogs.paths
     report = HiddenReport()
-    flag_names = game.flag_names
+    names = game_names(game)
     localization = game.localization
 
     for index, path in enumerate(sorted(paths), start=1):
@@ -141,7 +152,11 @@ def find_hidden(
         report.lines.extend(
             line
             for line in analyze_dialog(
-                dialog, flag_names=flag_names, resolve=localization.resolve, path=path
+                dialog,
+                names=names,
+                resolve=localization.resolve,
+                scopes=wanted_scopes,
+                path=path,
             )
             if line.kind in wanted_kinds and line.gate_count >= min_gates
         )
@@ -153,18 +168,24 @@ def find_hidden(
 def analyze_dialog(
     dialog: Dialog,
     *,
-    flag_names: dict[str, str] | None = None,
+    names: Mapping[str, str] | Callable[[str, str], str | None] | None = None,
     resolve: Callable[[str | None], str | None] | None = None,
+    scopes: Iterable[str] | None = None,
     path: str | None = None,
 ) -> list[HiddenLine]:
     """Every gated or orphaned spoken line in one dialog.
 
-    ``resolve`` maps a localization handle to text (typically
-    ``game.localization.resolve``); lines whose handle resolves to
-    nothing are skipped, since an untranslated handle says nothing
-    about the content.  Without a resolver the raw handle is reported.
+    ``names`` resolves a flag UUID to its authored name — either a
+    plain UUID -> name mapping or a ``(scope, uuid)`` callable, since
+    the registry to consult depends on the scope (see
+    :func:`game_names`).  ``resolve`` maps a localization handle to text
+    (typically ``game.localization.resolve``); lines whose handle
+    resolves to nothing are skipped, since an untranslated handle says
+    nothing about the content.  Without a resolver the raw handle is
+    reported.  ``scopes``, when given, limits which flag scopes gate.
     """
-    conditions = _cheapest_conditions(dialog, flag_names or {})
+    wanted_scopes = {scope.lower() for scope in scopes} if scopes else None
+    conditions = _cheapest_conditions(dialog, _resolver(names), wanted_scopes)
     reachable = {node.uuid for node in dialog.walk()}
     source = path or dialog.source or dialog.uuid
 
@@ -195,8 +216,50 @@ def analyze_dialog(
     return lines
 
 
+def game_names(game: Game) -> Callable[[str, str], str | None]:
+    """A ``(scope, uuid) -> name`` resolver backed by a game install.
+
+    ``Tag``-scope conditions are party-composition checks naming entries
+    in the tag registry, not story flags; every other scope resolves
+    through :attr:`bg3forge.game.Game.flag_names`.  The tag registry is
+    only built if a Tag condition actually turns up — most sweeps that
+    never see one should not pay for parsing thousands of tag files.
+    """
+    flags = game.flag_names
+    tags: dict[str, str] | None = None
+
+    def lookup(scope: str, uuid: str) -> str | None:
+        nonlocal tags
+        key = uuid.lower()
+        if scope.lower() == "tag":
+            if tags is None:
+                tags = {
+                    tag.uuid.lower(): tag.name or tag.display_name
+                    for tag in game.tags
+                }
+            name = tags.get(key)
+            if name:
+                return name
+        return flags.get(key)
+
+    return lookup
+
+
+def _resolver(
+    names: Mapping[str, str] | Callable[[str, str], str | None] | None,
+) -> Callable[[str, str], str | None]:
+    """Normalize the two accepted ``names`` forms to one callable."""
+    if names is None:
+        return lambda scope, uuid: None
+    if callable(names):
+        return names
+    return lambda scope, uuid: names.get(uuid.lower())
+
+
 def _cheapest_conditions(
-    dialog: Dialog, flag_names: dict[str, str]
+    dialog: Dialog,
+    names: Callable[[str, str], str | None],
+    scopes: set[str] | None,
 ) -> dict[str, tuple[Condition, ...]]:
     """node UUID -> the smallest condition set that reaches it.
 
@@ -217,7 +280,7 @@ def _cheapest_conditions(
         node = dialog.node(uuid)
         if node is None:
             continue
-        gates = _conditions(node, flag_names)
+        gates = _conditions(node, names, scopes)
         heapq.heappush(heap, (len(gates), uuid, counter, gates))
         counter += 1
 
@@ -235,24 +298,26 @@ def _cheapest_conditions(
             target = dialog.node(target_uuid)
             if target is None:
                 continue
-            merged = _merge(gates, _conditions(target, flag_names))
+            merged = _merge(gates, _conditions(target, names, scopes))
             heapq.heappush(heap, (len(merged), target_uuid, counter, merged))
             counter += 1
     return best
 
 
-def _conditions(node: DialogNode, flag_names: dict[str, str]) -> tuple[Condition, ...]:
+def _conditions(
+    node: DialogNode,
+    names: Callable[[str, str], str | None],
+    scopes: set[str] | None,
+) -> tuple[Condition, ...]:
     return tuple(
-        _condition(scope, flag, flag_names) for scope, flag in node.checks
-    )
-
-
-def _condition(scope: str, flag: FlagRef, flag_names: dict[str, str]) -> Condition:
-    return Condition(
-        scope=scope,
-        uuid=flag.uuid,
-        value=flag.value,
-        name=flag_names.get(flag.uuid.lower()),
+        Condition(
+            scope=scope,
+            uuid=flag.uuid,
+            value=flag.value,
+            name=names(scope, flag.uuid),
+        )
+        for scope, flag in node.checks
+        if scopes is None or scope.lower() in scopes
     )
 
 
@@ -298,7 +363,27 @@ def to_records(report: HiddenReport) -> list[dict]:
     ]
 
 
-def format_report(report: HiddenReport, limit: int = 40, width: int = 96) -> str:
+def scope_counts(report: HiddenReport) -> dict[str, int]:
+    """How often each flag scope appears across the findings.
+
+    Retail mixes world state with party-composition and engine checks;
+    seeing the mix is what tells you whether a ``--scope`` filter would
+    sharpen the ranking.
+    """
+    counts: dict[str, int] = {}
+    for line in report.lines:
+        for condition in line.conditions:
+            scope = condition.scope or "(none)"
+            counts[scope] = counts.get(scope, 0) + 1
+    return dict(sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
+
+
+def format_report(
+    report: HiddenReport,
+    limit: int = 40,
+    width: int = 96,
+    max_conditions: int = 8,
+) -> str:
     # ASCII-only output: these strings land in Windows consoles whose
     # OEM codepage mangles anything fancier.
     lines = ["Hidden dialog content", "---------------------"]
@@ -307,6 +392,10 @@ def format_report(report: HiddenReport, limit: int = 40, width: int = 96) -> str
         f"{report.gated_nodes:,} node(s) carry conditions; "
         f"found {len(report.lines):,} line(s)"
     )
+    counts = scope_counts(report)
+    if counts:
+        summary = ", ".join(f"{scope} {count:,}" for scope, count in counts.items())
+        lines.append(f"conditions by scope: {summary}")
     if not report.lines:
         lines.append("")
         lines.append("nothing matched: try a lower --min-gates or a wider --match.")
@@ -323,14 +412,38 @@ def format_report(report: HiddenReport, limit: int = 40, width: int = 96) -> str
         tag = "orphan" if line.kind == "orphan" else f"gated x{line.gate_count}"
         speaker = "speaker ?" if line.speaker is None else f"speaker {line.speaker}"
         lines.append(f"  {tag:<10}{speaker:<11}{_quote(line.text, width)}")
-        if line.conditions:
-            requires = ", ".join(condition.label for condition in line.conditions)
-            lines.append(f"  {'':<10}requires {requires}")
+        lines.extend(_requires(line, width, max_conditions))
     remaining = len(report.lines) - len(shown)
     if remaining > 0:
         lines.append("")
         lines.append(f"... and {remaining:,} more (raise --limit to see them)")
     return "\n".join(lines + _failures(report))
+
+
+def _requires(line: HiddenLine, width: int, max_conditions: int) -> list[str]:
+    """The ``requires`` block, wrapped and capped.
+
+    A retail epilogue line can carry two dozen conditions; printed as
+    one line that is a wall of text nobody reads, so show the first few
+    and say how many were held back.  The full set is always in
+    ``--json``.
+    """
+    if not line.conditions:
+        return []
+    shown = [condition.label for condition in line.conditions[:max_conditions]]
+    remaining = len(line.conditions) - len(shown)
+    if remaining > 0:
+        shown.append(f"(+{remaining:,} more)")
+    indent = " " * 12
+    wrapped = textwrap.wrap(
+        "requires " + ", ".join(shown),
+        width=max(40, width),
+        initial_indent=indent,
+        subsequent_indent=indent + " " * 9,
+        break_long_words=False,
+        break_on_hyphens=False,
+    )
+    return wrapped
 
 
 def _failures(report: HiddenReport) -> list[str]:

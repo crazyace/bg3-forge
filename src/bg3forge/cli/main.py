@@ -140,6 +140,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="gated (behind flags), orphan (unreachable), or all (default)",
     )
     secrets.add_argument(
+        "--scope",
+        help="only count these flag scopes, comma-separated "
+        "(e.g. Global,Object to ignore party-composition and engine checks)",
+    )
+    secrets.add_argument(
         "--min-gates", type=int, default=1,
         help="minimum conditions on a line (default: 1; 0 keeps orphans with none)",
     )
@@ -172,6 +177,13 @@ def build_parser() -> argparse.ArgumentParser:
     icons.add_argument("-o", "--output", type=Path, default=Path("icons"))
     icons.add_argument("-f", "--format", choices=("png", "webp"), default="png")
     return parser
+
+
+def _split_scopes(value: str | None) -> list[str] | None:
+    """``"Global, Object"`` -> ``["Global", "Object"]``; None stays None."""
+    if not value:
+        return None
+    return [scope.strip() for scope in value.split(",") if scope.strip()]
 
 
 def _add_export_args(cmd: argparse.ArgumentParser, default_output: Path) -> None:
@@ -421,6 +433,7 @@ def _dispatch(args) -> int:
                 match=args.match,
                 category=args.category,
                 kinds=KINDS if args.kind == "all" else (args.kind,),
+                scopes=_split_scopes(args.scope),
                 min_gates=args.min_gates,
                 progress=progress,
             )
