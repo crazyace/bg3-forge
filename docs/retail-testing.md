@@ -142,6 +142,35 @@ scanned 21,431 dialog(s); 96,204 node(s) carry conditions; found 812 line(s)
 A full sweep parses every dialog in the game, so expect it to run for
 several minutes; pass a path substring to keep it quick.
 
+### Why an `unreachable` finding means something
+
+Verified against retail (patch 8). A dialog node can be entered five
+ways, and `secrets` models all five, so a node it still calls
+unreachable cannot be played:
+
+1. a `child` edge from another node;
+2. a `jumptarget`;
+3. node-group membership — nodes sharing a `GroupID` are alternatives
+   played through the group leader;
+4. a root declaration, either the per-node `Root` attribute or the
+   region's `RootNodes` list (retail uses both, often redundantly);
+5. a `Nested Dialog` node in a *different* file pointing at it through
+   `NestedDialogNodeUUID`.
+
+Osiris cannot enter a node directly. Goal scripts reference dialogs at
+resource granularity —
+`(DIALOGRESOURCE)Gale_InParty2_6beb1b10-845f-49fa-6d6d-f425eaa42574` —
+and never by node UUID; a search of all 946 goal scripts for an
+unreachable node's UUID returns nothing. Scripts start a dialog, and the
+dialog picks a root. So "no entry point reaches this node" is the whole
+story, not one mechanism among several.
+
+If you want to re-verify on a later patch, the check is: pick an
+unreachable node from `--json` output, search the extracted goal scripts
+for its UUID (expect nothing), then search for the dialog's file name
+(expect `(DIALOGRESOURCE)` hits). The second search is the control —
+without it, an empty first result proves nothing.
+
 ## Wiring survey (authoring assumptions)
 
 `python scripts/wiring_survey.py` sweeps every RootTemplate in the install

@@ -10,7 +10,11 @@ answers that with a cheapest-path search from the dialog's entry points,
 where a node costs the number of flags guarding it: the result is the
 *minimum* set of conditions any playthrough must satisfy to reach it.
 
-*Unreachability* — no entry point reaches the node at all.  That covers
+*Unreachability* — no entry point reaches the node at all.  Entry
+covers child edges, jump targets, node groups, both root declarations,
+and cross-file ``Nested Dialog`` pointers; Osiris starts dialogs at
+resource granularity and cannot enter a node directly (verified against
+retail — see ``docs/retail-testing.md``).  That covers
 more than a stray node: a whole branch is unreachable when the link into
 its top is missing, so the finding is "normal flow cannot get here",
 not "nothing points at this".  Cut lines, editor leftovers, and nodes
